@@ -8,6 +8,7 @@ import Brinquedos from './screens/Brinquedos'
 import Caixa from './screens/Caixa'
 import Lancamento from './screens/Lancamento'
 import Acompanhamento from './screens/Acompanhamento'
+import Relatorios from './screens/Relatorios'
 import Pagamento from './screens/Pagamento'
 import ReciboLancamento from './screens/recibos/ReciboLancamento'
 import ReciboPagamento from './screens/recibos/ReciboPagamento'
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
 			{ path: 'caixa', element: <Caixa /> },
 			{ path: 'lancamento', element: <Lancamento /> },
 			{ path: 'acompanhamento', element: <Acompanhamento /> },
+			{ path: 'relatorios', element: <Relatorios /> },
 			{ path: 'pagamento/:id', element: <Pagamento /> },
 			{ path: 'recibo/lancamento/:id', element: <ReciboLancamento /> },
 			{ path: 'recibo/pagamento/:id', element: <ReciboPagamento /> },
