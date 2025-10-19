@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { db, type Lancamento, type Caixa } from '../services/mockDb'
+import { db } from '../services/mockDb'
 import { 
 	LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-	XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+	XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts'
 
 export default function Relatorios() {
@@ -14,7 +14,6 @@ export default function Relatorios() {
 	const lancamentos = useMemo(() => db.get().lancamentos, [])
 	const caixas = useMemo(() => db.get().caixas, [])
 	const brinquedos = useMemo(() => db.get().brinquedos, [])
-	const formasPagamento = useMemo(() => db.get().formasPagamento, [])
 
 	// Filtrar lançamentos
 	const lancamentosFiltrados = useMemo(() => {
@@ -164,7 +163,7 @@ export default function Relatorios() {
 		}))
 
 		// Dados para gráfico de clientes
-		const dadosClientes = relatorioClientes.topClientes.slice(0, 5).map((cliente, index) => ({
+		const dadosClientes = relatorioClientes.topClientes.slice(0, 5).map((cliente) => ({
 			cliente: cliente.nome.length > 10 ? cliente.nome.substring(0, 10) + '...' : cliente.nome,
 			total: cliente.total,
 			lancamentos: cliente.lancamentos
@@ -304,7 +303,7 @@ export default function Relatorios() {
 											cx="50%"
 											cy="50%"
 											labelLine={false}
-											label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+											label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
 											outerRadius={80}
 											fill="#8884d8"
 											dataKey="value"

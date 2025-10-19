@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { db, uid, calcularValor, Parametros, type Caixa } from '../services/mockDb'
+import { db, uid, calcularValor, Parametros } from '../services/mockDb'
 
 export default function Lancamento() {
 	const brinquedos = useMemo(() => db.get().brinquedos, [])
 	const parametros = useMemo(() => db.get().parametros, [])
-	const caixas = useMemo(() => db.get().caixas, [])
-	const caixaAberto = useMemo(() => caixas.find((c) => c.status === 'aberto'), [caixas])
 	const navigate = useNavigate()
 	const [form, setForm] = useState({
 		nomeCrianca: '',
@@ -21,10 +19,6 @@ export default function Lancamento() {
 	const valor = useMemo(() => calcularValor(parametros as Parametros, form.tempoLivre ? null : form.tempoSolicitadoMin), [form.tempoSolicitadoMin, form.tempoLivre, parametros])
 
 	function onSave() {
-		if (!caixaAberto) {
-			alert('Não é possível fazer lançamentos com o caixa fechado. Abra o caixa primeiro.')
-			return
-		}
 		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim()) return alert('Preencha os nomes')
 		db.update((d) => {
 			d.lancamentos.push({
@@ -48,38 +42,7 @@ export default function Lancamento() {
 	return (
 		<div className="container" style={{ maxWidth: 860 }}>
 			<h2>Novo Lançamento</h2>
-			
-			{/* Status do Caixa */}
-			{!caixaAberto && (
-				<div className="card" style={{ marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<div className="row center" style={{ gap: 8 }}>
-						<span style={{ fontSize: '1.2rem' }}>⚠️</span>
-						<div>
-							<strong style={{ color: 'var(--danger)' }}>Caixa Fechado</strong>
-							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-								É necessário abrir o caixa antes de fazer lançamentos. 
-								<a href="/caixa" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Ir para Caixa</a>
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{caixaAberto && (
-				<div className="card" style={{ marginBottom: 16, background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success)' }}>
-					<div className="row center" style={{ gap: 8 }}>
-						<span style={{ fontSize: '1.2rem' }}>✅</span>
-						<div>
-							<strong style={{ color: 'var(--success)' }}>Caixa Aberto</strong>
-							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-								Lançamentos permitidos. Caixa aberto em {new Date(caixaAberto.data).toLocaleDateString()}
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
-
-			<div className="card form two" style={{ opacity: caixaAberto ? 1 : 0.6, pointerEvents: caixaAberto ? 'auto' : 'none' }}>
+			<div className="card form two">
 				<div>
 					<label className="field">
 						<span>Data/Hora</span>
@@ -125,13 +88,7 @@ export default function Lancamento() {
 				</div>
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
 					<strong style={{ marginRight: 'auto' }}>Valor: R$ {valor.toFixed(2)}</strong>
-					<button 
-						className="btn primary icon" 
-						onClick={onSave}
-						disabled={!caixaAberto}
-					>
-						{caixaAberto ? '🧾 Salvar e Gerar Cupom' : '❌ Caixa Fechado'}
-					</button>
+					<button className="btn primary icon" onClick={onSave}>🧾 Salvar e Gerar Cupom</button>
 				</div>
 			</div>
 		</div>
