@@ -1,7 +1,23 @@
 // Simple localStorage-backed mock DB
 
-export type FormaPagamento = { id: string; descricao: string; status: 'ativo' | 'inativo' }
-export type Brinquedo = { id: string; nome: string }
+export type FormaPagamento = { 
+	id: string
+	descricao: string
+	status: 'ativo' | 'inativo'
+	pixChave?: string
+	pixConta?: string
+}
+export type RegrasCobranca = {
+	inicialMinutos: number | null // null = taxa única sem limite
+	valorInicial: number
+	cicloMinutos: number | null // null = não usa ciclos
+	valorCiclo: number
+}
+export type Brinquedo = { 
+	id: string
+	nome: string
+	regrasCobranca?: RegrasCobranca // Se não tiver, usa regras globais
+}
 export type Parametros = {
 	valorInicialMinutos: number;
 	valorInicialReais: number;
@@ -14,7 +30,28 @@ export type Parametros = {
 	pixCidade?: string;
 }
 export type CaixaStatus = 'aberto' | 'fechado'
-export type Caixa = { id: string; data: string; valorInicial: number; status: CaixaStatus }
+export type MovimentoCaixa = {
+	id: string
+	dataHora: string
+	tipo: 'sangria' | 'suprimento'
+	valor: number
+	motivo?: string
+}
+export type Caixa = { 
+	id: string
+	data: string
+	valorInicial: number
+	status: CaixaStatus
+	movimentos?: MovimentoCaixa[]
+}
+export type Cliente = {
+	id: string
+	nomeCompleto: string
+	dataNascimento: string // ISO date
+	nomePai: string
+	nomeMae: string
+	telefoneWhatsapp: string
+}
 export type Lancamento = {
 	id: string
 	dataHora: string
@@ -24,6 +61,7 @@ export type Lancamento = {
 	numeroPulseira?: string
 	tempoSolicitadoMin: number | null // null -> Tempo Livre
 	brinquedoId?: string
+	clienteId?: string // ID do cliente cadastrado
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
 }
@@ -36,6 +74,7 @@ type DbShape = {
 	parametros: Parametros
 	caixas: Caixa[]
 	lancamentos: Lancamento[]
+	clientes: Cliente[]
 }
 
 const defaultDb: DbShape = {
@@ -48,14 +87,30 @@ const defaultDb: DbShape = {
 	parametros: { valorInicialMinutos: 30, valorInicialReais: 20, valorCicloMinutos: 15, valorCicloReais: 10, empresaNome: 'Parque Infantil', empresaCnpj: '00.000.000/0000-00', empresaLogoUrl: '', pixChave: '', pixCidade: 'Sua Cidade' },
 	caixas: [],
 	lancamentos: [],
+	clientes: [],
 }
 
 function load(): DbShape {
 	try {
 		const raw = localStorage.getItem(KEY)
-		if (raw) return JSON.parse(raw)
-	} catch {}
-	return defaultDb
+		if (!raw) return defaultDb
+		const parsed = JSON.parse(raw) as Partial<DbShape>
+		// Garantir que todos os campos existam, mesclando com defaults
+		return { 
+			...defaultDb, 
+			...parsed,
+			// Garantir arrays sempre existam
+			formasPagamento: parsed.formasPagamento || defaultDb.formasPagamento,
+			brinquedos: parsed.brinquedos || defaultDb.brinquedos,
+			caixas: parsed.caixas || defaultDb.caixas,
+			lancamentos: parsed.lancamentos || defaultDb.lancamentos,
+			clientes: parsed.clientes || defaultDb.clientes,
+			// Garantir parametros sempre existam
+			parametros: parsed.parametros || defaultDb.parametros
+		}
+	} catch {
+		return defaultDb
+	}
 }
 
 function save(db: DbShape) {
@@ -76,8 +131,31 @@ export const db = {
 	},
 }
 
-export function calcularValor(param: Parametros, tempoMin: number | null): number {
+export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
+	
+	// Se o brinquedo tem regras específicas, usa elas
+	const regras = brinquedo?.regrasCobranca
+	if (regras) {
+		// Taxa única sem limite de tempo
+		if (regras.inicialMinutos === null) {
+			return regras.valorInicial
+		}
+		
+		// Calcula por tempo e ciclos
+		if (tempoMin <= regras.inicialMinutos) return regras.valorInicial
+		
+		// Se não usa ciclos, retorna apenas o valor inicial
+		if (regras.cicloMinutos === null) {
+			return regras.valorInicial
+		}
+		
+		const excedente = Math.max(0, tempoMin - regras.inicialMinutos)
+		const ciclos = Math.ceil(excedente / Math.max(1, regras.cicloMinutos))
+		return regras.valorInicial + ciclos * regras.valorCiclo
+	}
+	
+	// Usa regras globais do parâmetro
 	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
