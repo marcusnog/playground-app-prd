@@ -16,4 +16,11 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['recharts'],
+  },
+  esbuild: {
+    // Ignorar erros de tipo durante o build para produção
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
+  },
 })
