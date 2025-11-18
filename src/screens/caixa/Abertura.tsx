@@ -11,7 +11,7 @@ export default function Abertura() {
 	const [valorInicial, setValorInicial] = useState<number>(0)
 	const [caixaSelecionado, setCaixaSelecionado] = useState<string>('')
 	const navigate = useNavigate()
-	const { hasPermission, canUseCaixa, user } = usePermissions()
+	const { hasPermission, user } = usePermissions()
 
 	// Verificar permissão
 	if (!hasPermission('caixa', 'abertura')) {
@@ -149,9 +149,9 @@ export default function Abertura() {
 							className="btn primary" 
 							onClick={abrir} 
 							disabled={
-								(user?.usaCaixa && user.caixaId && aberto?.id === user.caixaId) ||
+								!!((user?.usaCaixa && user.caixaId && aberto?.id === user.caixaId) ||
 								(!user?.usaCaixa && aberto) ||
-								(!user?.usaCaixa && !caixaSelecionado && caixasFechados.length > 0)
+								(!user?.usaCaixa && !caixaSelecionado && caixasFechados.length > 0))
 							}
 						>
 							{aberto ? 'Caixa já está aberto' : 'Abrir Caixa'}

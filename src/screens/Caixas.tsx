@@ -76,7 +76,6 @@ export default function Caixas() {
 
 	// Separar caixas abertos e fechados
 	const caixasAbertos = caixas.filter(c => c.status === 'aberto')
-	const caixasFechados = caixas.filter(c => c.status === 'fechado')
 
 	return (
 		<div className="container" style={{ maxWidth: 1000 }}>

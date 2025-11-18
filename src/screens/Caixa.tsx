@@ -13,7 +13,14 @@ export default function Caixa() {
 	function abrir() {
 		if (aberto) return alert('Já existe um caixa aberto')
 		db.update((d) => {
-			d.caixas.push({ id: String(Date.now()), data: new Date().toISOString(), valorInicial, status: 'aberto' })
+			d.caixas.push({ 
+				id: String(Date.now()), 
+				nome: `Caixa ${d.caixas.length + 1}`,
+				data: new Date().toISOString(), 
+				valorInicial, 
+				status: 'aberto',
+				movimentos: []
+			})
 		})
 		setValorInicial(0)
 		refresh()
