@@ -285,7 +285,7 @@ export default function Relatorios() {
 										<CartesianGrid strokeDasharray="3 3" />
 										<XAxis dataKey="formatada" />
 										<YAxis />
-										<Tooltip formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
+										<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
 										<Area type="monotone" dataKey="vendas" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
 									</AreaChart>
 								</ResponsiveContainer>
@@ -312,7 +312,7 @@ export default function Relatorios() {
 												<Cell key={`cell-${index}`} fill={entry.color} />
 											))}
 										</Pie>
-										<Tooltip formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Valor']} />
+										<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Valor']} />
 									</PieChart>
 								</ResponsiveContainer>
 							</div>
@@ -328,7 +328,7 @@ export default function Relatorios() {
 											<CartesianGrid strokeDasharray="3 3" />
 											<XAxis type="number" />
 											<YAxis dataKey="brinquedo" type="category" width={100} />
-											<Tooltip formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
+											<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
 											<Bar dataKey="vendas" fill="#3b82f6" />
 										</BarChart>
 									</ResponsiveContainer>
@@ -439,7 +439,7 @@ export default function Relatorios() {
 											<CartesianGrid strokeDasharray="3 3" />
 											<XAxis dataKey="cliente" />
 											<YAxis />
-											<Tooltip formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']} />
+											<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Faturamento']} />
 											<Bar dataKey="total" fill="#10b981" />
 										</BarChart>
 									</ResponsiveContainer>
@@ -457,7 +457,7 @@ export default function Relatorios() {
 											<CartesianGrid strokeDasharray="3 3" />
 											<XAxis dataKey="cliente" />
 											<YAxis />
-											<Tooltip formatter={(value) => [value, 'Lançamentos']} />
+											<Tooltip formatter={(value: number | string) => [value, 'Lançamentos']} />
 											<Line type="monotone" dataKey="lancamentos" stroke="#3b82f6" strokeWidth={2} />
 										</LineChart>
 									</ResponsiveContainer>

@@ -181,7 +181,7 @@ export default function Dashboard() {
 								<CartesianGrid strokeDasharray="3 3" />
 								<XAxis dataKey="data" />
 								<YAxis />
-								<Tooltip formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
+								<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
 								<Area 
 									type="monotone" 
 									dataKey="valor" 
@@ -203,7 +203,7 @@ export default function Dashboard() {
 								<CartesianGrid strokeDasharray="3 3" />
 								<XAxis dataKey="nome" />
 								<YAxis />
-								<Tooltip formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
+								<Tooltip formatter={(value: number | string) => [`R$ ${Number(value).toFixed(2)}`, 'Vendas']} />
 								<Bar dataKey="valor" fill="#82ca9d" />
 							</BarChart>
 						</ResponsiveContainer>
