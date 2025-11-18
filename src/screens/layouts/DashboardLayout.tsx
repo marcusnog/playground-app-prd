@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../../auth/AuthContext'
 import { useEffect, useState, useMemo } from 'react'
 import { db } from '../../services/mockDb'
+import { usePermissions } from '../../hooks/usePermissions'
 
 export default function DashboardLayout() {
 	const { logout } = useAuth()
@@ -10,9 +11,26 @@ export default function DashboardLayout() {
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
 
+	const [refresh, setRefresh] = useState(0)
+	const { hasPermission, user } = usePermissions()
 	const caixaAberto = useMemo(() => {
 		const caixas = db.get().caixas
 		return caixas.find((c) => c.status === 'aberto')
+	}, [refresh])
+
+	// Escutar mudanças no banco de dados
+	useEffect(() => {
+		function handleStorageChange() {
+			setRefresh(prev => prev + 1)
+		}
+		
+		window.addEventListener('storage', handleStorageChange)
+		window.addEventListener('db-update', handleStorageChange)
+		
+		return () => {
+			window.removeEventListener('storage', handleStorageChange)
+			window.removeEventListener('db-update', handleStorageChange)
+		}
 	}, [])
 
 	function toggleTheme() {
@@ -58,52 +76,107 @@ export default function DashboardLayout() {
 		setActiveSubmenu(activeSubmenu === label ? null : label)
 	}
 
-	const menuItems = [
-		{
-			label: 'Acompanhamento',
-			path: '/acompanhamento',
-			icon: '📊'
-		},
-		{
-			label: 'Lançamento',
-			path: '/lancamento',
-			icon: caixaAberto ? '📝' : '🔒',
-			disabled: !caixaAberto,
-			status: caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
-		},
-		{
-			label: 'Caixa',
-			path: '/caixa/abertura',
-			icon: caixaAberto ? '✅' : '💰',
-			status: caixaAberto ? 'Aberto' : 'Fechado',
-			submenu: [
-				{ label: 'Abertura', path: '/caixa/abertura' },
-				{ label: 'Fechamento', path: '/caixa/fechamento' },
-				{ label: 'Sangria', path: '/caixa/sangria' },
-				{ label: 'Suprimento', path: '/caixa/suprimento' }
-			]
-		},
-		{
-			label: 'Relatórios',
-			path: '/relatorios',
-			icon: '📈'
-		},
-		{
-			label: 'Parâmetros',
-			path: '/parametros',
-			icon: '⚙️',
-			submenu: [
-				{ label: 'Cadastro da Empresa', path: '/parametros' },
-				{ label: 'Formas de Pagamento', path: '/formas-pagamento' },
-				{ label: 'Brinquedos', path: '/brinquedos' }
-			]
-		},
-		{
-			label: 'Clientes',
-			path: '/clientes',
-			icon: '👥'
+	const menuItems = useMemo(() => {
+		const items = []
+		
+		if (hasPermission('acompanhamento')) {
+			items.push({
+				label: 'Acompanhamento',
+				path: '/acompanhamento',
+				icon: '📊'
+			})
 		}
-	]
+		
+		if (hasPermission('lancamento')) {
+			items.push({
+				label: 'Lançamento',
+				path: '/lancamento',
+				icon: caixaAberto ? '📝' : '🔒',
+				disabled: !caixaAberto,
+				status: caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
+			})
+		}
+		
+		if (hasPermission('caixa')) {
+			const submenu = []
+			if (hasPermission('parametros')) submenu.push({ label: 'Cadastro de Caixas', path: '/caixas' })
+			if (hasPermission('caixa', 'abertura')) submenu.push({ label: 'Abertura', path: '/caixa/abertura' })
+			if (hasPermission('caixa', 'fechamento')) submenu.push({ label: 'Fechamento', path: '/caixa/fechamento' })
+			if (hasPermission('caixa', 'sangria')) submenu.push({ label: 'Sangria', path: '/caixa/sangria' })
+			if (hasPermission('caixa', 'suprimento')) submenu.push({ label: 'Suprimento', path: '/caixa/suprimento' })
+			
+			if (submenu.length > 0) {
+				items.push({
+					label: 'Caixa',
+					path: '/caixa/abertura',
+					icon: caixaAberto ? '✅' : '💰',
+					status: caixaAberto ? 'Aberto' : 'Fechado',
+					submenu
+				})
+			}
+		}
+		
+		if (hasPermission('estacionamento')) {
+			const submenu = []
+			if (hasPermission('estacionamento', 'cadastro')) submenu.push({ label: 'Cadastro', path: '/estacionamentos' })
+			if (hasPermission('estacionamento', 'caixa', 'abertura')) submenu.push({ label: 'Abertura Caixa', path: '/estacionamento/caixa/abertura' })
+			if (hasPermission('estacionamento', 'caixa', 'fechamento')) submenu.push({ label: 'Fechamento Caixa', path: '/estacionamento/caixa/fechamento' })
+			if (hasPermission('estacionamento', 'lancamento')) submenu.push({ label: 'Lançamento', path: '/estacionamento/lancamento' })
+			if (hasPermission('estacionamento', 'acompanhamento')) submenu.push({ label: 'Acompanhamento', path: '/estacionamento/acompanhamento' })
+			
+			if (submenu.length > 0) {
+				items.push({
+					label: 'Estacionamento',
+					path: '/estacionamento/lancamento',
+					icon: '🚗',
+					submenu
+				})
+			}
+		}
+		
+		if (hasPermission('relatorios')) {
+			items.push({
+				label: 'Relatórios',
+				path: '/relatorios',
+				icon: '📈'
+			})
+		}
+		
+		if (hasPermission('parametros')) {
+			const submenu = []
+			if (hasPermission('parametros', 'empresa')) submenu.push({ label: 'Cadastro da Empresa', path: '/parametros' })
+			if (hasPermission('parametros', 'formasPagamento')) submenu.push({ label: 'Formas de Pagamento', path: '/formas-pagamento' })
+			if (hasPermission('parametros', 'brinquedos')) submenu.push({ label: 'Brinquedos', path: '/brinquedos' })
+			
+			if (submenu.length > 0) {
+				items.push({
+					label: 'Parâmetros',
+					path: '/parametros',
+					icon: '⚙️',
+					submenu
+				})
+			}
+		}
+		
+		if (hasPermission('clientes')) {
+			items.push({
+				label: 'Clientes',
+				path: '/clientes',
+				icon: '👥'
+			})
+		}
+		
+		// Usuários sempre visível para administradores (verificar se tem permissão de parâmetros como admin)
+		if (hasPermission('parametros')) {
+			items.push({
+				label: 'Usuários',
+				path: '/usuarios',
+				icon: '👤'
+			})
+		}
+		
+		return items
+	}, [user, caixaAberto])
 
 	return (
 		<div className="app-layout">

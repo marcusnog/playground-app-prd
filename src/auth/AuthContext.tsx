@@ -1,7 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { db, type Usuario } from '../services/mockDb'
 
 type User = {
+	id: string
 	username: string
+	apelido: string
+	permissoes: Usuario['permissoes']
+	usaCaixa: boolean
+	caixaId?: string
 }
 
 type AuthContextValue = {
@@ -22,15 +28,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			const raw = localStorage.getItem(AUTH_STORAGE_KEY)
 			if (raw) {
-				setUser(JSON.parse(raw))
+				const saved = JSON.parse(raw)
+				// Verificar se o usuário ainda existe no banco
+				const usuarios = db.get().usuarios
+				const usuario = usuarios.find(u => u.id === saved.id)
+				if (usuario) {
+					setUser({
+						id: usuario.id,
+						username: usuario.apelido,
+						apelido: usuario.apelido,
+						permissoes: usuario.permissoes,
+						usaCaixa: usuario.usaCaixa,
+						caixaId: usuario.caixaId,
+					})
+				} else {
+					localStorage.removeItem(AUTH_STORAGE_KEY)
+				}
 			}
 		} catch {}
 	}, [])
 
 	const login = useCallback(async (username: string, password: string) => {
-		// Mocked auth: accept any non-empty credentials
 		if (!username || !password) return false
-		const nextUser: User = { username }
+		
+		// Buscar usuário no banco de dados
+		const usuarios = db.get().usuarios
+		const usuario = usuarios.find(u => 
+			(u.apelido.toLowerCase() === username.toLowerCase() || 
+			 u.nomeCompleto.toLowerCase() === username.toLowerCase()) &&
+			u.senha === password
+		)
+		
+		if (!usuario) return false
+		
+		const nextUser: User = {
+			id: usuario.id,
+			username: usuario.apelido,
+			apelido: usuario.apelido,
+			permissoes: usuario.permissoes,
+			usaCaixa: usuario.usaCaixa,
+			caixaId: usuario.caixaId,
+		}
+		
 		setUser(nextUser)
 		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser))
 		return true

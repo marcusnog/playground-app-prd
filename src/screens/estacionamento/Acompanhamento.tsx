@@ -1,0 +1,171 @@
+import { useEffect, useMemo, useState } from 'react'
+import { db } from '../../services/mockDb'
+import { usePermissions } from '../../hooks/usePermissions'
+
+export default function AcompanhamentoEstacionamento() {
+	const [tick, setTick] = useState(0)
+	const [filtroStatus, setFiltroStatus] = useState<'abertos' | 'encerrados'>('abertos')
+	const [estacionamentoFiltro, setEstacionamentoFiltro] = useState<string>('')
+	const d = db.get()
+	const estacionamentos = d.estacionamentos
+	const { hasPermission } = usePermissions()
+
+	// Verificar permissão
+	if (!hasPermission('estacionamento', 'acompanhamento')) {
+		return (
+			<div className="container" style={{ maxWidth: 1200 }}>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
+					<p>Você não tem permissão para acessar esta funcionalidade.</p>
+				</div>
+			</div>
+		)
+	}
+
+	const lancamentosFiltrados = useMemo(() => {
+		let filtrados = d.lancamentosEstacionamento
+
+		// Filtro por estacionamento
+		if (estacionamentoFiltro) {
+			filtrados = filtrados.filter(l => l.estacionamentoId === estacionamentoFiltro)
+		}
+
+		// Filtro por status
+		if (filtroStatus === 'abertos') {
+			filtrados = filtrados.filter((l) => l.status === 'aberto')
+		} else {
+			filtrados = filtrados.filter((l) => l.status === 'pago' || l.status === 'cancelado')
+		}
+
+		return filtrados.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+	}, [tick, filtroStatus, estacionamentoFiltro])
+
+	useEffect(() => {
+		const t = setInterval(() => setTick((x) => x + 1), 1000 * 30)
+		return () => clearInterval(t)
+	}, [])
+
+	function abrirWhatsapp(numero: string) {
+		const url = `https://wa.me/${encodeURIComponent(numero)}?text=${encodeURIComponent('Olá! Seu veículo está no estacionamento.')}`
+		window.open(url, '_blank')
+	}
+
+	function formatarPlaca(placa: string) {
+		// Formatar placa no padrão brasileiro (ABC1234 ou ABC1D23)
+		if (placa.length === 7) {
+			return `${placa.slice(0, 3)}-${placa.slice(3)}`
+		}
+		return placa
+	}
+
+	return (
+		<div className="container" style={{ maxWidth: 1200 }}>
+			<h2>Acompanhamento de Estacionamento</h2>
+
+			{/* Filtros */}
+			<div className="card" style={{ marginBottom: 16 }}>
+				<div className="form two">
+					<label className="field">
+						<span>Filtrar por Estacionamento</span>
+						<select 
+							className="select" 
+							value={estacionamentoFiltro} 
+							onChange={(e) => setEstacionamentoFiltro(e.target.value)}
+						>
+							<option value="">Todos os estacionamentos</option>
+							{estacionamentos.map((e) => (
+								<option key={e.id} value={e.id}>
+									{e.nome}
+								</option>
+							))}
+						</select>
+					</label>
+
+					<label className="field">
+						<span>Status</span>
+						<select 
+							className="select" 
+							value={filtroStatus} 
+							onChange={(e) => setFiltroStatus(e.target.value as 'abertos' | 'encerrados')}
+						>
+							<option value="abertos">Abertos</option>
+							<option value="encerrados">Encerrados</option>
+						</select>
+					</label>
+				</div>
+			</div>
+
+			{/* Lista de Lançamentos */}
+			<div className="card">
+				<h3>
+					{filtroStatus === 'abertos' ? 'Veículos no Estacionamento' : 'Histórico'}
+					{' '}({lancamentosFiltrados.length})
+				</h3>
+				{lancamentosFiltrados.length === 0 ? (
+					<div className="empty">Nenhum registro encontrado</div>
+				) : (
+					<div className="table-wrap">
+						<table className="table">
+							<thead>
+								<tr>
+									<th>Placa</th>
+									<th>Modelo</th>
+									<th>Estacionamento</th>
+									<th>Entrada</th>
+									<th>Valor</th>
+									<th>Status</th>
+									<th>Contato</th>
+									<th>Ações</th>
+								</tr>
+							</thead>
+							<tbody>
+								{lancamentosFiltrados.map((l) => {
+									const est = estacionamentos.find(e => e.id === l.estacionamentoId)
+									return (
+										<tr key={l.id}>
+											<td><strong>{formatarPlaca(l.placa)}</strong></td>
+											<td>{l.modelo || '-'}</td>
+											<td>{est?.nome || 'N/A'}</td>
+											<td>{new Date(l.dataHora).toLocaleString('pt-BR')}</td>
+											<td>R$ {l.valor.toFixed(2)}</td>
+											<td>
+												{l.status === 'aberto' ? (
+													<span className="badge on">Aberto</span>
+												) : l.status === 'pago' ? (
+													<span className="badge" style={{ background: 'var(--success)' }}>Pago</span>
+												) : (
+													<span className="badge off">Cancelado</span>
+												)}
+											</td>
+											<td>
+												{l.telefoneContato ? (
+													<span>{l.telefoneContato}</span>
+												) : (
+													<span style={{ color: 'var(--muted)' }}>-</span>
+												)}
+											</td>
+											<td>
+												{l.telefoneContato && l.status === 'aberto' ? (
+													<button 
+														className="btn" 
+														onClick={() => abrirWhatsapp(l.telefoneContato!)}
+														title="Chamar proprietário"
+													>
+														📞 Chamar
+													</button>
+												) : (
+													<span style={{ color: 'var(--muted)' }}>-</span>
+												)}
+											</td>
+										</tr>
+									)
+								})}
+							</tbody>
+						</table>
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
+

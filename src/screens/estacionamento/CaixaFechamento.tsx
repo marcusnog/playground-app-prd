@@ -4,15 +4,16 @@ import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
 
-export default function Fechamento() {
+export default function CaixaFechamento() {
 	const [_, force] = useState(0)
+	const estacionamentos = useMemo(() => db.get().estacionamentos, [_])
 	const caixas = useMemo(() => db.get().caixas, [_])
-	const aberto = caixas.find((c) => c.status === 'aberto')
+	const [estacionamentoSelecionado, setEstacionamentoSelecionado] = useState<string>('')
 	const navigate = useNavigate()
-	const { hasPermission, canUseCaixa, user } = usePermissions()
+	const { hasPermission } = usePermissions()
 
 	// Verificar permissão
-	if (!hasPermission('caixa', 'fechamento')) {
+	if (!hasPermission('estacionamento', 'caixa', 'fechamento')) {
 		return (
 			<div className="container" style={{ maxWidth: 800 }}>
 				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
@@ -23,75 +24,81 @@ export default function Fechamento() {
 		)
 	}
 
-	// Verificar se pode usar este caixa específico
-	if (aberto && user?.usaCaixa && user.caixaId && !canUseCaixa(aberto.id)) {
-		return (
-			<div className="container" style={{ maxWidth: 800 }}>
-				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
-					<p>Você não tem permissão para usar este caixa. Este caixa está associado a outro usuário.</p>
-				</div>
-			</div>
-		)
-	}
-
 	function refresh() { force((x) => x + 1 as unknown as number) }
 
-	// Resumo por forma de pagamento usando lancamentos pagos do dia
+	// Buscar caixa do estacionamento selecionado
+	const estacionamento = useMemo(() => 
+		estacionamentos.find(e => e.id === estacionamentoSelecionado),
+		[estacionamentos, estacionamentoSelecionado]
+	)
+	
+	const caixaEstacionamento = useMemo(() => {
+		if (!estacionamento) return null
+		return caixas.find(c => c.id === estacionamento.caixaId)
+	}, [estacionamento, caixas])
+
+	const caixaAberto = caixaEstacionamento?.status === 'aberto'
+
+	// Resumo por forma de pagamento usando lançamentos pagos do dia
 	const resumo = useMemo(() => {
 		const d = db.get()
-		if (!aberto) return []
+		if (!caixaEstacionamento || !estacionamento) return []
 		
-		const dataCaixa = new Date(aberto.data).toDateString()
-		const pagos = d.lancamentos.filter((l) => {
+		const dataCaixa = new Date(caixaEstacionamento.data).toDateString()
+		const pagos = d.lancamentosEstacionamento.filter((l) => {
 			if (l.status !== 'pago') return false
+			if (l.estacionamentoId !== estacionamento.id) return false
 			const dataLancamento = new Date(l.dataHora).toDateString()
 			return dataLancamento === dataCaixa
 		})
 		
 		const map = new Map<string, number>()
 		for (const l of pagos) {
-			const forma = (l as any).formaPagamentoId as string | undefined
+			const forma = l.formaPagamentoId
 			if (!forma) continue
-			map.set(forma, (map.get(forma) || 0) + l.valorCalculado)
+			map.set(forma, (map.get(forma) || 0) + l.valor)
 		}
 		return Array.from(map.entries())
-	}, [_, aberto])
+	}, [_, caixaEstacionamento, estacionamento])
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
-		if (!aberto || !aberto.movimentos) return 0
-		return aberto.movimentos
+		if (!caixaEstacionamento || !caixaEstacionamento.movimentos) return 0
+		return caixaEstacionamento.movimentos
 			.filter(m => m.tipo === 'sangria')
 			.reduce((sum, m) => sum + m.valor, 0)
-	}, [aberto])
+	}, [caixaEstacionamento])
 
 	const totalSuprimentos = useMemo(() => {
-		if (!aberto || !aberto.movimentos) return 0
-		return aberto.movimentos
+		if (!caixaEstacionamento || !caixaEstacionamento.movimentos) return 0
+		return caixaEstacionamento.movimentos
 			.filter(m => m.tipo === 'suprimento')
 			.reduce((sum, m) => sum + m.valor, 0)
-	}, [aberto])
+	}, [caixaEstacionamento])
 
-	// Calcular totais
 	const totalVendas = useMemo(() => {
 		return resumo.reduce((sum, [, total]) => sum + total, 0)
 	}, [resumo])
 
-	const saldoFinal = (aberto?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
+	const saldoFinal = (caixaEstacionamento?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
 
 	function fechar() {
-		if (!aberto) return alert('Não há caixa aberto para fechar')
+		if (!estacionamentoSelecionado) {
+			return alert('Selecione um estacionamento')
+		}
+		if (!caixaEstacionamento || !caixaAberto) {
+			return alert('Não há caixa aberto para fechar')
+		}
 		if (!confirm('Deseja realmente fechar o caixa?')) return
 		
-		const caixaId = aberto.id
+		const caixaId = caixaEstacionamento.id
 		db.update((d) => {
 			const c = d.caixas.find((x) => x.id === caixaId)
 			if (c) c.status = 'fechado'
 		})
 		refresh()
-		// Navegar para o comprovante de fechamento
-		navigate(`/recibo/fechamento/${caixaId}`)
+		alert('Caixa fechado com sucesso!')
+		navigate(`/recibo/estacionamento/fechamento/${caixaId}`)
 	}
 
 	function imprimir() {
@@ -100,9 +107,28 @@ export default function Fechamento() {
 
 	return (
 		<div className="container" style={{ maxWidth: 800 }}>
-			<h2>Fechamento de Caixa</h2>
+			<h2>Fechamento de Caixa - Estacionamento</h2>
 			
-			{!aberto ? (
+			<label className="field" style={{ marginBottom: 16 }}>
+				<span>Selecione o Estacionamento *</span>
+				<select 
+					className="select" 
+					value={estacionamentoSelecionado} 
+					onChange={(e) => setEstacionamentoSelecionado(e.target.value)}
+				>
+					<option value="">Selecione um estacionamento...</option>
+					{estacionamentos.map((e) => {
+						const caixa = caixas.find(c => c.id === e.caixaId)
+						return (
+							<option key={e.id} value={e.id}>
+								{e.nome} - Caixa: {caixa?.nome || 'N/A'} ({caixa?.status === 'aberto' ? 'Aberto' : 'Fechado'})
+							</option>
+						)
+					})}
+				</select>
+			</label>
+
+			{!caixaAberto || !caixaEstacionamento ? (
 				<div className="card">
 					<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
 						<div className="row center" style={{ gap: 8 }}>
@@ -119,7 +145,7 @@ export default function Fechamento() {
 					{/* Resumo do Dia */}
 					<div className="card" style={{ marginBottom: 16 }}>
 						<div className="title">
-							<h3>Resumo do Dia</h3>
+							<h3>Resumo do Dia - {estacionamento?.nome}</h3>
 							<div className="row" style={{ gap: 8 }}>
 								<button className="btn" onClick={imprimir}>🖨️ Imprimir</button>
 							</div>
@@ -129,9 +155,9 @@ export default function Fechamento() {
 							<div className="card">
 								<h4>Informações do Caixa</h4>
 								<div className="stack">
-									<div><strong>Caixa:</strong> {aberto.nome}</div>
-									<div><strong>Data de Abertura:</strong> {new Date(aberto.data).toLocaleDateString('pt-BR')}</div>
-									<div><strong>Valor Inicial:</strong> R$ {aberto.valorInicial.toFixed(2)}</div>
+									<div><strong>Caixa:</strong> {caixaEstacionamento.nome}</div>
+									<div><strong>Data de Abertura:</strong> {new Date(caixaEstacionamento.data).toLocaleDateString('pt-BR')}</div>
+									<div><strong>Valor Inicial:</strong> R$ {caixaEstacionamento.valorInicial.toFixed(2)}</div>
 									<div><strong>Status:</strong> <span className="badge on">Aberto</span></div>
 								</div>
 							</div>
@@ -177,71 +203,6 @@ export default function Fechamento() {
 						) : (
 							<div className="empty">Nenhuma venda registrada hoje</div>
 						)}
-					</div>
-
-					{/* Sangrias e Suprimentos */}
-					<div className="grid-2" style={{ marginBottom: 16 }}>
-						{/* Sangrias */}
-						<div className="card">
-							<h3 style={{ color: 'var(--danger)' }}>Sangrias (-)</h3>
-							{aberto.movimentos && aberto.movimentos.filter(m => m.tipo === 'sangria').length > 0 ? (
-								<div className="table-wrap">
-									<table className="table">
-										<thead>
-											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
-										</thead>
-										<tbody>
-											{aberto.movimentos
-												.filter(m => m.tipo === 'sangria')
-												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
-												.map((mov) => (
-													<tr key={mov.id}>
-														<td>{new Date(mov.dataHora).toLocaleTimeString('pt-BR')}</td>
-														<td style={{ color: 'var(--danger)' }}>- R$ {mov.valor.toFixed(2)}</td>
-														<td>{mov.motivo || '-'}</td>
-													</tr>
-												))}
-										</tbody>
-									</table>
-								</div>
-							) : (
-								<div className="empty">Nenhuma sangria registrada</div>
-							)}
-							<div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-								<strong>Total: - R$ {totalSangrias.toFixed(2)}</strong>
-							</div>
-						</div>
-
-						{/* Suprimentos */}
-						<div className="card">
-							<h3 style={{ color: 'var(--success)' }}>Suprimentos (+)</h3>
-							{aberto.movimentos && aberto.movimentos.filter(m => m.tipo === 'suprimento').length > 0 ? (
-								<div className="table-wrap">
-									<table className="table">
-										<thead>
-											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
-										</thead>
-										<tbody>
-											{aberto.movimentos
-												.filter(m => m.tipo === 'suprimento')
-												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
-												.map((mov) => (
-													<tr key={mov.id}>
-														<td>{new Date(mov.dataHora).toLocaleTimeString('pt-BR')}</td>
-														<td style={{ color: 'var(--success)' }}>+ R$ {mov.valor.toFixed(2)}</td>
-														<td>{mov.motivo || '-'}</td>
-													</tr>
-												))}
-										</tbody>
-									</table>
-								</div>
-							) : (
-								<div className="empty">Nenhum suprimento registrado</div>
-							)}
-							<div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-								<strong>Total: + R$ {totalSuprimentos.toFixed(2)}</strong>
-							</div>
-						</div>
 					</div>
 
 					<div className="actions no-print">

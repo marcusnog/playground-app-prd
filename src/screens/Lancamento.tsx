@@ -1,18 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, uid, calcularValor, Parametros } from '../services/mockDb'
 
 export default function Lancamento() {
+	const [refresh, setRefresh] = useState(0)
 	const brinquedos = useMemo(() => db.get().brinquedos, [])
 	const parametros = useMemo(() => db.get().parametros, [])
 	const clientes = useMemo(() => db.get().clientes, [])
-	const caixas = useMemo(() => db.get().caixas, [])
+	const caixas = useMemo(() => db.get().caixas, [refresh])
 	const caixaAberto = useMemo(() => caixas.find((c) => c.status === 'aberto'), [caixas])
+
+	// Escutar mudanças no banco de dados
+	useEffect(() => {
+		function handleStorageChange() {
+			setRefresh(prev => prev + 1)
+		}
+		
+		window.addEventListener('storage', handleStorageChange)
+		window.addEventListener('db-update', handleStorageChange)
+		
+		return () => {
+			window.removeEventListener('storage', handleStorageChange)
+			window.removeEventListener('db-update', handleStorageChange)
+		}
+	}, [])
 	const navigate = useNavigate()
 	const [form, setForm] = useState({
 		clienteId: '',
 		nomeCrianca: '',
 		nomeResponsavel: '',
+		tipoParente: '',
 		whatsappResponsavel: '',
 		numeroPulseira: '',
 		brinquedoId: '',
@@ -36,7 +53,7 @@ export default function Lancamento() {
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
-			setForm({ ...form, clienteId: '', nomeCrianca: '', nomeResponsavel: '', whatsappResponsavel: '' })
+			setForm({ ...form, clienteId: '', nomeCrianca: '', nomeResponsavel: '', tipoParente: '', whatsappResponsavel: '' })
 			return
 		}
 		const cliente = clientes.find(c => c.id === clienteId)
@@ -46,6 +63,7 @@ export default function Lancamento() {
 				clienteId: cliente.id,
 				nomeCrianca: cliente.nomeCompleto,
 				nomeResponsavel: cliente.nomePai || cliente.nomeMae || '',
+				tipoParente: cliente.nomePai ? 'pai' : cliente.nomeMae ? 'mae' : '',
 				whatsappResponsavel: cliente.telefoneWhatsapp
 			})
 		}
@@ -56,13 +74,14 @@ export default function Lancamento() {
 			alert('Não é possível fazer lançamentos com o caixa fechado. Abra o caixa primeiro.')
 			return
 		}
-		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim()) return alert('Preencha os nomes')
+		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) return alert('Preencha os campos obrigatórios')
 		db.update((d) => {
 			d.lancamentos.push({
 				id: uid('lan'),
 				dataHora: new Date().toISOString(),
 				nomeCrianca: form.nomeCrianca.trim(),
 				nomeResponsavel: form.nomeResponsavel.trim(),
+				tipoParente: form.tipoParente || undefined,
 				whatsappResponsavel: form.whatsappResponsavel.trim(),
 				numeroPulseira: form.numeroPulseira.trim() || undefined,
 				brinquedoId: form.brinquedoId || undefined,
@@ -134,6 +153,10 @@ export default function Lancamento() {
 						<input className="input" value={new Date().toLocaleString()} readOnly />
 					</label>
 					<label className="field">
+						<span>Nome do responsável *</span>
+						<input className="input" value={form.nomeResponsavel} onChange={(e) => setForm({ ...form, nomeResponsavel: e.target.value })} />
+					</label>
+					<label className="field">
 						<span>Número da pulseira</span>
 						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
 					</label>
@@ -144,8 +167,21 @@ export default function Lancamento() {
 						<input className="input" value={form.nomeCrianca} onChange={(e) => setForm({ ...form, nomeCrianca: e.target.value })} />
 					</label>
 					<label className="field">
-						<span>Nome do responsável *</span>
-						<input className="input" value={form.nomeResponsavel} onChange={(e) => setForm({ ...form, nomeResponsavel: e.target.value })} />
+						<span>Tipo do parente *</span>
+						<select 
+							className="select" 
+							value={form.tipoParente} 
+							onChange={(e) => setForm({ ...form, tipoParente: e.target.value })}
+						>
+							<option value="">Selecione...</option>
+							<option value="pai">Pai</option>
+							<option value="mae">Mãe</option>
+							<option value="avo">Avô</option>
+							<option value="ava">Avó</option>
+							<option value="tio">Tio</option>
+							<option value="tia">Tia</option>
+							<option value="outro">Outro</option>
+						</select>
 					</label>
 				</div>
 				<div>

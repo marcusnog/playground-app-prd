@@ -39,6 +39,7 @@ export type MovimentoCaixa = {
 }
 export type Caixa = { 
 	id: string
+	nome: string // Nome do caixa (ex: "Parquinho", "Infláveis")
 	data: string
 	valorInicial: number
 	status: CaixaStatus
@@ -57,6 +58,7 @@ export type Lancamento = {
 	dataHora: string
 	nomeCrianca: string
 	nomeResponsavel: string
+	tipoParente?: string // pai, mae, avo, ava, tio, tia, outro
 	whatsappResponsavel: string
 	numeroPulseira?: string
 	tempoSolicitadoMin: number | null // null -> Tempo Livre
@@ -64,6 +66,54 @@ export type Lancamento = {
 	clienteId?: string // ID do cliente cadastrado
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
+}
+
+export type PermissoesModulo = {
+	acompanhamento?: boolean
+	lancamento?: boolean
+	caixa?: {
+		abertura?: boolean
+		fechamento?: boolean
+		sangria?: boolean
+		suprimento?: boolean
+	}
+	relatorios?: boolean
+	parametros?: {
+		empresa?: boolean
+		formasPagamento?: boolean
+		brinquedos?: boolean
+	}
+	clientes?: boolean
+}
+
+export type Usuario = {
+	id: string
+	nomeCompleto: string
+	apelido: string
+	contato: string
+	senha: string // Em produção, deve ser hash
+	permissoes: PermissoesModulo
+	usaCaixa: boolean
+	caixaId?: string // ID do caixa que o usuário pode usar (se usaCaixa for true)
+}
+
+export type Estacionamento = {
+	id: string
+	nome: string // Ex: "Estacionamento 1"
+	caixaId: string // ID do caixa associado
+	valor: number // Valor do estacionamento
+}
+
+export type LancamentoEstacionamento = {
+	id: string
+	estacionamentoId: string
+	placa: string // Obrigatório
+	modelo?: string
+	telefoneContato?: string
+	dataHora: string // Hora/minuto do dispositivo
+	valor: number // Valor do estacionamento
+	formaPagamentoId?: string
+	status: 'aberto' | 'pago' | 'cancelado'
 }
 
 const KEY = 'app.mockdb.v1'
@@ -75,6 +125,9 @@ type DbShape = {
 	caixas: Caixa[]
 	lancamentos: Lancamento[]
 	clientes: Cliente[]
+	usuarios: Usuario[]
+	estacionamentos: Estacionamento[]
+	lancamentosEstacionamento: LancamentoEstacionamento[]
 }
 
 const defaultDb: DbShape = {
@@ -88,6 +141,44 @@ const defaultDb: DbShape = {
 	caixas: [],
 	lancamentos: [],
 	clientes: [],
+	usuarios: [
+		{
+			id: 'admin',
+			nomeCompleto: 'Administrador',
+			apelido: 'admin',
+			contato: 'admin@exemplo.com',
+			senha: 'admin',
+			permissoes: {
+				acompanhamento: true,
+				lancamento: true,
+				caixa: {
+					abertura: true,
+					fechamento: true,
+					sangria: true,
+					suprimento: true,
+				},
+				estacionamento: {
+					cadastro: true,
+					caixa: {
+						abertura: true,
+						fechamento: true,
+					},
+					lancamento: true,
+					acompanhamento: true,
+				},
+				relatorios: true,
+				parametros: {
+					empresa: true,
+					formasPagamento: true,
+					brinquedos: true,
+				},
+				clientes: true,
+			},
+			usaCaixa: false,
+		}
+	],
+	estacionamentos: [],
+	lancamentosEstacionamento: [],
 }
 
 function load(): DbShape {
@@ -95,6 +186,55 @@ function load(): DbShape {
 		const raw = localStorage.getItem(KEY)
 		if (!raw) return defaultDb
 		const parsed = JSON.parse(raw) as Partial<DbShape>
+		
+		// Garantir que o usuário admin sempre exista
+		let usuarios = parsed.usuarios || defaultDb.usuarios
+		const adminExists = usuarios.some(u => u.id === 'admin')
+		if (!adminExists) {
+			usuarios = [...usuarios, defaultDb.usuarios[0]]
+		} else {
+			// Garantir que o admin tenha todas as permissões
+			const admin = usuarios.find(u => u.id === 'admin')
+			if (admin) {
+				admin.permissoes = {
+					acompanhamento: true,
+					lancamento: true,
+					caixa: {
+						abertura: true,
+						fechamento: true,
+						sangria: true,
+						suprimento: true,
+					},
+					estacionamento: {
+						cadastro: true,
+						caixa: {
+							abertura: true,
+							fechamento: true,
+						},
+						lancamento: true,
+						acompanhamento: true,
+					},
+					relatorios: true,
+					parametros: {
+						empresa: true,
+						formasPagamento: true,
+						brinquedos: true,
+					},
+					clientes: true,
+				}
+				admin.senha = admin.senha || 'admin' // Garantir senha padrão
+			}
+		}
+		
+		// Garantir que caixas antigos tenham nome
+		let caixas = parsed.caixas || defaultDb.caixas
+		caixas = caixas.map((c, index) => {
+			if (!c.nome) {
+				return { ...c, nome: `Caixa ${index + 1}` }
+			}
+			return c
+		})
+		
 		// Garantir que todos os campos existam, mesclando com defaults
 		return { 
 			...defaultDb, 
@@ -102,9 +242,12 @@ function load(): DbShape {
 			// Garantir arrays sempre existam
 			formasPagamento: parsed.formasPagamento || defaultDb.formasPagamento,
 			brinquedos: parsed.brinquedos || defaultDb.brinquedos,
-			caixas: parsed.caixas || defaultDb.caixas,
+			caixas: caixas,
 			lancamentos: parsed.lancamentos || defaultDb.lancamentos,
 			clientes: parsed.clientes || defaultDb.clientes,
+			usuarios: usuarios,
+			estacionamentos: parsed.estacionamentos || defaultDb.estacionamentos,
+			lancamentosEstacionamento: parsed.lancamentosEstacionamento || defaultDb.lancamentosEstacionamento,
 			// Garantir parametros sempre existam
 			parametros: parsed.parametros || defaultDb.parametros
 		}
@@ -115,6 +258,10 @@ function load(): DbShape {
 
 function save(db: DbShape) {
 	localStorage.setItem(KEY, JSON.stringify(db))
+	// Disparar evento customizado para notificar componentes sobre mudanças
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new Event('db-update'))
+	}
 }
 
 export const db = {
