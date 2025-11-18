@@ -10,6 +10,7 @@ export function resolvePaymentKind(idOrText: string | undefined): PaymentKind {
 	return 'card'
 }
 
+
 export function PaymentIcon({ kind, size = 16 }: { kind: PaymentKind; size?: number }) {
 	if (kind === 'pix') {
 		return (
