@@ -124,7 +124,11 @@ export default function Usuarios() {
 				} else if (modulo === 'estacionamento') {
 					permissoes.estacionamento = permissoes.estacionamento || {}
 					if (tela === 'caixa') {
-						permissoes.estacionamento.caixa = permissoes.estacionamento.caixa || {}
+						if (permissoes.estacionamento.caixa) {
+							delete permissoes.estacionamento.caixa
+						} else {
+							permissoes.estacionamento.caixa = {}
+						}
 					} else {
 						permissoes.estacionamento[tela as keyof typeof permissoes.estacionamento] = 
 							!permissoes.estacionamento[tela as keyof typeof permissoes.estacionamento] as any
@@ -132,8 +136,22 @@ export default function Usuarios() {
 				}
 			} else {
 				// Permissão de módulo completo
-				permissoes[modulo as keyof PermissoesModulo] = 
-					!permissoes[modulo as keyof PermissoesModulo] as any
+				const complexModules: Array<keyof PermissoesModulo> = ['caixa', 'parametros', 'estacionamento']
+				if (complexModules.includes(modulo as keyof PermissoesModulo)) {
+					const current = permissoes[modulo as keyof PermissoesModulo]
+					if (current) {
+						delete permissoes[modulo as keyof PermissoesModulo]
+					} else if (modulo === 'caixa') {
+						permissoes.caixa = {}
+					} else if (modulo === 'parametros') {
+						permissoes.parametros = {}
+					} else if (modulo === 'estacionamento') {
+						permissoes.estacionamento = {}
+					}
+				} else {
+					permissoes[modulo as keyof PermissoesModulo] = 
+						!permissoes[modulo as keyof PermissoesModulo] as any
+				}
 			}
 			
 			return { ...prev, permissoes }

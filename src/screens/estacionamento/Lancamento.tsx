@@ -136,7 +136,7 @@ export default function LancamentoEstacionamento() {
 				</div>
 			)}
 
-			<div className="card form two" style={{ opacity: caixaAberto ? 1 : 0.6, pointerEvents: caixaAberto ? 'auto' : 'none' }}>
+			<div className="card form two" style={{ opacity: estacionamento && !caixaAberto ? 0.6 : 1 }}>
 				<label className="field">
 					<span>Estacionamento *</span>
 					<select 

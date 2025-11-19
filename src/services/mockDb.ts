@@ -235,6 +235,29 @@ function load(): DbShape {
 			}
 		}
 		
+		// Normalizar permissões antigas para evitar booleans onde deveriam ser objetos
+		usuarios = usuarios.map((usuario) => {
+			const permissoes = { ...usuario.permissoes }
+			
+			if (permissoes?.caixa && typeof permissoes.caixa !== 'object') {
+				permissoes.caixa = {}
+			}
+			if (permissoes?.parametros && typeof permissoes.parametros !== 'object') {
+				permissoes.parametros = {}
+			}
+			if (permissoes?.estacionamento && typeof permissoes.estacionamento !== 'object') {
+				permissoes.estacionamento = {}
+			}
+			if (permissoes?.estacionamento?.caixa && typeof permissoes.estacionamento.caixa !== 'object') {
+				permissoes.estacionamento.caixa = {}
+			}
+			
+			return {
+				...usuario,
+				permissoes,
+			}
+		})
+		
 		// Garantir que caixas antigos tenham nome
 		let caixas = parsed.caixas || defaultDb.caixas
 		caixas = caixas.map((c, index) => {
