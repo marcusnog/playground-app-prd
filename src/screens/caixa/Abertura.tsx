@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { db } from '../../services/mockDb'
+import { caixasService } from '../../services/entitiesService'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useCaixa } from '../../hooks/useCaixa'
 
 export default function Abertura() {
-	const [_, force] = useState(0)
-	const caixas = useMemo(() => db.get().caixas, [_])
+	const { caixas, caixa, refresh, loading } = useCaixa()
 	const caixasFechados = useMemo(() => caixas.filter(c => c.status === 'fechado'), [caixas])
-	const aberto = caixas.find((c) => c.status === 'aberto')
+	const aberto = caixa
 	const [valorInicial, setValorInicial] = useState<number>(0)
 	const [caixaSelecionado, setCaixaSelecionado] = useState<string>('')
+	const [saving, setSaving] = useState(false)
 	const navigate = useNavigate()
 	const { hasPermission, user } = usePermissions()
 
@@ -25,9 +26,7 @@ export default function Abertura() {
 		)
 	}
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
-
-	function abrir() {
+	async function abrir() {
 		// Determinar qual caixa usar
 		let caixaId = ''
 		
@@ -56,22 +55,31 @@ export default function Abertura() {
 			return alert('Selecione um caixa para abrir')
 		}
 		
-		db.update((d) => {
-			const caixa = d.caixas.find(c => c.id === caixaId)
-			if (caixa) {
-				// Abrir caixa existente
-				caixa.status = 'aberto'
-				caixa.data = new Date().toISOString()
-				caixa.valorInicial = valorInicial
-				caixa.movimentos = []
-			}
-		})
-		
-		setValorInicial(0)
-		setCaixaSelecionado('')
-		refresh()
-		// Navegar para o comprovante de abertura
-		navigate(`/recibo/abertura/${caixaId}`)
+		try {
+			setSaving(true)
+			await caixasService.abrir(caixaId, valorInicial)
+			setValorInicial(0)
+			setCaixaSelecionado('')
+			await refresh()
+			// Navegar para o comprovante de abertura
+			navigate(`/recibo/abertura/${caixaId}`)
+		} catch (error) {
+			console.error('Erro ao abrir caixa:', error)
+			alert('Erro ao abrir caixa. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	if (loading) {
+		return (
+			<div className="container" style={{ maxWidth: 600 }}>
+				<h2>Abertura de Caixa</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -149,12 +157,13 @@ export default function Abertura() {
 							className="btn primary" 
 							onClick={abrir} 
 							disabled={
+								saving ||
 								!!((user?.usaCaixa && user.caixaId && aberto?.id === user.caixaId) ||
 								(!user?.usaCaixa && aberto) ||
 								(!user?.usaCaixa && !caixaSelecionado && caixasFechados.length > 0))
 							}
 						>
-							{aberto ? 'Caixa já está aberto' : 'Abrir Caixa'}
+							{saving ? 'Abrindo...' : aberto ? 'Caixa já está aberto' : 'Abrir Caixa'}
 						</button>
 					</div>
 				</div>

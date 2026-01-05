@@ -1,28 +1,38 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { db, uid, calcularValor, Parametros } from '../services/mockDb'
+import { calcularValor } from '../services/utils'
+import { calcularValor as calcularValorDb, type Parametros, type Brinquedo } from '../services/mockDb'
+import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
+import { useCaixa } from '../hooks/useCaixa'
+import type { Brinquedo as BrinquedoType, Cliente, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Lancamento() {
-	const [refresh, setRefresh] = useState(0)
-	const brinquedos = useMemo(() => db.get().brinquedos, [])
-	const parametros = useMemo(() => db.get().parametros, [])
-	const clientes = useMemo(() => db.get().clientes, [])
-	const caixas = useMemo(() => db.get().caixas, [refresh])
-	const caixaAberto = useMemo(() => caixas.find((c) => c.status === 'aberto'), [caixas])
+	const { caixa, caixaAberto, loading: loadingCaixa } = useCaixa()
+	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
+	const [parametros, setParametros] = useState<ParametrosType | null>(null)
+	const [clientes, setClientes] = useState<Cliente[]>([])
+	const [loading, setLoading] = useState(true)
 
-	// Escutar mudanças no banco de dados
 	useEffect(() => {
-		function handleStorageChange() {
-			setRefresh(prev => prev + 1)
+		async function loadData() {
+			try {
+				setLoading(true)
+				const [brinquedosData, parametrosData, clientesData] = await Promise.all([
+					brinquedosService.list(),
+					parametrosService.get(),
+					clientesService.list(),
+				])
+				setBrinquedos(brinquedosData)
+				setParametros(parametrosData)
+				setClientes(clientesData)
+			} catch (error) {
+				console.error('Erro ao carregar dados:', error)
+				alert('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
 		}
-		
-		window.addEventListener('storage', handleStorageChange)
-		window.addEventListener('db-update', handleStorageChange)
-		
-		return () => {
-			window.removeEventListener('storage', handleStorageChange)
-			window.removeEventListener('db-update', handleStorageChange)
-		}
+		loadData()
 	}, [])
 	const navigate = useNavigate()
 	const [form, setForm] = useState({
@@ -42,14 +52,14 @@ export default function Lancamento() {
 		[form.brinquedoId, brinquedos]
 	)
 	
-	const valor = useMemo(() => 
-		calcularValor(
+	const valor = useMemo(() => {
+		if (!parametros) return 0
+		return calcularValor(
 			parametros as Parametros, 
 			form.tempoLivre ? null : form.tempoSolicitadoMin,
-			brinquedoSelecionado
-		), 
-		[form.tempoSolicitadoMin, form.tempoLivre, parametros, brinquedoSelecionado]
-	)
+			brinquedoSelecionado as Brinquedo | undefined
+		)
+	}, [form.tempoSolicitadoMin, form.tempoLivre, parametros, brinquedoSelecionado])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -69,16 +79,20 @@ export default function Lancamento() {
 		}
 	}
 
-	function onSave() {
-		if (!caixaAberto) {
+	async function onSave() {
+		if (!caixaAberto || !caixa) {
 			alert('Não é possível fazer lançamentos com o caixa fechado. Abra o caixa primeiro.')
 			return
 		}
-		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) return alert('Preencha os campos obrigatórios')
-		db.update((d) => {
-			d.lancamentos.push({
-				id: uid('lan'),
-				dataHora: new Date().toISOString(),
+		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) {
+			return alert('Preencha os campos obrigatórios')
+		}
+		if (!parametros) {
+			return alert('Erro: Parâmetros não carregados')
+		}
+
+		try {
+			const novoLancamento = await lancamentosService.create({
 				nomeCrianca: form.nomeCrianca.trim(),
 				nomeResponsavel: form.nomeResponsavel.trim(),
 				tipoParente: form.tipoParente || undefined,
@@ -87,13 +101,26 @@ export default function Lancamento() {
 				brinquedoId: form.brinquedoId || undefined,
 				clienteId: form.clienteId || undefined,
 				tempoSolicitadoMin: form.tempoLivre ? null : form.tempoSolicitadoMin,
-				status: 'aberto',
 				valorCalculado: valor,
 			})
-		})
-		alert('Lançamento salvo. Gerando cupom...')
-		const lancamentos = db.get().lancamentos
-		navigate(`/recibo/lancamento/${lancamentos[lancamentos.length - 1]?.id}`)
+			
+			alert('Lançamento salvo. Gerando cupom...')
+			navigate(`/recibo/lancamento/${novoLancamento.id}`)
+		} catch (error) {
+			console.error('Erro ao salvar lançamento:', error)
+			alert('Erro ao salvar lançamento. Tente novamente.')
+		}
+	}
+
+	if (loading || loadingCaixa) {
+		return (
+			<div className="container" style={{ maxWidth: 860 }}>
+				<h2>Novo Lançamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -123,7 +150,7 @@ export default function Lancamento() {
 						<div>
 							<strong style={{ color: 'var(--success)' }}>Caixa Aberto</strong>
 							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-								Lançamentos permitidos. Caixa aberto em {new Date(caixaAberto.data).toLocaleDateString('pt-BR')}
+								Lançamentos permitidos. Caixa aberto em {caixa ? new Date(caixa.data).toLocaleDateString('pt-BR') : ''}
 							</div>
 						</div>
 					</div>

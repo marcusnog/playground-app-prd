@@ -1,33 +1,43 @@
-import { useMemo, useState, useEffect } from 'react'
-import { db } from '../services/mockDb'
+import { useState, useEffect } from 'react'
+import { caixasService, type Caixa } from '../services/entitiesService'
 
 export function useCaixa() {
-	const [refresh, setRefresh] = useState(0)
-	const caixas = useMemo(() => db.get().caixas, [refresh])
+	const [caixas, setCaixas] = useState<Caixa[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<Error | null>(null)
+
 	const caixaAberto = caixas.find((c) => c.status === 'aberto')
-	
-	// Escutar mudanças no localStorage para atualizar quando o caixa muda
+
+	const loadCaixas = async () => {
+		try {
+			setLoading(true)
+			setError(null)
+			const data = await caixasService.list()
+			setCaixas(data)
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error('Erro ao carregar caixas'))
+			console.error('Erro ao carregar caixas:', err)
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	useEffect(() => {
-		function handleStorageChange() {
-			setRefresh(prev => prev + 1)
-		}
+		loadCaixas()
 		
-		// Escutar mudanças no localStorage
-		window.addEventListener('storage', handleStorageChange)
+		// Polling a cada 30 segundos para atualizar dados
+		const interval = setInterval(loadCaixas, 30000)
 		
-		// Também escutar mudanças locais usando um evento customizado
-		window.addEventListener('db-update', handleStorageChange)
-		
-		return () => {
-			window.removeEventListener('storage', handleStorageChange)
-			window.removeEventListener('db-update', handleStorageChange)
-		}
+		return () => clearInterval(interval)
 	}, [])
 	
 	return {
 		caixaAberto: !!caixaAberto,
 		caixa: caixaAberto,
 		isOpen: !!caixaAberto,
-		refresh: () => setRefresh(prev => prev + 1),
+		caixas,
+		loading,
+		error,
+		refresh: loadCaixas,
 	}
 }

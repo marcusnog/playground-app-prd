@@ -1,24 +1,52 @@
 import { useEffect, useMemo, useState } from 'react'
-import { db, calcularValor } from '../services/mockDb'
+import { calcularValor } from '../services/utils'
+import { calcularValor as calcularValorDb, type Parametros, type Brinquedo } from '../services/mockDb'
+import { lancamentosService, brinquedosService, parametrosService } from '../services/entitiesService'
 import { Link } from 'react-router-dom'
+import type { Lancamento, Brinquedo as BrinquedoType, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Acompanhamento() {
 	const [tick, setTick] = useState(0)
 	const [filtroStatus, setFiltroStatus] = useState<'abertos' | 'encerrados'>('abertos')
-	const d = db.get()
-	const parametros = d.parametros
-	const brinquedos = d.brinquedos
-	
+	const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
+	const [parametros, setParametros] = useState<ParametrosType | null>(null)
+	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
+	const [loading, setLoading] = useState(true)
+
 	const lancamentosFiltrados = useMemo(() => {
 		if (filtroStatus === 'abertos') {
-			return d.lancamentos.filter((l) => l.status === 'aberto')
+			return lancamentos.filter((l) => l.status === 'aberto')
 		} else {
-			return d.lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
+			return lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
 		}
-	}, [tick, filtroStatus])
+	}, [tick, filtroStatus, lancamentos])
 
 	useEffect(() => {
-		const t = setInterval(() => setTick((x) => x + 1), 1000 * 30)
+		async function loadData() {
+			try {
+				setLoading(true)
+				const [lancamentosData, parametrosData, brinquedosData] = await Promise.all([
+					lancamentosService.list(),
+					parametrosService.get(),
+					brinquedosService.list(),
+				])
+				setLancamentos(lancamentosData)
+				setParametros(parametrosData)
+				setBrinquedos(brinquedosData)
+			} catch (error) {
+				console.error('Erro ao carregar dados:', error)
+			} finally {
+				setLoading(false)
+			}
+		}
+		
+		loadData()
+		
+		const t = setInterval(() => {
+			setTick((x) => x + 1)
+			loadData() // Recarregar dados a cada 30 segundos
+		}, 1000 * 30)
+		
 		return () => clearInterval(t)
 	}, [])
 
@@ -30,6 +58,17 @@ export default function Acompanhamento() {
 	function abrirWhatsapp(numero: string, texto: string) {
 		const url = `https://wa.me/${encodeURIComponent(numero)}?text=${encodeURIComponent(texto)}`
 		window.open(url, '_blank')
+	}
+
+	if (loading) {
+		return (
+			<div className="container wide">
+				<h2>Acompanhamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -76,7 +115,7 @@ export default function Acompanhamento() {
 							const alvo = l.tempoSolicitadoMin ?? Infinity
 							const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
 							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
-							const valor = calcularValor(parametros, l.tempoSolicitadoMin, brinquedo)
+							const valor = parametros ? calcularValor(parametros as Parametros, l.tempoSolicitadoMin, brinquedo as Brinquedo | undefined) : l.valorCalculado
 							const alerta = isFinite(restante) && restante <= 5
 							return (
 								<tr key={l.id} className={alerta ? 'highlight' : undefined}>
