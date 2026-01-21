@@ -45,6 +45,17 @@ class ApiService {
 			...(options.headers as Record<string, string> || {}),
 		}
 
+		// Garantir que o token está carregado
+		if (!this.token && typeof window !== 'undefined') {
+			const authData = localStorage.getItem('app.auth.token')
+			if (authData) {
+				try {
+					const parsed = JSON.parse(authData)
+					this.token = parsed.token
+				} catch {}
+			}
+		}
+
 		if (this.token) {
 			headers['Authorization'] = `Bearer ${this.token}`
 		}
@@ -56,6 +67,16 @@ class ApiService {
 			})
 
 			if (!response.ok) {
+				// Se for erro 401 (não autorizado), limpar token e sessão
+				if (response.status === 401) {
+					this.setToken(null)
+					if (typeof window !== 'undefined') {
+						localStorage.removeItem('app.auth.user')
+					}
+					// Disparar evento para o AuthContext limpar o estado
+					window.dispatchEvent(new Event('auth:logout'))
+				}
+
 				const errorData = await response.json().catch(() => ({
 					message: response.statusText || 'Erro na requisição',
 				}))

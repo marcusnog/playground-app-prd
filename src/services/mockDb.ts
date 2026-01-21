@@ -16,7 +16,11 @@ export type RegrasCobranca = {
 export type Brinquedo = { 
 	id: string
 	nome: string
-	regrasCobranca?: RegrasCobranca // Se não tiver, usa regras globais
+	inicialMinutos?: number | null // null = taxa única sem limite
+	valorInicial?: number
+	cicloMinutos?: number | null // null = não usa ciclos
+	valorCiclo?: number
+	regrasCobranca?: RegrasCobranca // Se não tiver, usa regras globais (compatibilidade)
 }
 export type Parametros = {
 	valorInicialMinutos: number;
@@ -66,6 +70,7 @@ export type Lancamento = {
 	clienteId?: string // ID do cliente cadastrado
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
+	formaPagamentoId?: string // ID da forma de pagamento (quando pago)
 }
 
 export type PermissoesModulo = {

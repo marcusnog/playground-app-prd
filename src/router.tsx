@@ -30,7 +30,24 @@ import ReciboEstacionamentoAbertura from './screens/recibos/ReciboEstacionamento
 import ReciboEstacionamentoFechamento from './screens/recibos/ReciboEstacionamentoFechamento'
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
-	const { isAuthenticated } = useAuth()
+	const { isAuthenticated, loading } = useAuth()
+	
+	// Aguardar o carregamento da sessão antes de verificar autenticação
+	if (loading) {
+		return (
+			<div style={{ 
+				display: 'flex', 
+				justifyContent: 'center', 
+				alignItems: 'center', 
+				height: '100vh',
+				flexDirection: 'column',
+				gap: 16
+			}}>
+				<div>Carregando...</div>
+			</div>
+		)
+	}
+	
 	if (!isAuthenticated) return <Navigate to="/login" replace />
 	return children
 }

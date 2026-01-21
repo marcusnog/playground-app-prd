@@ -1,37 +1,44 @@
-import { useMemo, useState } from 'react'
-import { db, uid } from '../../services/mockDb'
+import { useState } from 'react'
+import { useCaixa } from '../../hooks/useCaixa'
+import { caixasService } from '../../services/entitiesService'
+import { usePermissions } from '../../hooks/usePermissions'
 
 export default function Suprimento() {
-	const [_, force] = useState(0)
-	const caixas = useMemo(() => db.get().caixas, [_])
-	const aberto = caixas.find((c) => c.status === 'aberto')
+	const { caixa: aberto, refresh } = useCaixa()
+	const { hasPermission } = usePermissions()
 	const [valor, setValor] = useState<number>(0)
 	const [motivo, setMotivo] = useState('')
+	const [saving, setSaving] = useState(false)
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
+	// Verificar permissão
+	if (!hasPermission('caixa', 'suprimento')) {
+		return (
+			<div className="container" style={{ maxWidth: 600 }}>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
+					<p>Você não tem permissão para acessar esta funcionalidade.</p>
+				</div>
+			</div>
+		)
+	}
 
-	function registrar() {
+	async function registrar() {
 		if (!aberto) return alert('É necessário ter um caixa aberto para registrar suprimento')
 		if (valor <= 0) return alert('Informe um valor válido')
 		
-		db.update((d) => {
-			const caixa = d.caixas.find((c) => c.id === aberto!.id)
-			if (caixa) {
-				if (!caixa.movimentos) caixa.movimentos = []
-				caixa.movimentos.push({
-					id: uid('mov'),
-					dataHora: new Date().toISOString(),
-					tipo: 'suprimento',
-					valor,
-					motivo: motivo.trim() || undefined
-				})
-			}
-		})
-		
-		setValor(0)
-		setMotivo('')
-		refresh()
-		alert('Suprimento registrado com sucesso!')
+		try {
+			setSaving(true)
+			await caixasService.suprimento(aberto.id, valor, motivo.trim() || undefined)
+			setValor(0)
+			setMotivo('')
+			await refresh()
+			alert('Suprimento registrado com sucesso!')
+		} catch (error) {
+			console.error('Erro ao registrar suprimento:', error)
+			alert('Erro ao registrar suprimento. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
 	}
 
 	return (
@@ -95,8 +102,8 @@ export default function Suprimento() {
 					</label>
 
 					<div className="actions">
-						<button className="btn primary" onClick={registrar} disabled={!aberto}>
-							{aberto ? '💰 Registrar Suprimento' : 'Caixa Fechado'}
+						<button className="btn primary" onClick={registrar} disabled={!aberto || saving}>
+							{saving ? 'Registrando...' : aberto ? '💰 Registrar Suprimento' : 'Caixa Fechado'}
 						</button>
 					</div>
 				</div>

@@ -1,15 +1,37 @@
-import { useMemo, useState } from 'react'
-import { db } from '../../services/mockDb'
+import { useState, useEffect, useMemo } from 'react'
+import { useCaixa } from '../../hooks/useCaixa'
+import { caixasService, lancamentosService, formasPagamentoService } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
 
 export default function Fechamento() {
-	const [_, force] = useState(0)
-	const caixas = useMemo(() => db.get().caixas, [_])
-	const aberto = caixas.find((c) => c.status === 'aberto')
+	const { caixa: aberto, refresh } = useCaixa()
 	const navigate = useNavigate()
 	const { hasPermission, canUseCaixa, user } = usePermissions()
+	const [loading, setLoading] = useState(false)
+	const [lancamentos, setLancamentos] = useState<any[]>([])
+	const [formasPagamento, setFormasPagamento] = useState<any[]>([])
+
+	useEffect(() => {
+		async function loadData() {
+			if (!aberto) return
+			try {
+				setLoading(true)
+				const [lancs, formas] = await Promise.all([
+					lancamentosService.list(),
+					formasPagamentoService.list()
+				])
+				setLancamentos(lancs)
+				setFormasPagamento(formas)
+			} catch (error) {
+				console.error('Erro ao carregar dados:', error)
+			} finally {
+				setLoading(false)
+			}
+		}
+		loadData()
+	}, [aberto])
 
 	// Verificar permissão
 	if (!hasPermission('caixa', 'fechamento')) {
@@ -35,28 +57,28 @@ export default function Fechamento() {
 		)
 	}
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
-
 	// Resumo por forma de pagamento usando lancamentos pagos do dia
 	const resumo = useMemo(() => {
-		const d = db.get()
 		if (!aberto) return []
 		
 		const dataCaixa = new Date(aberto.data).toDateString()
-		const pagos = d.lancamentos.filter((l) => {
+		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
 			const dataLancamento = new Date(l.dataHora).toDateString()
 			return dataLancamento === dataCaixa
 		})
 		
-		const map = new Map<string, number>()
+		const map = new Map<string, { nome: string, total: number }>()
 		for (const l of pagos) {
-			const forma = (l as any).formaPagamentoId as string | undefined
-			if (!forma) continue
-			map.set(forma, (map.get(forma) || 0) + l.valorCalculado)
+			const formaId = l.formaPagamentoId as string | undefined
+			if (!formaId) continue
+			const forma = formasPagamento.find(f => f.id === formaId)
+			const nomeForma = forma?.descricao || 'Desconhecido'
+			const atual = map.get(formaId) || { nome: nomeForma, total: 0 }
+			map.set(formaId, { nome: atual.nome, total: atual.total + l.valorCalculado })
 		}
-		return Array.from(map.entries())
-	}, [_, aberto])
+		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
+	}, [aberto, lancamentos, formasPagamento])
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
@@ -80,18 +102,22 @@ export default function Fechamento() {
 
 	const saldoFinal = (aberto?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
 
-	function fechar() {
+	async function fechar() {
 		if (!aberto) return alert('Não há caixa aberto para fechar')
 		if (!confirm('Deseja realmente fechar o caixa?')) return
 		
-		const caixaId = aberto.id
-		db.update((d) => {
-			const c = d.caixas.find((x) => x.id === caixaId)
-			if (c) c.status = 'fechado'
-		})
-		refresh()
-		// Navegar para o comprovante de fechamento
-		navigate(`/recibo/fechamento/${caixaId}`)
+		try {
+			setLoading(true)
+			await caixasService.fechar(aberto.id)
+			await refresh()
+			// Navegar para o comprovante de fechamento
+			navigate(`/recibo/fechamento/${aberto.id}`)
+		} catch (error) {
+			console.error('Erro ao fechar caixa:', error)
+			alert('Erro ao fechar caixa. Tente novamente.')
+		} finally {
+			setLoading(false)
+		}
 	}
 
 	function imprimir() {
@@ -245,8 +271,10 @@ export default function Fechamento() {
 					</div>
 
 					<div className="actions no-print">
-						<button className="btn" onClick={imprimir}>🖨️ Imprimir Relatório</button>
-						<button className="btn primary" onClick={fechar}>🔒 Fechar Caixa</button>
+						<button className="btn" onClick={imprimir} disabled={loading}>🖨️ Imprimir Relatório</button>
+						<button className="btn primary" onClick={fechar} disabled={loading}>
+							{loading ? 'Fechando...' : '🔒 Fechar Caixa'}
+						</button>
 					</div>
 				</>
 			)}

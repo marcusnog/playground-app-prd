@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { calcularValor } from '../services/utils'
-import { calcularValor as calcularValorDb, type Parametros, type Brinquedo } from '../services/mockDb'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
 import type { Brinquedo as BrinquedoType, Cliente, Parametros as ParametrosType } from '../services/entitiesService'

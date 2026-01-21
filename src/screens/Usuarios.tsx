@@ -300,31 +300,53 @@ export default function Usuarios() {
 								<span><strong>Parâmetros</strong></span>
 							</label>
 							{form.permissoes?.parametros && (
-								<div style={{ marginLeft: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-									<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-										<input 
-											type="checkbox" 
-											checked={!!form.permissoes?.parametros?.empresa}
-											onChange={() => togglePermissao('parametros', 'empresa')}
-										/>
-										<span>Empresa</span>
-									</label>
-									<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-										<input 
-											type="checkbox" 
-											checked={!!form.permissoes?.parametros?.formasPagamento}
-											onChange={() => togglePermissao('parametros', 'formasPagamento')}
-										/>
-										<span>Formas de Pagamento</span>
-									</label>
-									<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-										<input 
-											type="checkbox" 
-											checked={!!form.permissoes?.parametros?.brinquedos}
-											onChange={() => togglePermissao('parametros', 'brinquedos')}
-										/>
-										<span>Brinquedos</span>
-									</label>
+								<div style={{ marginLeft: 24 }}>
+									<div style={{ marginBottom: 8 }}>
+										<button 
+											type="button"
+											className="btn" 
+											style={{ fontSize: '0.85rem', padding: '4px 12px' }}
+											onClick={() => {
+												setForm(prev => {
+													const permissoes = { ...prev.permissoes } as PermissoesModulo
+													permissoes.parametros = {
+														empresa: true,
+														formasPagamento: true,
+														brinquedos: true
+													}
+													return { ...prev, permissoes }
+												})
+											}}
+										>
+											✓ Selecionar Todos
+										</button>
+									</div>
+									<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+										<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+											<input 
+												type="checkbox" 
+												checked={!!form.permissoes?.parametros?.empresa}
+												onChange={() => togglePermissao('parametros', 'empresa')}
+											/>
+											<span>Empresa</span>
+										</label>
+										<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+											<input 
+												type="checkbox" 
+												checked={!!form.permissoes?.parametros?.formasPagamento}
+												onChange={() => togglePermissao('parametros', 'formasPagamento')}
+											/>
+											<span>Formas de Pagamento</span>
+										</label>
+										<label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+											<input 
+												type="checkbox" 
+												checked={!!form.permissoes?.parametros?.brinquedos}
+												onChange={() => togglePermissao('parametros', 'brinquedos')}
+											/>
+											<span>Brinquedos</span>
+										</label>
+									</div>
 								</div>
 							)}
 						</div>
@@ -427,17 +449,29 @@ export default function Usuarios() {
 							<span>Selecione o Caixa</span>
 							<select 
 								className="select" 
-								value={form.caixaId || ''} 
-								onChange={(e) => setForm({ ...form, caixaId: e.target.value || undefined })}
+								value={form.caixaId === undefined ? 'todos' : (form.caixaId || '')} 
+								onChange={(e) => {
+									const value = e.target.value
+									setForm({ 
+										...form, 
+										caixaId: value === 'todos' ? undefined : (value || undefined) 
+									})
+								}}
 							>
-								<option value="">Selecione um caixa...</option>
+								<option value="todos">Todos os caixas</option>
+								<option value="">Selecione um caixa específico...</option>
 								{caixas.map((c) => (
 									<option key={c.id} value={c.id}>
 										{c.nome} ({c.status})
 									</option>
 								))}
 							</select>
-							<span className="help">Selecione qual caixa este usuário pode usar para abertura/fechamento</span>
+							<span className="help">
+								{form.caixaId === undefined 
+									? 'O usuário poderá usar qualquer caixa para abertura/fechamento'
+									: 'Selecione qual caixa este usuário pode usar para abertura/fechamento'
+								}
+							</span>
 						</label>
 					)}
 				</div>
@@ -478,8 +512,8 @@ export default function Usuarios() {
 											<td>{u.nomeCompleto}</td>
 											<td>{u.apelido}</td>
 											<td>{u.contato}</td>
-											<td>{u.usaCaixa ? '✅' : '❌'}</td>
-											<td>{caixa ? caixa.nome : '-'}</td>
+									<td>{u.usaCaixa ? '✅' : '❌'}</td>
+									<td>{u.usaCaixa ? (caixa ? caixa.nome : 'Todos os caixas') : '-'}</td>
 											<td>
 												<div className="row" style={{ gap: 8 }}>
 													<button className="btn" onClick={() => edit(u)}>✏️ Editar</button>

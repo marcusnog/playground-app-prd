@@ -1,17 +1,14 @@
-import { useMemo, useState } from 'react'
-import { db, type Caixa, uid } from '../services/mockDb'
+import { useState } from 'react'
+import { useCaixa } from '../hooks/useCaixa'
+import { caixasService, type Caixa } from '../services/entitiesService'
 
 export default function Caixas() {
-	const [refresh, setRefresh] = useState(0)
-	const caixas = useMemo(() => db.get().caixas, [refresh])
+	const { caixas, loading, refresh } = useCaixa()
 	const [editingId, setEditingId] = useState<string | null>(null)
+	const [saving, setSaving] = useState(false)
 	const [form, setForm] = useState({
 		nome: '',
 	})
-
-	function refreshList() {
-		setRefresh(prev => prev + 1)
-	}
 
 	function resetForm() {
 		setForm({ nome: '' })
@@ -23,44 +20,44 @@ export default function Caixas() {
 		setEditingId(caixa.id)
 	}
 
-	function save() {
+	async function save() {
 		if (!form.nome.trim()) {
 			return alert('Preencha o nome do caixa')
 		}
 
-		if (editingId) {
-			// Editar
-			db.update((d) => {
-				const caixa = d.caixas.find(c => c.id === editingId)
-				if (caixa) {
-					caixa.nome = form.nome.trim()
+		try {
+			setSaving(true)
+			if (editingId) {
+				// Editar
+				await caixasService.update(editingId, { nome: form.nome.trim() })
+				alert('Caixa atualizado com sucesso!')
+			} else {
+				// Criar
+				// Verificar se já existe um caixa com o mesmo nome
+				if (caixas.some(c => c.nome.toLowerCase() === form.nome.trim().toLowerCase())) {
+					return alert('Já existe um caixa com este nome')
 				}
-			})
-			alert('Caixa atualizado com sucesso!')
-		} else {
-			// Criar
-			// Verificar se já existe um caixa com o mesmo nome
-			if (caixas.some(c => c.nome.toLowerCase() === form.nome.trim().toLowerCase())) {
-				return alert('Já existe um caixa com este nome')
-			}
-			
-			db.update((d) => {
-				d.caixas.push({
-					id: uid('caixa'),
+				
+				await caixasService.create({
 					nome: form.nome.trim(),
-					data: new Date().toISOString(),
+					data: new Date().toISOString().split('T')[0],
 					valorInicial: 0,
 					status: 'fechado',
 					movimentos: []
 				})
-			})
-			alert('Caixa criado com sucesso!')
+				alert('Caixa criado com sucesso!')
+			}
+			await refresh()
+			resetForm()
+		} catch (error) {
+			console.error('Erro ao salvar caixa:', error)
+			alert('Erro ao salvar caixa. Tente novamente.')
+		} finally {
+			setSaving(false)
 		}
-		refreshList()
-		resetForm()
 	}
 
-	function remove(id: string) {
+	async function remove(id: string) {
 		const caixa = caixas.find(c => c.id === id)
 		if (caixa?.status === 'aberto') {
 			return alert('Não é possível excluir um caixa que está aberto. Feche o caixa primeiro.')
@@ -68,14 +65,29 @@ export default function Caixas() {
 		
 		if (!confirm('Deseja realmente excluir este caixa?')) return
 		
-		db.update((d) => {
-			d.caixas = d.caixas.filter(c => c.id !== id)
-		})
-		refreshList()
+		try {
+			await caixasService.delete(id)
+			await refresh()
+			alert('Caixa excluído com sucesso!')
+		} catch (error) {
+			console.error('Erro ao excluir caixa:', error)
+			alert('Erro ao excluir caixa. Tente novamente.')
+		}
 	}
 
 	// Separar caixas abertos e fechados
 	const caixasAbertos = caixas.filter(c => c.status === 'aberto')
+
+	if (loading && caixas.length === 0) {
+		return (
+			<div className="container" style={{ maxWidth: 1000 }}>
+				<h2>Cadastro de Caixas</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className="container" style={{ maxWidth: 1000 }}>
@@ -98,10 +110,10 @@ export default function Caixas() {
 
 					<div className="actions" style={{ marginTop: 16 }}>
 						{editingId && (
-							<button className="btn" onClick={resetForm}>Cancelar</button>
+							<button className="btn" onClick={resetForm} disabled={saving}>Cancelar</button>
 						)}
-						<button className="btn primary" onClick={save}>
-							{editingId ? '💾 Atualizar' : '➕ Criar'}
+						<button className="btn primary" onClick={save} disabled={saving}>
+							{saving ? 'Salvando...' : editingId ? '💾 Atualizar' : '➕ Criar'}
 						</button>
 					</div>
 				</div>

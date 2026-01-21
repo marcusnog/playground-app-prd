@@ -5,24 +5,30 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	if (tempoMin == null) return 0
 	
 	// Se o brinquedo tem regras específicas, usa elas
+	// Suporta tanto formato antigo (regrasCobranca) quanto novo (campos diretos)
 	const regras = brinquedo?.regrasCobranca
-	if (regras) {
+	const inicialMinutos = brinquedo?.inicialMinutos ?? regras?.inicialMinutos
+	const valorInicial = brinquedo?.valorInicial ?? regras?.valorInicial
+	const cicloMinutos = brinquedo?.cicloMinutos ?? regras?.cicloMinutos
+	const valorCiclo = brinquedo?.valorCiclo ?? regras?.valorCiclo
+	
+	if (inicialMinutos !== undefined && valorInicial !== undefined) {
 		// Taxa única sem limite de tempo
-		if (regras.inicialMinutos === null) {
-			return regras.valorInicial
+		if (inicialMinutos === null) {
+			return valorInicial
 		}
 		
 		// Calcula por tempo e ciclos
-		if (tempoMin <= regras.inicialMinutos) return regras.valorInicial
+		if (tempoMin <= inicialMinutos) return valorInicial
 		
 		// Se não usa ciclos, retorna apenas o valor inicial
-		if (regras.cicloMinutos === null) {
-			return regras.valorInicial
+		if (cicloMinutos === null || cicloMinutos === undefined) {
+			return valorInicial
 		}
 		
-		const excedente = Math.max(0, tempoMin - regras.inicialMinutos)
-		const ciclos = Math.ceil(excedente / Math.max(1, regras.cicloMinutos))
-		return regras.valorInicial + ciclos * regras.valorCiclo
+		const excedente = Math.max(0, tempoMin - inicialMinutos)
+		const ciclos = Math.ceil(excedente / Math.max(1, cicloMinutos))
+		return valorInicial + ciclos * (valorCiclo || 0)
 	}
 	
 	// Usa regras globais do parâmetro

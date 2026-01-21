@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authService, type LoginResponse } from '../services/authService'
+import { api } from '../services/api'
 
 type User = {
 	id: string
@@ -29,6 +30,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		async function loadUser() {
 			try {
+				// Primeiro, verificar se há token salvo e restaurá-lo
+				const authData = localStorage.getItem('app.auth.token')
+				if (authData) {
+					try {
+						const parsed = JSON.parse(authData)
+						if (parsed.token) {
+							// Restaurar token na API
+							api.setToken(parsed.token)
+						}
+					} catch {}
+				}
+
 				// Tentar buscar usuário atual da API
 				const currentUser = await authService.getCurrentUser()
 				if (currentUser) {
@@ -39,18 +52,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					// Fallback: tentar carregar do localStorage
 					const raw = localStorage.getItem(AUTH_STORAGE_KEY)
 					if (raw) {
-						const saved = JSON.parse(raw)
-						setUser(saved)
+						try {
+							const saved = JSON.parse(raw)
+							// Verificar se há token antes de usar dados do localStorage
+							if (authData) {
+								setUser(saved)
+							}
+						} catch {}
 					}
 				}
 			} catch (error) {
 				console.error('Erro ao carregar usuário:', error)
-				// Fallback: tentar carregar do localStorage
+				// Fallback: tentar carregar do localStorage apenas se houver token
 				try {
-					const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-					if (raw) {
-						const saved = JSON.parse(raw)
-						setUser(saved)
+					const authData = localStorage.getItem('app.auth.token')
+					if (authData) {
+						const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+						if (raw) {
+							const saved = JSON.parse(raw)
+							setUser(saved)
+						}
 					}
 				} catch {}
 			} finally {
@@ -59,6 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 		
 		loadUser()
+
+		// Ouvir evento de logout para limpar estado
+		const handleLogout = () => {
+			setUser(null)
+			localStorage.removeItem(AUTH_STORAGE_KEY)
+		}
+		window.addEventListener('auth:logout', handleLogout)
+		
+		return () => {
+			window.removeEventListener('auth:logout', handleLogout)
+		}
 	}, [])
 
 	const login = useCallback(async (username: string, password: string) => {

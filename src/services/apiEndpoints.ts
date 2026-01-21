@@ -7,7 +7,6 @@ const endpoints = {
 		login: '/api/auth/login',
 		logout: '/api/auth/logout',
 		me: '/api/auth/me',
-		refresh: '/api/auth/refresh',
 	},
 
 	// Usuários
@@ -23,11 +22,12 @@ const endpoints = {
 	caixas: {
 		list: '/api/caixas',
 		get: (id: string) => `/api/caixas/${id}`,
+		getAberto: '/api/caixas/aberto',
 		create: '/api/caixas',
 		update: (id: string) => `/api/caixas/${id}`,
 		delete: (id: string) => `/api/caixas/${id}`,
-		abrir: (id: string) => `/api/caixas/${id}/abrir`,
-		fechar: (id: string) => `/api/caixas/${id}/fechar`,
+		abrir: '/api/caixas/abertura',
+		fechar: '/api/caixas/fechamento',
 		movimentos: (id: string) => `/api/caixas/${id}/movimentos`,
 		sangria: (id: string) => `/api/caixas/${id}/sangria`,
 		suprimento: (id: string) => `/api/caixas/${id}/suprimento`,
@@ -37,9 +37,9 @@ const endpoints = {
 	lancamentos: {
 		list: '/api/lancamentos',
 		get: (id: string) => `/api/lancamentos/${id}`,
+		abertos: '/api/lancamentos/abertos',
 		create: '/api/lancamentos',
 		update: (id: string) => `/api/lancamentos/${id}`,
-		delete: (id: string) => `/api/lancamentos/${id}`,
 		pagar: (id: string) => `/api/lancamentos/${id}/pagar`,
 		cancelar: (id: string) => `/api/lancamentos/${id}/cancelar`,
 	},
@@ -89,13 +89,12 @@ const endpoints = {
 
 	// Lançamentos de Estacionamento
 	lancamentosEstacionamento: {
-		list: '/api/lancamentos-estacionamento',
-		get: (id: string) => `/api/lancamentos-estacionamento/${id}`,
-		create: '/api/lancamentos-estacionamento',
-		update: (id: string) => `/api/lancamentos-estacionamento/${id}`,
-		delete: (id: string) => `/api/lancamentos-estacionamento/${id}`,
-		pagar: (id: string) => `/api/lancamentos-estacionamento/${id}/pagar`,
-		cancelar: (id: string) => `/api/lancamentos-estacionamento/${id}/cancelar`,
+		list: '/api/estacionamentos/lancamentos',
+		get: (id: string) => `/api/estacionamentos/lancamentos/${id}`,
+		abertos: '/api/estacionamentos/lancamentos/abertos',
+		create: '/api/estacionamentos/lancamentos',
+		pagar: (id: string) => `/api/estacionamentos/lancamentos/${id}/pagar`,
+		cancelar: (id: string) => `/api/estacionamentos/lancamentos/${id}/cancelar`,
 	},
 
 	// Relatórios

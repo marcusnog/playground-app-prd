@@ -50,12 +50,12 @@ export const caixasService = {
 		return api.delete(endpoints.caixas.delete(id))
 	},
 
-	abrir: async (id: string, valorInicial: number): Promise<Caixa> => {
-		return api.post<Caixa>(endpoints.caixas.abrir(id), { valorInicial })
+	abrir: async (id: string, valorInicial: number, nome?: string, data?: string): Promise<Caixa> => {
+		return api.post<Caixa>(endpoints.caixas.abrir, { id, valorInicial, nome, data })
 	},
 
 	fechar: async (id: string): Promise<Caixa> => {
-		return api.post<Caixa>(endpoints.caixas.fechar(id))
+		return api.post<Caixa>(endpoints.caixas.fechar, { id })
 	},
 
 	sangria: async (id: string, valor: number, motivo?: string): Promise<MovimentoCaixa> => {
@@ -87,10 +87,6 @@ export const lancamentosService = {
 
 	update: async (id: string, data: Partial<Lancamento>): Promise<Lancamento> => {
 		return api.put<Lancamento>(endpoints.lancamentos.update(id), data)
-	},
-
-	delete: async (id: string): Promise<void> => {
-		return api.delete(endpoints.lancamentos.delete(id))
 	},
 
 	pagar: async (id: string, formaPagamentoId: string): Promise<Lancamento> => {
@@ -246,13 +242,6 @@ export const lancamentosEstacionamentoService = {
 		return api.post<LancamentoEstacionamento>(endpoints.lancamentosEstacionamento.create, data)
 	},
 
-	update: async (id: string, data: Partial<LancamentoEstacionamento>): Promise<LancamentoEstacionamento> => {
-		return api.put<LancamentoEstacionamento>(endpoints.lancamentosEstacionamento.update(id), data)
-	},
-
-	delete: async (id: string): Promise<void> => {
-		return api.delete(endpoints.lancamentosEstacionamento.delete(id))
-	},
 
 	pagar: async (id: string, formaPagamentoId: string): Promise<LancamentoEstacionamento> => {
 		return api.post<LancamentoEstacionamento>(endpoints.lancamentosEstacionamento.pagar(id), { formaPagamentoId })

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { calcularValor } from '../services/utils'
-import { calcularValor as calcularValorDb, type Parametros, type Brinquedo } from '../services/mockDb'
 import { lancamentosService, brinquedosService, parametrosService } from '../services/entitiesService'
 import { Link } from 'react-router-dom'
 import type { Lancamento, Brinquedo as BrinquedoType, Parametros as ParametrosType } from '../services/entitiesService'
@@ -60,6 +59,33 @@ export default function Acompanhamento() {
 		window.open(url, '_blank')
 	}
 
+	async function atualizarHoraMinuto(lancamentoId: string, novaDataHora: Date) {
+		try {
+			// Tentar atualizar via API primeiro
+			try {
+				await lancamentosService.update(lancamentoId, {
+					dataHora: novaDataHora.toISOString()
+				} as any)
+			} catch (apiError) {
+				// Se falhar, usar mockDb diretamente
+				const { db } = await import('../services/mockDb')
+				db.update((dbb) => {
+					const lanc = dbb.lancamentos.find((x) => x.id === lancamentoId)
+					if (lanc) {
+						lanc.dataHora = novaDataHora.toISOString()
+					}
+				})
+			}
+			setTick(prev => prev + 1)
+			// Recarregar dados
+			const lancamentosData = await lancamentosService.list()
+			setLancamentos(lancamentosData)
+		} catch (error) {
+			console.error('Erro ao atualizar hora/minuto:', error)
+			alert('Erro ao atualizar hora/minuto')
+		}
+	}
+
 	if (loading) {
 		return (
 			<div className="container wide">
@@ -103,10 +129,11 @@ export default function Acompanhamento() {
 								<tr>
 									<th>Criança</th>
 									<th>Responsável</th>
+									<th>Hora/Minuto</th>
 									<th>Tempo</th>
 									<th>Valor</th>
 									<th>Status</th>
-									<th style={{ width: 330 }}>Ações</th>
+									<th style={{ width: 400 }}>Ações</th>
 								</tr>
 					</thead>
 							<tbody>
@@ -117,10 +144,45 @@ export default function Acompanhamento() {
 							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
 							const valor = parametros ? calcularValor(parametros as Parametros, l.tempoSolicitadoMin, brinquedo as Brinquedo | undefined) : l.valorCalculado
 							const alerta = isFinite(restante) && restante <= 5
+							const dataHora = new Date(l.dataHora)
+							const hora = dataHora.getHours().toString().padStart(2, '0')
+							const minuto = dataHora.getMinutes().toString().padStart(2, '0')
+							
 							return (
 								<tr key={l.id} className={alerta ? 'highlight' : undefined}>
 									<td>{l.nomeCrianca}</td>
 									<td>{l.nomeResponsavel}</td>
+									<td>
+										<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+											<input 
+												type="number" 
+												min="0" 
+												max="23" 
+												value={hora} 
+												onChange={(e) => {
+													const novaHora = parseInt(e.target.value) || 0
+													const novaDataHora = new Date(l.dataHora)
+													novaDataHora.setHours(Math.max(0, Math.min(23, novaHora)))
+													atualizarHoraMinuto(l.id, novaDataHora)
+												}}
+												style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
+											/>
+											<span>:</span>
+											<input 
+												type="number" 
+												min="0" 
+												max="59" 
+												value={minuto} 
+												onChange={(e) => {
+													const novoMinuto = parseInt(e.target.value) || 0
+													const novaDataHora = new Date(l.dataHora)
+													novaDataHora.setMinutes(Math.max(0, Math.min(59, novoMinuto)))
+													atualizarHoraMinuto(l.id, novaDataHora)
+												}}
+												style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
+											/>
+										</div>
+									</td>
 									<td>
 										{filtroStatus === 'abertos' 
 											? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)
@@ -137,12 +199,22 @@ export default function Acompanhamento() {
 											<>
 												<button className="btn icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'Por favor, compareça ao local.')} disabled={!l.whatsappResponsavel}>📞 Chamar</button>
 												{alerta && l.whatsappResponsavel && <button className="btn warning icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'O tempo solicitado está acabando.')}>📣 Avisar</button>}
+												<Link to={`/recibo/lancamento/${l.id}`}>
+													<button className="btn icon">🖨️ Cupom</button>
+												</Link>
 												<Link to={`/pagamento/${l.id}`}><button className="btn primary icon">💳 Pagamento</button></Link>
 											</>
 										) : (
-											<button className="btn icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
-												📱 Contato
-											</button>
+											<>
+												<button className="btn icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
+													📱 Contato
+												</button>
+												{l.status === 'pago' && (
+													<Link to={`/recibo/pagamento/${l.id}`}>
+														<button className="btn icon">🖨️ Reimprimir</button>
+													</Link>
+												)}
+											</>
 										)}
 									</td>
 								</tr>
