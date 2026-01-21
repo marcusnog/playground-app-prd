@@ -14,6 +14,12 @@ class ApiService {
 
 	constructor(baseUrl: string) {
 		this.baseUrl = baseUrl
+		
+		// Log da URL base configurada (sempre visível para debug)
+		if (typeof window !== 'undefined') {
+			console.log('[API Service] Base URL configurada:', this.baseUrl)
+		}
+		
 		// Carregar token do localStorage se existir
 		if (typeof window !== 'undefined') {
 			const authData = localStorage.getItem('app.auth.token')
@@ -40,6 +46,12 @@ class ApiService {
 		options: RequestInit = {}
 	): Promise<T> {
 		const url = `${this.baseUrl}${endpoint}`
+		
+		// Debug: log da URL sendo chamada
+		if (typeof window !== 'undefined' && import.meta.env.DEV) {
+			console.log('[API] Requisição:', options.method || 'GET', url)
+		}
+		
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
 			...(options.headers as Record<string, string> || {}),
@@ -65,6 +77,15 @@ class ApiService {
 				...options,
 				headers,
 			})
+
+			// Debug: log de erros de rede
+			if (!response.ok && typeof window !== 'undefined') {
+				console.error('[API] Erro na requisição:', {
+					url,
+					status: response.status,
+					statusText: response.statusText
+				})
+			}
 
 			if (!response.ok) {
 				// Se for erro 401 (não autorizado), limpar token e sessão
@@ -94,6 +115,15 @@ class ApiService {
 
 			return await response.json()
 		} catch (error) {
+			// Debug: log de erros de conexão
+			if (typeof window !== 'undefined') {
+				console.error('[API] Erro de conexão:', {
+					url,
+					error: error instanceof Error ? error.message : String(error),
+					baseUrl: this.baseUrl
+				})
+			}
+			
 			if (error && typeof error === 'object' && 'message' in error) {
 				throw error
 			}

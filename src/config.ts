@@ -14,8 +14,13 @@ function getApiBaseUrl(): string {
 		return import.meta.env.VITE_API_BASE_URL
 	}
 	
-	// Se estiver em modo produção (build), usa a URL de produção
-	if (import.meta.env.MODE === 'production' || import.meta.env.PROD) {
+	// Verificar se está em produção
+	// Em produção, o hostname não será localhost
+	const isProduction = typeof window !== 'undefined' 
+		? window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+		: import.meta.env.MODE === 'production' || import.meta.env.PROD
+	
+	if (isProduction) {
 		return DEFAULT_PRODUCTION_URL
 	}
 	
@@ -23,8 +28,24 @@ function getApiBaseUrl(): string {
 	return DEFAULT_DEVELOPMENT_URL
 }
 
+const apiBaseUrl = getApiBaseUrl()
+
+// Log da URL final para debug (sempre visível)
+if (typeof window !== 'undefined') {
+	console.log('[Config] API Base URL configurada:', apiBaseUrl)
+	if (import.meta.env.DEV) {
+		console.log('[Config] Ambiente:', {
+			MODE: import.meta.env.MODE,
+			PROD: import.meta.env.PROD,
+			DEV: import.meta.env.DEV,
+			hostname: window.location.hostname,
+			VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL
+		})
+	}
+}
+
 export const config = {
-	apiBaseUrl: getApiBaseUrl(),
+	apiBaseUrl,
 	apiTimeout: 30000, // 30 segundos
 }
 
