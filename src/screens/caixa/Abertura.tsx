@@ -61,6 +61,8 @@ export default function Abertura() {
 			setValorInicial(0)
 			setCaixaSelecionado('')
 			await refresh()
+			// Disparar evento para atualizar outros componentes que usam useCaixa
+			window.dispatchEvent(new Event('caixa:updated'))
 			// Navegar para o comprovante de abertura
 			navigate(`/recibo/abertura/${caixaId}`)
 		} catch (error) {

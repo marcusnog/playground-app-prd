@@ -5,6 +5,11 @@ export default function Clientes() {
 	const [_, force] = useState(0)
 	const clientes = useMemo(() => db.get().clientes || [], [_])
 	const [editId, setEditId] = useState<string | null>(null)
+	const [filtroNome, setFiltroNome] = useState<string>('')
+	const [filtroWhatsapp, setFiltroWhatsapp] = useState<string>('')
+	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
+	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
+	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
 	const [form, setForm] = useState({
 		nomeCompleto: '',
 		dataNascimento: '',
@@ -12,6 +17,21 @@ export default function Clientes() {
 		nomeMae: '',
 		telefoneWhatsapp: ''
 	})
+
+	// Filtrar clientes
+	const clientesFiltrados = useMemo(() => {
+		return clientes.filter(cliente => {
+			const nomeMatch = !filtroNome || 
+				cliente.nomeCompleto.toLowerCase().includes(filtroNome.toLowerCase()) ||
+				(cliente.nomePai && cliente.nomePai.toLowerCase().includes(filtroNome.toLowerCase())) ||
+				(cliente.nomeMae && cliente.nomeMae.toLowerCase().includes(filtroNome.toLowerCase()))
+			
+			const whatsappMatch = !filtroWhatsapp || 
+				cliente.telefoneWhatsapp.includes(filtroWhatsapp)
+			
+			return nomeMatch && whatsappMatch
+		})
+	}, [clientes, filtroNome, filtroWhatsapp])
 
 	function refresh() { force((x) => x + 1 as unknown as number) }
 
@@ -135,6 +155,21 @@ export default function Clientes() {
 		window.open(url, '_blank')
 	}
 
+	function abrirWhatsappComPersonalizacao(telefone: string, mensagemPadrao: string) {
+		setNumeroWhatsapp(telefone)
+		setMensagemPersonalizada(mensagemPadrao)
+		setMostrarMensagemPersonalizada(true)
+	}
+
+	function enviarMensagemPersonalizada() {
+		if (!numeroWhatsapp) return
+		const mensagem = mensagemPersonalizada.trim() || 'Olá!'
+		abrirWhatsapp(numeroWhatsapp, mensagem)
+		setMostrarMensagemPersonalizada(false)
+		setMensagemPersonalizada('')
+		setNumeroWhatsapp('')
+	}
+
 	return (
 		<div className="container" style={{ maxWidth: 900 }}>
 			<h2>Cadastro de Clientes</h2>
@@ -214,7 +249,38 @@ export default function Clientes() {
 
 			{/* Lista de Clientes */}
 			<div className="card">
-				<h3>Clientes Cadastrados ({clientes.length})</h3>
+				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+					<h3 style={{ margin: 0 }}>Clientes Cadastrados ({clientesFiltrados.length}{clientesFiltrados.length !== clientes.length ? ` de ${clientes.length}` : ''})</h3>
+					<div className="row" style={{ gap: 8 }}>
+						<input
+							className="input"
+							type="text"
+							placeholder="🔍 Filtrar por nome..."
+							value={filtroNome}
+							onChange={(e) => setFiltroNome(e.target.value)}
+							style={{ width: 200 }}
+						/>
+						<input
+							className="input"
+							type="text"
+							placeholder="📱 Filtrar por WhatsApp..."
+							value={filtroWhatsapp}
+							onChange={(e) => setFiltroWhatsapp(e.target.value)}
+							style={{ width: 200 }}
+						/>
+						{(filtroNome || filtroWhatsapp) && (
+							<button 
+								className="btn" 
+								onClick={() => {
+									setFiltroNome('')
+									setFiltroWhatsapp('')
+								}}
+							>
+								Limpar
+							</button>
+						)}
+					</div>
+				</div>
 				{clientes.length === 0 ? (
 					<div className="empty">
 						<p>Nenhum cliente cadastrado</p>
@@ -234,7 +300,7 @@ export default function Clientes() {
 								</tr>
 							</thead>
 							<tbody>
-								{clientes
+								{clientesFiltrados
 									.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto))
 									.map((cliente) => {
 										const idade = calcularIdade(cliente.dataNascimento)
@@ -288,7 +354,7 @@ export default function Clientes() {
 														<button 
 															className="btn icon" 
 															style={{ padding: '4px 8px', fontSize: '0.9rem' }}
-															onClick={() => abrirWhatsapp(cliente.telefoneWhatsapp, 'Olá! Mensagem do Parque Infantil.')}
+															onClick={() => abrirWhatsappComPersonalizacao(cliente.telefoneWhatsapp, 'Olá! Mensagem do Parque Infantil.')}
 														>
 															📱
 														</button>
@@ -306,6 +372,49 @@ export default function Clientes() {
 					</div>
 				)}
 			</div>
+
+			{/* Modal de Mensagem Personalizada */}
+			{mostrarMensagemPersonalizada && (
+				<div style={{
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000
+				}} onClick={() => setMostrarMensagemPersonalizada(false)}>
+					<div className="card" style={{ maxWidth: 500, width: '90%', margin: 20 }} onClick={(e) => e.stopPropagation()}>
+						<h3>Personalizar Mensagem WhatsApp</h3>
+						<div className="form">
+							<label className="field">
+								<span>Mensagem</span>
+								<textarea
+									className="input"
+									value={mensagemPersonalizada}
+									onChange={(e) => setMensagemPersonalizada(e.target.value)}
+									placeholder="Digite sua mensagem personalizada..."
+									rows={5}
+									style={{ resize: 'vertical' }}
+									autoFocus
+								/>
+								<span className="help">Personalize a mensagem antes de enviar</span>
+							</label>
+							<div className="actions">
+								<button className="btn" onClick={() => setMostrarMensagemPersonalizada(false)}>
+									Cancelar
+								</button>
+								<button className="btn primary" onClick={enviarMensagemPersonalizada} disabled={!mensagemPersonalizada.trim()}>
+									📱 Enviar WhatsApp
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

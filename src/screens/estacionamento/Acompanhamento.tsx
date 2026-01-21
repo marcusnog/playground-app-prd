@@ -6,6 +6,9 @@ export default function AcompanhamentoEstacionamento() {
 	const [tick, setTick] = useState(0)
 	const [filtroStatus, setFiltroStatus] = useState<'abertos' | 'encerrados'>('abertos')
 	const [estacionamentoFiltro, setEstacionamentoFiltro] = useState<string>('')
+	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
+	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
+	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
 	const d = db.get()
 	const estacionamentos = d.estacionamentos
 	const { hasPermission } = usePermissions()
@@ -45,9 +48,24 @@ export default function AcompanhamentoEstacionamento() {
 		return () => clearInterval(t)
 	}, [])
 
-	function abrirWhatsapp(numero: string) {
-		const url = `https://wa.me/${encodeURIComponent(numero)}?text=${encodeURIComponent('Olá! Seu veículo está no estacionamento.')}`
+	function abrirWhatsapp(numero: string, mensagem: string) {
+		const url = `https://wa.me/${encodeURIComponent(numero)}?text=${encodeURIComponent(mensagem)}`
 		window.open(url, '_blank')
+	}
+
+	function abrirWhatsappComPersonalizacao(numero: string, mensagemPadrao: string) {
+		setNumeroWhatsapp(numero)
+		setMensagemPersonalizada(mensagemPadrao)
+		setMostrarMensagemPersonalizada(true)
+	}
+
+	function enviarMensagemPersonalizada() {
+		if (!numeroWhatsapp) return
+		const mensagem = mensagemPersonalizada.trim() || 'Olá!'
+		abrirWhatsapp(numeroWhatsapp, mensagem)
+		setMostrarMensagemPersonalizada(false)
+		setMensagemPersonalizada('')
+		setNumeroWhatsapp('')
 	}
 
 	function formatarPlaca(placa: string) {
@@ -148,7 +166,7 @@ export default function AcompanhamentoEstacionamento() {
 												{l.telefoneContato && l.status === 'aberto' ? (
 													<button 
 														className="btn" 
-														onClick={() => abrirWhatsapp(l.telefoneContato!)}
+														onClick={() => abrirWhatsappComPersonalizacao(l.telefoneContato!, 'Olá! Seu veículo está no estacionamento.')}
 														title="Chamar proprietário"
 													>
 														📞 Chamar
@@ -165,6 +183,49 @@ export default function AcompanhamentoEstacionamento() {
 					</div>
 				)}
 			</div>
+
+			{/* Modal de Mensagem Personalizada */}
+			{mostrarMensagemPersonalizada && (
+				<div style={{
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000
+				}} onClick={() => setMostrarMensagemPersonalizada(false)}>
+					<div className="card" style={{ maxWidth: 500, width: '90%', margin: 20 }} onClick={(e) => e.stopPropagation()}>
+						<h3>Personalizar Mensagem WhatsApp</h3>
+						<div className="form">
+							<label className="field">
+								<span>Mensagem</span>
+								<textarea
+									className="input"
+									value={mensagemPersonalizada}
+									onChange={(e) => setMensagemPersonalizada(e.target.value)}
+									placeholder="Digite sua mensagem personalizada..."
+									rows={5}
+									style={{ resize: 'vertical' }}
+									autoFocus
+								/>
+								<span className="help">Personalize a mensagem antes de enviar</span>
+							</label>
+							<div className="actions">
+								<button className="btn" onClick={() => setMostrarMensagemPersonalizada(false)}>
+									Cancelar
+								</button>
+								<button className="btn primary" onClick={enviarMensagemPersonalizada} disabled={!mensagemPersonalizada.trim()}>
+									📱 Enviar WhatsApp
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

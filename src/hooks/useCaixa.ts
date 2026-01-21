@@ -28,7 +28,23 @@ export function useCaixa() {
 		// Polling a cada 30 segundos para atualizar dados
 		const interval = setInterval(loadCaixas, 30000)
 		
-		return () => clearInterval(interval)
+		// Listener para atualizar quando a janela recebe foco (usuário volta para a aba)
+		const handleFocus = () => {
+			loadCaixas()
+		}
+		window.addEventListener('focus', handleFocus)
+		
+		// Listener para eventos customizados de atualização do caixa
+		const handleCaixaUpdate = () => {
+			loadCaixas()
+		}
+		window.addEventListener('caixa:updated', handleCaixaUpdate)
+		
+		return () => {
+			clearInterval(interval)
+			window.removeEventListener('focus', handleFocus)
+			window.removeEventListener('caixa:updated', handleCaixaUpdate)
+		}
 	}, [])
 	
 	return {

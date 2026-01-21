@@ -6,7 +6,7 @@ import { useCaixa } from '../hooks/useCaixa'
 import type { Brinquedo as BrinquedoType, Cliente, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Lancamento() {
-	const { caixa, caixaAberto, loading: loadingCaixa } = useCaixa()
+	const { caixa, caixaAberto, loading: loadingCaixa, refresh: refreshCaixa } = useCaixa()
 	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
 	const [parametros, setParametros] = useState<ParametrosType | null>(null)
 	const [clientes, setClientes] = useState<Cliente[]>([])
@@ -33,6 +33,26 @@ export default function Lancamento() {
 		}
 		loadData()
 	}, [])
+
+	// Atualizar estado do caixa quando a janela recebe foco ou quando volta para esta aba
+	useEffect(() => {
+		const handleFocus = () => {
+			refreshCaixa()
+		}
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				refreshCaixa()
+			}
+		}
+		
+		window.addEventListener('focus', handleFocus)
+		document.addEventListener('visibilitychange', handleVisibilityChange)
+		
+		return () => {
+			window.removeEventListener('focus', handleFocus)
+			document.removeEventListener('visibilitychange', handleVisibilityChange)
+		}
+	}, [refreshCaixa])
 	const navigate = useNavigate()
 	const [form, setForm] = useState({
 		clienteId: '',
@@ -45,6 +65,15 @@ export default function Lancamento() {
 		tempoSolicitadoMin: 30,
 		tempoLivre: false,
 	})
+	const [mostrarFormCliente, setMostrarFormCliente] = useState(false)
+	const [formCliente, setFormCliente] = useState({
+		nomeCompleto: '',
+		dataNascimento: '',
+		nomePai: '',
+		nomeMae: '',
+		telefoneWhatsapp: ''
+	})
+	const [valorAntesTempoLivre, setValorAntesTempoLivre] = useState<number>(0)
 
 	const brinquedoSelecionado = useMemo(() => 
 		form.brinquedoId ? brinquedos.find(b => b.id === form.brinquedoId) : undefined,
@@ -53,12 +82,26 @@ export default function Lancamento() {
 	
 	const valor = useMemo(() => {
 		if (!parametros) return 0
-		return calcularValor(
-			parametros as Parametros, 
-			form.tempoLivre ? null : form.tempoSolicitadoMin,
-			brinquedoSelecionado as Brinquedo | undefined
+		
+		// Calcular valor baseado no tempo solicitado
+		const valorCalculado = calcularValor(
+			parametros as ParametrosType, 
+			form.tempoSolicitadoMin,
+			brinquedoSelecionado as BrinquedoType | undefined
 		)
-	}, [form.tempoSolicitadoMin, form.tempoLivre, parametros, brinquedoSelecionado])
+		
+		if (form.tempoLivre) {
+			// Se tempo livre está ativo, retorna o valor que estava antes de ativar
+			// Se não há valor salvo, usa o valor calculado atual
+			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
+		} else {
+			// Quando não está em tempo livre, atualizar o valor salvo
+			if (valorCalculado > 0) {
+				setValorAntesTempoLivre(valorCalculado)
+			}
+			return valorCalculado
+		}
+	}, [form.tempoSolicitadoMin, form.tempoLivre, parametros, brinquedoSelecionado, valorAntesTempoLivre])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -160,20 +203,133 @@ export default function Lancamento() {
 				<div>
 					<label className="field">
 						<span>Cliente Cadastrado (Opcional)</span>
-						<select 
-							className="select" 
-							value={form.clienteId} 
-							onChange={(e) => selecionarCliente(e.target.value)}
-						>
-							<option value="">Selecione um cliente cadastrado...</option>
-							{clientes.map((c) => (
-								<option key={c.id} value={c.id}>
-									{c.nomeCompleto} - {new Date(c.dataNascimento).toLocaleDateString('pt-BR')}
-								</option>
-							))}
-						</select>
-						<span className="help">Selecione um cliente cadastrado para preencher automaticamente</span>
+						<div className="row" style={{ gap: 8, alignItems: 'center' }}>
+							<select 
+								className="select" 
+								value={form.clienteId} 
+								onChange={(e) => selecionarCliente(e.target.value)}
+								style={{ flex: 1 }}
+							>
+								<option value="">Selecione um cliente cadastrado...</option>
+								{clientes.map((c) => (
+									<option key={c.id} value={c.id}>
+										{c.nomeCompleto} - {new Date(c.dataNascimento).toLocaleDateString('pt-BR')}
+									</option>
+								))}
+							</select>
+							<button 
+								className="btn" 
+								type="button"
+								onClick={() => setMostrarFormCliente(!mostrarFormCliente)}
+								style={{ whiteSpace: 'nowrap' }}
+							>
+								{mostrarFormCliente ? '✖️ Cancelar' : '➕ Novo Cliente'}
+							</button>
+						</div>
+						<span className="help">Selecione um cliente cadastrado ou cadastre um novo</span>
 					</label>
+					{mostrarFormCliente && (
+						<div className="card" style={{ marginTop: 8, background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--primary)' }}>
+							<h4 style={{ marginTop: 0, marginBottom: 12 }}>Cadastrar Novo Cliente</h4>
+							<div className="form two">
+								<label className="field">
+									<span>Nome Completo da Criança *</span>
+									<input 
+										className="input" 
+										value={formCliente.nomeCompleto} 
+										onChange={(e) => setFormCliente({ ...formCliente, nomeCompleto: e.target.value })} 
+										placeholder="Nome completo da criança"
+									/>
+								</label>
+								<label className="field">
+									<span>Data de Nascimento *</span>
+									<input 
+										type="date" 
+										className="input" 
+										value={formCliente.dataNascimento} 
+										onChange={(e) => setFormCliente({ ...formCliente, dataNascimento: e.target.value })} 
+									/>
+								</label>
+								<label className="field">
+									<span>Nome do Pai</span>
+									<input 
+										className="input" 
+										value={formCliente.nomePai} 
+										onChange={(e) => setFormCliente({ ...formCliente, nomePai: e.target.value })} 
+										placeholder="Nome completo do pai"
+									/>
+								</label>
+								<label className="field">
+									<span>Nome da Mãe</span>
+									<input 
+										className="input" 
+										value={formCliente.nomeMae} 
+										onChange={(e) => setFormCliente({ ...formCliente, nomeMae: e.target.value })} 
+										placeholder="Nome completo da mãe"
+									/>
+								</label>
+								<label className="field" style={{ gridColumn: '1 / -1' }}>
+									<span>WhatsApp para Contato *</span>
+									<input 
+										className="input" 
+										value={formCliente.telefoneWhatsapp} 
+										onChange={(e) => setFormCliente({ ...formCliente, telefoneWhatsapp: e.target.value })} 
+										placeholder="5599999999999"
+									/>
+								</label>
+								<div className="actions" style={{ gridColumn: '1 / -1' }}>
+									<button 
+										className="btn primary" 
+										onClick={async () => {
+											if (!formCliente.nomeCompleto.trim()) {
+												return alert('Informe o nome completo da criança')
+											}
+											if (!formCliente.dataNascimento) {
+												return alert('Informe a data de nascimento')
+											}
+											if (!formCliente.telefoneWhatsapp.trim()) {
+												return alert('Informe o WhatsApp para contato')
+											}
+											
+											try {
+												const dataNascimentoISO = new Date(formCliente.dataNascimento + 'T00:00:00').toISOString()
+												const novoCliente = await clientesService.create({
+													nomeCompleto: formCliente.nomeCompleto.trim(),
+													dataNascimento: dataNascimentoISO,
+													nomePai: formCliente.nomePai.trim() || '',
+													nomeMae: formCliente.nomeMae.trim() || '',
+													telefoneWhatsapp: formCliente.telefoneWhatsapp.trim()
+												})
+												
+												// Recarregar lista de clientes
+												const clientesData = await clientesService.list()
+												setClientes(clientesData)
+												
+												// Preencher formulário com o novo cliente
+												selecionarCliente(novoCliente.id)
+												
+												// Limpar e fechar formulário
+												setFormCliente({
+													nomeCompleto: '',
+													dataNascimento: '',
+													nomePai: '',
+													nomeMae: '',
+													telefoneWhatsapp: ''
+												})
+												setMostrarFormCliente(false)
+												alert('Cliente cadastrado com sucesso!')
+											} catch (error) {
+												console.error('Erro ao cadastrar cliente:', error)
+												alert('Erro ao cadastrar cliente. Tente novamente.')
+											}
+										}}
+									>
+										💾 Cadastrar e Usar
+									</button>
+								</div>
+							</div>
+						</div>
+					)}
 					<label className="field">
 						<span>Data/Hora</span>
 						<input className="input" value={new Date().toLocaleString()} readOnly />
@@ -230,11 +386,50 @@ export default function Lancamento() {
 					</label>
 					<label className="field">
 						<span>Tempo Livre</span>
-						<div className="row"><input type="checkbox" checked={form.tempoLivre} onChange={(e) => setForm({ ...form, tempoLivre: e.target.checked })} /> <span>Ativar</span></div>
+						<div className="row">
+							<input 
+								type="checkbox" 
+								checked={form.tempoLivre} 
+								onChange={(e) => {
+									const novoTempoLivre = e.target.checked
+									if (novoTempoLivre) {
+										// Salvar valor atual antes de ativar tempo livre
+										// Calcular valor atual antes de mudar o estado
+										if (parametros) {
+											const valorAtual = calcularValor(
+												parametros as ParametrosType,
+												form.tempoSolicitadoMin,
+												brinquedoSelecionado as BrinquedoType | undefined
+											)
+											if (valorAtual > 0) {
+												setValorAntesTempoLivre(valorAtual)
+											}
+										}
+									}
+									setForm({ ...form, tempoLivre: novoTempoLivre })
+								}} 
+							/> 
+							<span>Ativar</span>
+						</div>
+						{form.tempoLivre && (
+							<span className="help" style={{ color: 'var(--warning)' }}>
+								Tempo livre ativado. Valor mantido: R$ {valor.toFixed(2)}
+							</span>
+						)}
 					</label>
 				</div>
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
-					<strong style={{ marginRight: 'auto' }}>Valor: R$ {valor.toFixed(2)}</strong>
+					<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+						<strong style={{ fontSize: '1.2rem' }}>Valor: R$ {valor.toFixed(2)}</strong>
+						{!form.tempoLivre && parametros && (
+							<span className="help" style={{ fontSize: '0.85rem' }}>
+								{form.tempoSolicitadoMin <= (parametros.valorInicialMinutos || 0)
+									? `Valor inicial (até ${parametros.valorInicialMinutos} min): R$ ${(parametros.valorInicialReais || 0).toFixed(2)}`
+									: `Valor inicial: R$ ${(parametros.valorInicialReais || 0).toFixed(2)} + ciclos adicionais`
+								}
+							</span>
+						)}
+					</div>
 					<button 
 						className="btn primary icon" 
 						onClick={onSave}

@@ -1,16 +1,44 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { db } from '../services/mockDb'
+import { lancamentosService, formasPagamentoService } from '../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
+import type { Lancamento, FormaPagamento } from '../services/entitiesService'
 
 export default function Pagamento() {
 	const { id } = useParams()
 	const navigate = useNavigate()
-	const d = db.get()
-	const lanc = d.lancamentos.find((l) => l.id === id)
-	const formas = d.formasPagamento.filter((f) => f.status === 'ativo')
-	const [forma, setForma] = useState<string>(formas[0]?.id || '')
+	const [lanc, setLanc] = useState<Lancamento | null>(null)
+	const [formas, setFormas] = useState<FormaPagamento[]>([])
+	const [loading, setLoading] = useState(true)
+	const [forma, setForma] = useState<string>('')
 	const [recebido, setRecebido] = useState<string>('')
+	const [saving, setSaving] = useState(false)
+
+	useEffect(() => {
+		async function loadData() {
+			try {
+				setLoading(true)
+				const [lancamentoData, formasData] = await Promise.all([
+					lancamentosService.get(id!),
+					formasPagamentoService.list(),
+				])
+				setLanc(lancamentoData)
+				const formasAtivas = formasData.filter(f => f.status === 'ativo')
+				setFormas(formasAtivas)
+				if (formasAtivas.length > 0) {
+					setForma(formasAtivas[0].id)
+				}
+			} catch (error) {
+				console.error('Erro ao carregar dados:', error)
+				alert('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
+		}
+		if (id) {
+			loadData()
+		}
+	}, [id])
 
 	const formaSelecionada = useMemo(() => 
 		formas.find(f => f.id === forma),
@@ -23,27 +51,50 @@ export default function Pagamento() {
 	}, [formaSelecionada])
 
 	const troco = useMemo(() => {
-		if (!isDinheiro || !recebido) return 0
+		if (!isDinheiro || !recebido || !lanc) return 0
 		const recebidoNum = parseFloat(recebido.replace(',', '.')) || 0
 		return Math.max(0, recebidoNum - lanc.valorCalculado)
 	}, [isDinheiro, recebido, lanc])
 
-	if (!lanc) return <div>Registro não encontrado</div>
-
-	function finalizar() {
-		if (!lanc) return
+	async function finalizar() {
+		if (!lanc || !forma) return
 		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < lanc.valorCalculado)) {
 			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
 		}
-		db.update((dbb) => {
-			const l = dbb.lancamentos.find((x) => x.id === lanc.id)
-			if (l) {
-				l.status = 'pago'
-				;(l as any).formaPagamentoId = forma
-			}
-		})
-		alert('Pagamento concluído. Gerando recibo...')
-		navigate(`/recibo/pagamento/${lanc.id}`)
+		
+		try {
+			setSaving(true)
+			await lancamentosService.pagar(lanc.id, forma)
+			alert('Pagamento concluído. Gerando recibo...')
+			navigate(`/recibo/pagamento/${lanc.id}`)
+		} catch (error) {
+			console.error('Erro ao processar pagamento:', error)
+			alert('Erro ao processar pagamento. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	if (loading) {
+		return (
+			<div className="container" style={{ maxWidth: 560 }}>
+				<h2>Pagamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (!lanc) {
+		return (
+			<div className="container" style={{ maxWidth: 560 }}>
+				<h2>Pagamento</h2>
+				<div className="card">
+					<div>Registro não encontrado</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -106,7 +157,13 @@ export default function Pagamento() {
 					)}
 				</div>
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
-					<button className="btn primary icon" onClick={finalizar}>✅ Finalizar</button>
+					<button 
+						className="btn primary icon" 
+						onClick={finalizar}
+						disabled={saving || !forma}
+					>
+						{saving ? 'Processando...' : '✅ Finalizar'}
+					</button>
 				</div>
 			</div>
 		</div>

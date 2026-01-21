@@ -11,6 +11,9 @@ export default function Acompanhamento() {
 	const [parametros, setParametros] = useState<ParametrosType | null>(null)
 	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
 	const [loading, setLoading] = useState(true)
+	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
+	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
+	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
 
 	const lancamentosFiltrados = useMemo(() => {
 		if (filtroStatus === 'abertos') {
@@ -59,30 +62,32 @@ export default function Acompanhamento() {
 		window.open(url, '_blank')
 	}
 
+	function abrirWhatsappComPersonalizacao(numero: string, textoPadrao: string) {
+		setNumeroWhatsapp(numero)
+		setMensagemPersonalizada(textoPadrao)
+		setMostrarMensagemPersonalizada(true)
+	}
+
+	function enviarMensagemPersonalizada() {
+		if (!numeroWhatsapp) return
+		const mensagem = mensagemPersonalizada.trim() || 'Olá!'
+		abrirWhatsapp(numeroWhatsapp, mensagem)
+		setMostrarMensagemPersonalizada(false)
+		setMensagemPersonalizada('')
+		setNumeroWhatsapp('')
+	}
+
 	async function atualizarHoraMinuto(lancamentoId: string, novaDataHora: Date) {
 		try {
-			// Tentar atualizar via API primeiro
-			try {
-				await lancamentosService.update(lancamentoId, {
-					dataHora: novaDataHora.toISOString()
-				} as any)
-			} catch (apiError) {
-				// Se falhar, usar mockDb diretamente
-				const { db } = await import('../services/mockDb')
-				db.update((dbb) => {
-					const lanc = dbb.lancamentos.find((x) => x.id === lancamentoId)
-					if (lanc) {
-						lanc.dataHora = novaDataHora.toISOString()
-					}
-				})
-			}
-			setTick(prev => prev + 1)
+			await lancamentosService.update(lancamentoId, {
+				dataHora: novaDataHora.toISOString()
+			} as any)
 			// Recarregar dados
 			const lancamentosData = await lancamentosService.list()
 			setLancamentos(lancamentosData)
 		} catch (error) {
 			console.error('Erro ao atualizar hora/minuto:', error)
-			alert('Erro ao atualizar hora/minuto')
+			alert('Erro ao atualizar hora/minuto. Tente novamente.')
 		}
 	}
 
@@ -142,7 +147,7 @@ export default function Acompanhamento() {
 							const alvo = l.tempoSolicitadoMin ?? Infinity
 							const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
 							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
-							const valor = parametros ? calcularValor(parametros as Parametros, l.tempoSolicitadoMin, brinquedo as Brinquedo | undefined) : l.valorCalculado
+							const valor = parametros ? calcularValor(parametros as ParametrosType, l.tempoSolicitadoMin, brinquedo as BrinquedoType | undefined) : l.valorCalculado
 							const alerta = isFinite(restante) && restante <= 5
 							const dataHora = new Date(l.dataHora)
 							const hora = dataHora.getHours().toString().padStart(2, '0')
@@ -197,8 +202,8 @@ export default function Acompanhamento() {
 									<td className="row">
 										{filtroStatus === 'abertos' ? (
 											<>
-												<button className="btn icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'Por favor, compareça ao local.')} disabled={!l.whatsappResponsavel}>📞 Chamar</button>
-												{alerta && l.whatsappResponsavel && <button className="btn warning icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'O tempo solicitado está acabando.')}>📣 Avisar</button>}
+												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Por favor, compareça ao local.')} disabled={!l.whatsappResponsavel}>📞 Chamar</button>
+												{alerta && l.whatsappResponsavel && <button className="btn warning icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'O tempo solicitado está acabando.')}>📣 Avisar</button>}
 												<Link to={`/recibo/lancamento/${l.id}`}>
 													<button className="btn icon">🖨️ Cupom</button>
 												</Link>
@@ -206,12 +211,15 @@ export default function Acompanhamento() {
 											</>
 										) : (
 											<>
-												<button className="btn icon" onClick={() => abrirWhatsapp(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
+												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
 													📱 Contato
 												</button>
+												<Link to={`/recibo/lancamento/${l.id}`}>
+													<button className="btn icon">🖨️ Reimprimir Cupom</button>
+												</Link>
 												{l.status === 'pago' && (
 													<Link to={`/recibo/pagamento/${l.id}`}>
-														<button className="btn icon">🖨️ Reimprimir</button>
+														<button className="btn icon">🖨️ Reimprimir Recibo</button>
 													</Link>
 												)}
 											</>
@@ -223,6 +231,49 @@ export default function Acompanhamento() {
 					</tbody>
 				</table>
 			</div>
+
+			{/* Modal de Mensagem Personalizada */}
+			{mostrarMensagemPersonalizada && (
+				<div style={{
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0, 0, 0, 0.5)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000
+				}} onClick={() => setMostrarMensagemPersonalizada(false)}>
+					<div className="card" style={{ maxWidth: 500, width: '90%', margin: 20 }} onClick={(e) => e.stopPropagation()}>
+						<h3>Personalizar Mensagem WhatsApp</h3>
+						<div className="form">
+							<label className="field">
+								<span>Mensagem</span>
+								<textarea
+									className="input"
+									value={mensagemPersonalizada}
+									onChange={(e) => setMensagemPersonalizada(e.target.value)}
+									placeholder="Digite sua mensagem personalizada..."
+									rows={5}
+									style={{ resize: 'vertical' }}
+									autoFocus
+								/>
+								<span className="help">Personalize a mensagem antes de enviar</span>
+							</label>
+							<div className="actions">
+								<button className="btn" onClick={() => setMostrarMensagemPersonalizada(false)}>
+									Cancelar
+								</button>
+								<button className="btn primary" onClick={enviarMensagemPersonalizada} disabled={!mensagemPersonalizada.trim()}>
+									📱 Enviar WhatsApp
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

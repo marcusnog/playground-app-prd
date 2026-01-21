@@ -110,6 +110,8 @@ export default function Fechamento() {
 			setLoading(true)
 			await caixasService.fechar(aberto.id)
 			await refresh()
+			// Disparar evento para atualizar outros componentes que usam useCaixa
+			window.dispatchEvent(new Event('caixa:updated'))
 			// Navegar para o comprovante de fechamento
 			navigate(`/recibo/fechamento/${aberto.id}`)
 		} catch (error) {
