@@ -59,7 +59,7 @@ export default function Login() {
 				<form className="form" onSubmit={onSubmit}>
 					<label className="field">
 						<span>Usuário</span>
-						<input className="input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="usuario" />
+						<input className="input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Apelido ou nome completo" />
 					</label>
 					<label className="field">
 						<span>Senha</span>

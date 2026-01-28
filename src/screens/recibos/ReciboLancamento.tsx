@@ -1,30 +1,56 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { db } from '../../services/mockDb'
+import { lancamentosService, parametrosService } from '../../services/entitiesService'
 
 export default function ReciboLancamento() {
 	const { id } = useParams()
-	const d = db.get()
-	const lanc = d.lancamentos.find((l) => l.id === id)
+	const [lanc, setLanc] = useState<Awaited<ReturnType<typeof lancamentosService.get>>>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		setTimeout(() => window.print(), 300)
-	}, [])
+		if (!id) return
+		let cancelled = false
+		async function load() {
+			setLoading(true)
+			try {
+				const [l, p] = await Promise.all([
+					lancamentosService.get(id),
+					parametrosService.get(),
+				])
+				if (!cancelled) {
+					setLanc(l)
+					setParams(p)
+				}
+			} catch (e) {
+				if (!cancelled) setLanc(null)
+			} finally {
+				if (!cancelled) setLoading(false)
+			}
+		}
+		load()
+		return () => { cancelled = true }
+	}, [id])
 
+	useEffect(() => {
+		if (!loading && lanc) setTimeout(() => window.print(), 300)
+	}, [loading, lanc])
+
+	if (loading) return <div className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
 	if (!lanc) return <div className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
-	const params = d.parametros
+	const p = params || {}
 	return (
 		<div className="receipt">
-			{params.empresaLogoUrl ? (
+			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
-					<img alt="logo" src={params.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
+					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
 				</div>
 			) : null}
-			<h3>{params.empresaNome || 'Recibo'}</h3>
-			{params.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {params.empresaCnpj}</div>}
+			<h3>{p.empresaNome || 'Recibo'}</h3>
+			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div>Recibo de Lançamento</div>
-			<div>Data/Hora: {new Date(lanc.dataHora).toLocaleString()}</div>
+			<div>Data/Hora: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
 			{lanc.numeroPulseira && <div>Pulseira: {lanc.numeroPulseira}</div>}
@@ -35,5 +61,3 @@ export default function ReciboLancamento() {
 		</div>
 	)
 }
-
-

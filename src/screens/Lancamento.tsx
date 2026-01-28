@@ -21,9 +21,9 @@ export default function Lancamento() {
 					parametrosService.get(),
 					clientesService.list(),
 				])
-				setBrinquedos(brinquedosData)
+				setBrinquedos(Array.isArray(brinquedosData) ? brinquedosData : [])
 				setParametros(parametrosData)
-				setClientes(clientesData)
+				setClientes(Array.isArray(clientesData) ? clientesData : [])
 			} catch (error) {
 				console.error('Erro ao carregar dados:', error)
 				alert('Erro ao carregar dados. Tente novamente.')

@@ -1,33 +1,60 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { db } from '../../services/mockDb'
+import { caixasService, parametrosService } from '../../services/entitiesService'
 
 export default function ReciboAbertura() {
 	const { id } = useParams()
-	const d = db.get()
-	const caixa = d.caixas.find((c) => c.id === id)
+	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>>>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		setTimeout(() => window.print(), 300)
-	}, [])
+		if (!id) return
+		let cancelled = false
+		async function load() {
+			setLoading(true)
+			try {
+				const [c, p] = await Promise.all([
+					caixasService.get(id),
+					parametrosService.get(),
+				])
+				if (!cancelled) {
+					setCaixa(c)
+					setParams(p)
+				}
+			} catch (e) {
+				if (!cancelled) setCaixa(null)
+			} finally {
+				if (!cancelled) setLoading(false)
+			}
+		}
+		load()
+		return () => { cancelled = true }
+	}, [id])
 
+	useEffect(() => {
+		if (!loading && caixa) setTimeout(() => window.print(), 300)
+	}, [loading, caixa])
+
+	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
 	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
 
-	const params = d.parametros
+	const p = params || {}
+	const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data ?? new Date().toISOString()
 	return (
 		<div className="receipt">
-			{params.empresaLogoUrl ? (
+			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
-					<img alt="logo" src={params.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
+					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
 				</div>
 			) : null}
-			<h3>{params.empresaNome || 'Comprovante'}</h3>
-			{params.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {params.empresaCnpj}</div>}
+			<h3>{p.empresaNome || 'Comprovante'}</h3>
+			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: 12, marginBottom: 12 }}>
 				COMPROVANTE DE ABERTURA DE CAIXA
 			</div>
 			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div>Data/Hora: {new Date(caixa.data).toLocaleString('pt-BR')}</div>
+			<div>Data/Hora: {new Date(dataStr).toLocaleString('pt-BR')}</div>
 			<div>Valor Inicial: R$ {caixa.valorInicial.toFixed(2)}</div>
 			<div>Status: {caixa.status === 'aberto' ? 'ABERTO' : 'FECHADO'}</div>
 			<hr />
@@ -35,4 +62,3 @@ export default function ReciboAbertura() {
 		</div>
 	)
 }
-

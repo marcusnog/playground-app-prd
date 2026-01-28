@@ -1,80 +1,107 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { db } from '../../services/mockDb'
+import { caixasService, parametrosService, lancamentosService, formasPagamentoService } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 
 export default function ReciboFechamento() {
 	const { id } = useParams()
-	const d = db.get()
-	const caixa = d.caixas.find((c) => c.id === id)
+	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>>>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [lancamentos, setLancamentos] = useState<Awaited<ReturnType<typeof lancamentosService.list>>>([])
+	const [formas, setFormas] = useState<Awaited<ReturnType<typeof formasPagamentoService.list>>>([])
+	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		setTimeout(() => window.print(), 300)
-	}, [])
+		if (!id) return
+		let cancelled = false
+		async function load() {
+			setLoading(true)
+			try {
+				const [c, p, list, f] = await Promise.all([
+					caixasService.get(id),
+					parametrosService.get(),
+					lancamentosService.list(),
+					formasPagamentoService.list(),
+				])
+				if (!cancelled) {
+					setCaixa(c)
+					setParams(p)
+					setLancamentos(list || [])
+					setFormas(f || [])
+				}
+			} catch (e) {
+				if (!cancelled) setCaixa(null)
+			} finally {
+				if (!cancelled) setLoading(false)
+			}
+		}
+		load()
+		return () => { cancelled = true }
+	}, [id])
 
-	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
+	useEffect(() => {
+		if (!loading && caixa) setTimeout(() => window.print(), 300)
+	}, [loading, caixa])
 
-	const params = d.parametros
-
-	// Resumo por forma de pagamento usando lancamentos pagos do dia
 	const resumo = useMemo(() => {
 		if (!caixa) return []
-		
-		const dataCaixa = new Date(caixa.data).toDateString()
-		const pagos = d.lancamentos.filter((l) => {
+		const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data
+		if (!dataStr) return []
+		const dataCaixa = new Date(dataStr).toDateString()
+		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
 			const dataLancamento = new Date(l.dataHora).toDateString()
 			return dataLancamento === dataCaixa
 		})
-		
 		const map = new Map<string, number>()
 		for (const l of pagos) {
-			const forma = (l as any).formaPagamentoId as string | undefined
-			if (!forma) continue
-			map.set(forma, (map.get(forma) || 0) + l.valorCalculado)
+			const fid = (l as { formaPagamentoId?: string }).formaPagamentoId
+			if (!fid) continue
+			const desc = formas.find(f => f.id === fid)?.descricao || fid
+			map.set(desc, (map.get(desc) || 0) + l.valorCalculado)
 		}
 		return Array.from(map.entries())
-	}, [caixa])
+	}, [caixa, lancamentos, formas])
 
-	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
-		if (!caixa || !caixa.movimentos) return 0
-		return caixa.movimentos
-			.filter(m => m.tipo === 'sangria')
-			.reduce((sum, m) => sum + m.valor, 0)
+		const movs = caixa?.movimentos
+		if (!movs || !Array.isArray(movs)) return 0
+		return movs.filter((m: { tipo: string }) => m.tipo === 'sangria').reduce((sum: number, m: { valor: number }) => sum + m.valor, 0)
 	}, [caixa])
 
 	const totalSuprimentos = useMemo(() => {
-		if (!caixa || !caixa.movimentos) return 0
-		return caixa.movimentos
-			.filter(m => m.tipo === 'suprimento')
-			.reduce((sum, m) => sum + m.valor, 0)
+		const movs = caixa?.movimentos
+		if (!movs || !Array.isArray(movs)) return 0
+		return movs.filter((m: { tipo: string }) => m.tipo === 'suprimento').reduce((sum: number, m: { valor: number }) => sum + m.valor, 0)
 	}, [caixa])
 
-	const totalVendas = useMemo(() => {
-		return resumo.reduce((sum, [, total]) => sum + total, 0)
-	}, [resumo])
+	const totalVendas = useMemo(() => resumo.reduce((sum, [, total]) => sum + total, 0), [resumo])
 
-	const saldoFinal = (caixa?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
+	const saldoFinal = (caixa?.valorInicial ?? 0) + totalVendas + totalSuprimentos - totalSangrias
+	const dataStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
 
+	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
+	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
+
+	const p = params || {}
 	return (
 		<div className="receipt">
-			{params.empresaLogoUrl ? (
+			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
-					<img alt="logo" src={params.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
+					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
 				</div>
 			) : null}
-			<h3>{params.empresaNome || 'Comprovante'}</h3>
-			{params.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {params.empresaCnpj}</div>}
+			<h3>{p.empresaNome || 'Comprovante'}</h3>
+			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: 12, marginBottom: 12 }}>
 				COMPROVANTE DE FECHAMENTO DE CAIXA
 			</div>
-			
+
 			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div><strong>Data de Abertura:</strong> {new Date(caixa.data).toLocaleDateString('pt-BR')}</div>
+			<div><strong>Data de Abertura:</strong> {dataStr ? new Date(dataStr).toLocaleDateString('pt-BR') : '-'}</div>
 			<div><strong>Valor Inicial:</strong> R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />
-			
+
 			<div><strong>Total de Vendas:</strong> R$ {totalVendas.toFixed(2)}</div>
 			{resumo.length > 0 && (
 				<div style={{ marginLeft: 8, fontSize: '0.9em', marginTop: 4 }}>
@@ -86,18 +113,17 @@ export default function ReciboFechamento() {
 					))}
 				</div>
 			)}
-			
+
 			<div style={{ color: 'var(--danger)' }}><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
 			<div style={{ color: 'var(--success)' }}><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
-			
+
 			<hr />
 			<div style={{ fontSize: '1.1em', fontWeight: 'bold', marginTop: 8 }}>
 				<strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong>
 			</div>
-			
+
 			<hr />
 			<small>Comprovante de fechamento de caixa gerado automaticamente.</small>
 		</div>
 	)
 }
-

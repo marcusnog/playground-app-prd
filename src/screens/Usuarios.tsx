@@ -1,10 +1,103 @@
-import { useMemo, useState } from 'react'
-import { db, type Usuario, type PermissoesModulo, uid } from '../services/mockDb'
+import { useCallback, useEffect, useState } from 'react'
+import type { Usuario, PermissoesModulo } from '../services/mockDb'
+import { usuariosService, caixasService, type Caixa } from '../services/entitiesService'
+
+// Formato retornado pela API (permissões em campos planos)
+type UsuarioAPI = {
+	id: string
+	nomeCompleto: string
+	apelido: string
+	contato: string
+	usaCaixa: boolean
+	caixaId?: string | null
+	acompanhamento?: boolean
+	lancamento?: boolean
+	caixaAbertura?: boolean
+	caixaFechamento?: boolean
+	caixaSangria?: boolean
+	caixaSuprimento?: boolean
+	estacionamentoCadastro?: boolean
+	estacionamentoCaixaAbertura?: boolean
+	estacionamentoCaixaFechamento?: boolean
+	estacionamentoLancamento?: boolean
+	estacionamentoAcompanhamento?: boolean
+	relatorios?: boolean
+	parametrosEmpresa?: boolean
+	parametrosFormasPagamento?: boolean
+	parametrosBrinquedos?: boolean
+	clientes?: boolean
+}
+
+function apiUsuarioToForm(u: UsuarioAPI): Usuario {
+	const permissoes: PermissoesModulo = {
+		acompanhamento: u.acompanhamento,
+		lancamento: u.lancamento,
+		caixa: (u.caixaAbertura || u.caixaFechamento || u.caixaSangria || u.caixaSuprimento) ? {
+			abertura: u.caixaAbertura,
+			fechamento: u.caixaFechamento,
+			sangria: u.caixaSangria,
+			suprimento: u.caixaSuprimento,
+		} : undefined,
+		estacionamento: (u.estacionamentoCadastro || u.estacionamentoLancamento || u.estacionamentoAcompanhamento || u.estacionamentoCaixaAbertura || u.estacionamentoCaixaFechamento) ? {
+			cadastro: u.estacionamentoCadastro,
+			caixa: (u.estacionamentoCaixaAbertura || u.estacionamentoCaixaFechamento) ? { abertura: u.estacionamentoCaixaAbertura, fechamento: u.estacionamentoCaixaFechamento } : undefined,
+			lancamento: u.estacionamentoLancamento,
+			acompanhamento: u.estacionamentoAcompanhamento,
+		} : undefined,
+		relatorios: u.relatorios,
+		parametros: (u.parametrosEmpresa || u.parametrosFormasPagamento || u.parametrosBrinquedos) ? {
+			empresa: u.parametrosEmpresa,
+			formasPagamento: u.parametrosFormasPagamento,
+			brinquedos: u.parametrosBrinquedos,
+		} : undefined,
+		clientes: u.clientes,
+	}
+	return {
+		id: u.id,
+		nomeCompleto: u.nomeCompleto,
+		apelido: u.apelido,
+		contato: u.contato,
+		senha: '',
+		permissoes,
+		usaCaixa: u.usaCaixa ?? false,
+		caixaId: u.caixaId ?? undefined,
+	}
+}
+
+function formToApiPayload(form: Partial<Usuario>, includeSenha: boolean) {
+	const p = form.permissoes
+	const payload: Record<string, unknown> = {
+		nomeCompleto: form.nomeCompleto?.trim(),
+		apelido: form.apelido?.trim(),
+		contato: (form.contato ?? '').trim(),
+		usaCaixa: form.usaCaixa ?? false,
+		caixaId: form.usaCaixa ? form.caixaId : null,
+		acompanhamento: !!p?.acompanhamento,
+		lancamento: !!p?.lancamento,
+		caixaAbertura: !!p?.caixa?.abertura,
+		caixaFechamento: !!p?.caixa?.fechamento,
+		caixaSangria: !!p?.caixa?.sangria,
+		caixaSuprimento: !!p?.caixa?.suprimento,
+		estacionamentoCadastro: !!p?.estacionamento?.cadastro,
+		estacionamentoCaixaAbertura: !!p?.estacionamento?.caixa?.abertura,
+		estacionamentoCaixaFechamento: !!p?.estacionamento?.caixa?.fechamento,
+		estacionamentoLancamento: !!p?.estacionamento?.lancamento,
+		estacionamentoAcompanhamento: !!p?.estacionamento?.acompanhamento,
+		relatorios: !!p?.relatorios,
+		parametrosEmpresa: !!p?.parametros?.empresa,
+		parametrosFormasPagamento: !!p?.parametros?.formasPagamento,
+		parametrosBrinquedos: !!p?.parametros?.brinquedos,
+		clientes: !!p?.clientes,
+	}
+	if (includeSenha && form.senha?.trim()) payload.senha = form.senha.trim()
+	return payload
+}
 
 export default function Usuarios() {
-	const [refresh, setRefresh] = useState(0)
-	const usuarios = useMemo(() => db.get().usuarios, [refresh])
-	const caixas = useMemo(() => db.get().caixas, [refresh])
+	const [usuarios, setUsuarios] = useState<Usuario[]>([])
+	const [caixas, setCaixas] = useState<Caixa[]>([])
+	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [form, setForm] = useState<Partial<Usuario>>({
 		nomeCompleto: '',
@@ -16,8 +109,27 @@ export default function Usuarios() {
 		caixaId: undefined,
 	})
 
+	const load = useCallback(async () => {
+		setLoading(true)
+		try {
+			const [usuariosRes, caixasRes] = await Promise.all([
+				usuariosService.list() as Promise<UsuarioAPI[]>,
+				caixasService.list(),
+			])
+			setUsuarios(usuariosRes.map(apiUsuarioToForm))
+			setCaixas(caixasRes)
+		} catch (e) {
+			console.error(e)
+			alert('Erro ao carregar usuários ou caixas.')
+		} finally {
+			setLoading(false)
+		}
+	}, [])
+
+	useEffect(() => { load() }, [load])
+
 	function refreshList() {
-		setRefresh(prev => prev + 1)
+		load()
 	}
 
 	function resetForm() {
@@ -38,7 +150,7 @@ export default function Usuarios() {
 			nomeCompleto: usuario.nomeCompleto,
 			apelido: usuario.apelido,
 			contato: usuario.contato,
-			senha: '', // Não mostrar senha ao editar
+			senha: '',
 			permissoes: { ...usuario.permissoes },
 			usaCaixa: usuario.usaCaixa,
 			caixaId: usuario.caixaId,
@@ -46,57 +158,55 @@ export default function Usuarios() {
 		setEditingId(usuario.id)
 	}
 
-	function save() {
+	async function save() {
 		if (!form.nomeCompleto?.trim() || !form.apelido?.trim() || !form.contato?.trim()) {
 			return alert('Preencha os campos obrigatórios')
 		}
 
 		if (editingId) {
-			// Editar
-			db.update((d) => {
-				const usuario = d.usuarios.find(u => u.id === editingId)
-				if (usuario) {
-					usuario.nomeCompleto = form.nomeCompleto!
-					usuario.apelido = form.apelido!
-					usuario.contato = form.contato!
-					if (form.senha?.trim()) {
-						usuario.senha = form.senha
-					}
-					usuario.permissoes = form.permissoes || {}
-					usuario.usaCaixa = form.usaCaixa || false
-					usuario.caixaId = form.usaCaixa ? form.caixaId : undefined
-				}
-			})
-			alert('Usuário atualizado com sucesso!')
+			setSaving(true)
+			try {
+				const payload = formToApiPayload(form, true)
+				await usuariosService.update(editingId, payload as Parameters<typeof usuariosService.update>[1])
+				alert('Usuário atualizado com sucesso!')
+				refreshList()
+				resetForm()
+			} catch (e: unknown) {
+				const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : 'Erro ao atualizar'
+				alert(msg)
+			} finally {
+				setSaving(false)
+			}
 		} else {
-			// Criar
 			if (!form.senha?.trim()) {
 				return alert('Senha é obrigatória para novos usuários')
 			}
-			db.update((d) => {
-				d.usuarios.push({
-					id: uid('usr'),
-					nomeCompleto: form.nomeCompleto!,
-					apelido: form.apelido!,
-					contato: form.contato!,
-					senha: form.senha!,
-					permissoes: form.permissoes || {},
-					usaCaixa: form.usaCaixa || false,
-					caixaId: form.usaCaixa ? form.caixaId : undefined,
-				})
-			})
-			alert('Usuário criado com sucesso!')
+			setSaving(true)
+			try {
+				const payload = formToApiPayload(form, true)
+				await usuariosService.create(payload as Parameters<typeof usuariosService.create>[0])
+				alert('Usuário criado com sucesso! Use o apelido e a senha para fazer login.')
+				refreshList()
+				resetForm()
+			} catch (e: unknown) {
+				const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : 'Erro ao criar usuário'
+				alert(msg)
+			} finally {
+				setSaving(false)
+			}
 		}
-		refreshList()
-		resetForm()
 	}
 
-	function remove(id: string) {
+	async function remove(id: string) {
 		if (!confirm('Deseja realmente excluir este usuário?')) return
-		db.update((d) => {
-			d.usuarios = d.usuarios.filter(u => u.id !== id)
-		})
-		refreshList()
+		try {
+			await usuariosService.delete(id)
+			refreshList()
+			if (editingId === id) resetForm()
+		} catch (e: unknown) {
+			const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : 'Erro ao excluir'
+			alert(msg)
+		}
 	}
 
 	function togglePermissao(modulo: string, tela?: string, subtela?: string) {
@@ -480,8 +590,8 @@ export default function Usuarios() {
 					{editingId && (
 						<button className="btn" onClick={resetForm}>Cancelar</button>
 					)}
-					<button className="btn primary" onClick={save}>
-						{editingId ? '💾 Atualizar' : '➕ Criar'}
+					<button className="btn primary" onClick={save} disabled={saving}>
+						{saving ? '...' : editingId ? '💾 Atualizar' : '➕ Criar'}
 					</button>
 				</div>
 			</div>
@@ -489,7 +599,9 @@ export default function Usuarios() {
 			{/* Lista de Usuários */}
 			<div className="card">
 				<h3>Usuários Cadastrados</h3>
-				{usuarios.length === 0 ? (
+				{loading ? (
+					<div className="empty">Carregando...</div>
+				) : usuarios.length === 0 ? (
 					<div className="empty">Nenhum usuário cadastrado</div>
 				) : (
 					<div className="table-wrap">
