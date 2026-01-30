@@ -66,12 +66,14 @@ function apiUsuarioToForm(u: UsuarioAPI): Usuario {
 
 function formToApiPayload(form: Partial<Usuario>, includeSenha: boolean) {
 	const p = form.permissoes
+	// Enviar caixaId explicitamente: null = "Todos os caixas", para o backend atualizar e desconectar o caixa anterior
+	const caixaId = form.usaCaixa ? (form.caixaId ?? null) : null
 	const payload: Record<string, unknown> = {
 		nomeCompleto: form.nomeCompleto?.trim(),
 		apelido: form.apelido?.trim(),
 		contato: (form.contato ?? '').trim(),
 		usaCaixa: form.usaCaixa ?? false,
-		caixaId: form.usaCaixa ? form.caixaId : null,
+		caixaId,
 		acompanhamento: !!p?.acompanhamento,
 		lancamento: !!p?.lancamento,
 		caixaAbertura: !!p?.caixa?.abertura,
@@ -212,27 +214,38 @@ export default function Usuarios() {
 	function togglePermissao(modulo: string, tela?: string, subtela?: string) {
 		setForm(prev => {
 			const permissoes = { ...prev.permissoes } as PermissoesModulo
-			
+			// Deep copy de objetos aninhados para o React detectar mudança e re-renderizar
+			if (permissoes.caixa) permissoes.caixa = { ...permissoes.caixa }
+			if (permissoes.parametros) permissoes.parametros = { ...permissoes.parametros }
+			if (permissoes.estacionamento) {
+				permissoes.estacionamento = { ...permissoes.estacionamento }
+				if (permissoes.estacionamento.caixa) permissoes.estacionamento.caixa = { ...permissoes.estacionamento.caixa }
+			}
+
 			if (subtela) {
-				// Permissão de subtela (ex: estacionamento.caixa.abertura)
 				if (modulo === 'estacionamento' && tela === 'caixa') {
-					permissoes.estacionamento = permissoes.estacionamento || { caixa: {} }
-					permissoes.estacionamento.caixa = permissoes.estacionamento.caixa || {}
-					permissoes.estacionamento.caixa[subtela as keyof typeof permissoes.estacionamento.caixa] = 
-						!permissoes.estacionamento.caixa[subtela as keyof typeof permissoes.estacionamento.caixa]
+					permissoes.estacionamento = permissoes.estacionamento || {}
+					const caixaAtual = permissoes.estacionamento.caixa || {}
+					permissoes.estacionamento.caixa = {
+						...caixaAtual,
+						[subtela]: !(caixaAtual as Record<string, boolean>)[subtela],
+					}
 				}
 			} else if (tela) {
-				// Permissão de tela específica dentro de um módulo
 				if (modulo === 'caixa') {
-					permissoes.caixa = permissoes.caixa || {}
-					permissoes.caixa[tela as keyof typeof permissoes.caixa] = 
-						!permissoes.caixa[tela as keyof typeof permissoes.caixa]
+					const caixaAtual = permissoes.caixa || {}
+					permissoes.caixa = {
+						...caixaAtual,
+						[tela]: !(caixaAtual as Record<string, boolean>)[tela],
+					}
 				} else if (modulo === 'parametros') {
-					permissoes.parametros = permissoes.parametros || {}
-					permissoes.parametros[tela as keyof typeof permissoes.parametros] = 
-						!permissoes.parametros[tela as keyof typeof permissoes.parametros]
+					const paramAtual = permissoes.parametros || {}
+					permissoes.parametros = {
+						...paramAtual,
+						[tela]: !(paramAtual as Record<string, boolean>)[tela],
+					}
 				} else if (modulo === 'estacionamento') {
-					permissoes.estacionamento = permissoes.estacionamento || {}
+					permissoes.estacionamento = { ...(permissoes.estacionamento || {}) }
 					if (tela === 'caixa') {
 						if (permissoes.estacionamento.caixa) {
 							delete permissoes.estacionamento.caixa
@@ -240,12 +253,14 @@ export default function Usuarios() {
 							permissoes.estacionamento.caixa = {}
 						}
 					} else {
-						permissoes.estacionamento[tela as keyof typeof permissoes.estacionamento] = 
-							!permissoes.estacionamento[tela as keyof typeof permissoes.estacionamento] as any
+						const estAtual = permissoes.estacionamento
+						permissoes.estacionamento = {
+							...estAtual,
+							[tela]: !(estAtual as Record<string, unknown>)[tela],
+						}
 					}
 				}
 			} else {
-				// Permissão de módulo completo
 				const complexModules: Array<keyof PermissoesModulo> = ['caixa', 'parametros', 'estacionamento']
 				if (complexModules.includes(modulo as keyof PermissoesModulo)) {
 					const current = permissoes[modulo as keyof PermissoesModulo]
@@ -263,7 +278,7 @@ export default function Usuarios() {
 						!permissoes[modulo as keyof PermissoesModulo] as any
 				}
 			}
-			
+
 			return { ...prev, permissoes }
 		})
 	}
@@ -545,44 +560,47 @@ export default function Usuarios() {
 
 				{/* Usuário utiliza caixa */}
 				<div style={{ marginTop: 24 }}>
-					<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+					<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }} htmlFor="usuarios-usa-caixa">
 						<input 
+							id="usuarios-usa-caixa"
 							type="checkbox" 
 							checked={form.usaCaixa || false}
-							onChange={(e) => setForm({ ...form, usaCaixa: e.target.checked, caixaId: e.target.checked ? form.caixaId : undefined })}
+							onChange={(e) => setForm(prev => ({ ...prev, usaCaixa: e.target.checked, caixaId: e.target.checked ? prev.caixaId : undefined }))}
 						/>
 						<span><strong>Usuário utiliza caixa</strong></span>
 					</label>
 					
 					{form.usaCaixa && (
-						<label className="field">
-							<span>Selecione o Caixa</span>
+						<div className="field">
+							<label htmlFor="usuarios-caixa-select"><span>Selecione o Caixa</span></label>
 							<select 
+								id="usuarios-caixa-select"
 								className="select" 
 								value={form.caixaId === undefined ? 'todos' : (form.caixaId || '')} 
 								onChange={(e) => {
 									const value = e.target.value
-									setForm({ 
-										...form, 
+									setForm(prev => ({ 
+										...prev, 
 										caixaId: value === 'todos' ? undefined : (value || undefined) 
-									})
+									}))
 								}}
 							>
 								<option value="todos">Todos os caixas</option>
 								<option value="">Selecione um caixa específico...</option>
-								{caixas.map((c) => (
+								{caixas.filter(c => c?.id).map((c) => (
 									<option key={c.id} value={c.id}>
 										{c.nome} ({c.status})
 									</option>
 								))}
 							</select>
 							<span className="help">
-								{form.caixaId === undefined 
-									? 'O usuário poderá usar qualquer caixa para abertura/fechamento'
-									: 'Selecione qual caixa este usuário pode usar para abertura/fechamento'
-								}
+								{caixas.length === 0
+									? 'Cadastre caixas em "Cadastro de Caixas" para atribuir a um usuário.'
+									: form.caixaId === undefined 
+										? 'O usuário poderá usar qualquer caixa para abertura/fechamento'
+										: 'Selecione qual caixa este usuário pode usar para abertura/fechamento'}
 							</span>
-						</label>
+						</div>
 					)}
 				</div>
 

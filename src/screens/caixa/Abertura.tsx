@@ -5,14 +5,20 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useCaixa } from '../../hooks/useCaixa'
 
 export default function Abertura() {
+	const { hasPermission, user } = usePermissions()
 	const { caixas, caixa, refresh, loading } = useCaixa()
-	const caixasFechados = useMemo(() => caixas.filter(c => c.status === 'fechado'), [caixas])
-	const aberto = caixa
 	const [valorInicial, setValorInicial] = useState<number>(0)
 	const [caixaSelecionado, setCaixaSelecionado] = useState<string>('')
 	const [saving, setSaving] = useState(false)
 	const navigate = useNavigate()
-	const { hasPermission, user } = usePermissions()
+
+	const caixasFechados = useMemo(() => caixas.filter(c => c.status === 'fechado'), [caixas])
+	const aberto = caixa
+	// Caixa que este usuário quer abrir (fixo ou selecionado); pode haver outros caixas abertos
+	const temCaixaFixo = !!(user?.usaCaixa && user.caixaId)
+	const caixaAlvoId = temCaixaFixo ? user!.caixaId! : caixaSelecionado
+	const caixaAlvo = caixaAlvoId ? caixas.find(c => c.id === caixaAlvoId) : null
+	const caixaAlvoJaAberto = !!caixaAlvo && caixaAlvo.status === 'aberto'
 
 	// Verificar permissão
 	if (!hasPermission('caixa', 'abertura')) {
@@ -27,18 +33,16 @@ export default function Abertura() {
 	}
 
 	async function abrir() {
-		// Determinar qual caixa usar
+		// Determinar qual caixa usar: caixa fixo do usuário (se tiver) ou o selecionado no dropdown
 		let caixaId = ''
-		
-		// Se usuário tem caixa específico, usar o dele
-		if (user?.usaCaixa && user.caixaId) {
-			caixaId = user.caixaId
+
+		if (temCaixaFixo) {
+			caixaId = user!.caixaId!
 			const caixaEspecifico = caixas.find(c => c.id === caixaId && c.status === 'aberto')
 			if (caixaEspecifico) {
 				return alert('Já existe um caixa aberto para este usuário')
 			}
 		} else if (caixaSelecionado) {
-			// Se selecionou um caixa do dropdown
 			caixaId = caixaSelecionado
 			const caixaSelecionadoObj = caixas.find(c => c.id === caixaId)
 			if (!caixaSelecionadoObj) {
@@ -48,7 +52,6 @@ export default function Abertura() {
 				return alert('Este caixa já está aberto')
 			}
 		} else {
-			// Se não selecionou nenhum caixa e não tem caixa específico
 			if (caixasFechados.length === 0) {
 				return alert('Não há caixas cadastrados. Cadastre um caixa primeiro em "Cadastro de Caixas".')
 			}
@@ -92,19 +95,22 @@ export default function Abertura() {
 				<div className="form">
 					<div className="card" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--primary)', marginBottom: 16 }}>
 						<div className="row center" style={{ gap: 8 }}>
-							<span style={{ fontSize: '1.2rem' }}>{aberto ? '✅' : '💰'}</span>
+							<span style={{ fontSize: '1.2rem' }}>{caixaAlvoJaAberto ? '✅' : '💰'}</span>
 							<div>
-								<strong style={{ color: aberto ? 'var(--success)' : 'var(--muted)' }}>
-									{aberto ? `${aberto.nome} - Aberto` : 'Caixa Fechado'}
+								<strong style={{ color: caixaAlvoJaAberto ? 'var(--success)' : 'var(--muted)' }}>
+									{caixaAlvoJaAberto ? `${caixaAlvo?.nome ?? 'Caixa'} - Aberto` : caixaAlvo ? `${caixaAlvo.nome} - Fechado` : 'Selecione um caixa'}
 								</strong>
 								<div className="subtitle">
-									{aberto ? `Caixa ${aberto.nome} aberto em ${new Date(aberto.data).toLocaleDateString('pt-BR')}` : 'Nenhum caixa aberto'}
+									{caixaAlvoJaAberto
+										? `Caixa ${caixaAlvo?.nome} aberto em ${caixaAlvo?.data ? new Date(caixaAlvo.data).toLocaleDateString('pt-BR') : ''}`
+										: aberto ? `Há ${caixas.filter(c => c.status === 'aberto').length} caixa(s) aberto(s). Você pode abrir outro.` : 'Nenhum caixa aberto'}
 								</div>
 							</div>
 						</div>
 					</div>
 
-					{!user?.usaCaixa && (
+					{/* Mostrar select quando o usuário não tem caixa fixo (usaCaixa=false ou caixaId não definido) */}
+					{(!user?.usaCaixa || !user?.caixaId) && (
 						<label className="field">
 							<span>Selecione o Caixa *</span>
 							<select 
@@ -119,7 +125,11 @@ export default function Abertura() {
 									</option>
 								))}
 							</select>
-							<span className="help">Selecione qual caixa deseja abrir</span>
+							<span className="help">
+								{user?.usaCaixa && !user?.caixaId
+									? 'Nenhum caixa foi atribuído ao seu usuário. Selecione um caixa para abrir.'
+									: 'Selecione qual caixa deseja abrir'}
+							</span>
 						</label>
 					)}
 
@@ -160,12 +170,11 @@ export default function Abertura() {
 							onClick={abrir} 
 							disabled={
 								saving ||
-								!!((user?.usaCaixa && user.caixaId && aberto?.id === user.caixaId) ||
-								(!user?.usaCaixa && aberto) ||
-								(!user?.usaCaixa && !caixaSelecionado && caixasFechados.length > 0))
+								caixaAlvoJaAberto ||
+								((!user?.usaCaixa || !user?.caixaId) && !caixaSelecionado && caixasFechados.length > 0)
 							}
 						>
-							{saving ? 'Abrindo...' : aberto ? 'Caixa já está aberto' : 'Abrir Caixa'}
+							{saving ? 'Abrindo...' : caixaAlvoJaAberto ? 'Este caixa já está aberto' : 'Abrir Caixa'}
 						</button>
 					</div>
 				</div>
