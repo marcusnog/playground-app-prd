@@ -1,46 +1,53 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { caixasService, type Caixa } from '../services/entitiesService'
+
+const POLL_INTERVAL_MS = 60000 // 1 minuto (evitar refresh constante)
+const THROTTLE_MS = 2000 // mínimo 2s entre refetches por focus/evento
 
 export function useCaixa() {
 	const [caixas, setCaixas] = useState<Caixa[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<Error | null>(null)
+	const lastFetchRef = useRef(0)
+	const isMountedRef = useRef(true)
 
 	const caixaAberto = caixas.find((c) => c.status === 'aberto')
 
-	const loadCaixas = async () => {
+	const loadCaixas = async (showLoading = false) => {
+		const now = Date.now()
+		if (!showLoading && now - lastFetchRef.current < THROTTLE_MS) return
+		lastFetchRef.current = now
 		try {
-			setLoading(true)
-			setError(null)
+			if (showLoading) {
+				setLoading(true)
+				setError(null)
+			}
 			const data = await caixasService.list()
-			setCaixas(data)
+			if (isMountedRef.current) setCaixas(Array.isArray(data) ? data : [])
 		} catch (err) {
-			setError(err instanceof Error ? err : new Error('Erro ao carregar caixas'))
-			console.error('Erro ao carregar caixas:', err)
+			if (isMountedRef.current) {
+				setError(err instanceof Error ? err : new Error('Erro ao carregar caixas'))
+				console.error('Erro ao carregar caixas:', err)
+			}
 		} finally {
-			setLoading(false)
+			if (isMountedRef.current) setLoading(false)
 		}
 	}
 
 	useEffect(() => {
-		loadCaixas()
-		
-		// Polling a cada 30 segundos para atualizar dados
-		const interval = setInterval(loadCaixas, 30000)
-		
-		// Listener para atualizar quando a janela recebe foco (usuário volta para a aba)
-		const handleFocus = () => {
-			loadCaixas()
-		}
+		isMountedRef.current = true
+		loadCaixas(true) // só o carregamento inicial mostra loading
+
+		const interval = setInterval(() => loadCaixas(false), POLL_INTERVAL_MS)
+
+		const handleFocus = () => loadCaixas(false)
+		const handleCaixaUpdate = () => loadCaixas(false)
+
 		window.addEventListener('focus', handleFocus)
-		
-		// Listener para eventos customizados de atualização do caixa
-		const handleCaixaUpdate = () => {
-			loadCaixas()
-		}
 		window.addEventListener('caixa:updated', handleCaixaUpdate)
-		
+
 		return () => {
+			isMountedRef.current = false
 			clearInterval(interval)
 			window.removeEventListener('focus', handleFocus)
 			window.removeEventListener('caixa:updated', handleCaixaUpdate)
@@ -54,6 +61,6 @@ export function useCaixa() {
 		caixas,
 		loading,
 		error,
-		refresh: loadCaixas,
+		refresh: () => loadCaixas(true),
 	}
 }

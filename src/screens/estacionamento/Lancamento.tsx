@@ -11,15 +11,19 @@ export default function LancamentoEstacionamento() {
 	const navigate = useNavigate()
 	const { hasPermission } = usePermissions()
 
-	// Escutar mudanças no banco de dados
+	// Escutar mudanças no banco de dados (throttle para evitar refresh constante)
 	useEffect(() => {
+		let last = 0
+		const throttleMs = 1500
 		function handleStorageChange() {
-			setRefresh(prev => prev + 1)
+			const now = Date.now()
+			if (now - last >= throttleMs) {
+				last = now
+				setRefresh(prev => prev + 1)
+			}
 		}
-		
 		window.addEventListener('storage', handleStorageChange)
 		window.addEventListener('db-update', handleStorageChange)
-		
 		return () => {
 			window.removeEventListener('storage', handleStorageChange)
 			window.removeEventListener('db-update', handleStorageChange)
