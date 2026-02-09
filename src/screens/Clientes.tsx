@@ -5,8 +5,7 @@ export default function Clientes() {
 	const [_, force] = useState(0)
 	const clientes = useMemo(() => db.get().clientes || [], [_])
 	const [editId, setEditId] = useState<string | null>(null)
-	const [filtroNome, setFiltroNome] = useState<string>('')
-	const [filtroWhatsapp, setFiltroWhatsapp] = useState<string>('')
+	const [filtroBusca, setFiltroBusca] = useState<string>('')
 	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
 	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
 	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
@@ -18,20 +17,26 @@ export default function Clientes() {
 		telefoneWhatsapp: ''
 	})
 
-	// Filtrar clientes
+	// Filtrar clientes por todos os campos
 	const clientesFiltrados = useMemo(() => {
+		if (!filtroBusca.trim()) return clientes
+		const termo = filtroBusca.trim().toLowerCase()
 		return clientes.filter(cliente => {
-			const nomeMatch = !filtroNome || 
-				cliente.nomeCompleto.toLowerCase().includes(filtroNome.toLowerCase()) ||
-				(cliente.nomePai && cliente.nomePai.toLowerCase().includes(filtroNome.toLowerCase())) ||
-				(cliente.nomeMae && cliente.nomeMae.toLowerCase().includes(filtroNome.toLowerCase()))
-			
-			const whatsappMatch = !filtroWhatsapp || 
-				cliente.telefoneWhatsapp.includes(filtroWhatsapp)
-			
-			return nomeMatch && whatsappMatch
+			const nomeCompleto = (cliente.nomeCompleto || '').toLowerCase()
+			const nomePai = (cliente.nomePai || '').toLowerCase()
+			const nomeMae = (cliente.nomeMae || '').toLowerCase()
+			const whatsapp = (cliente.telefoneWhatsapp || '').toLowerCase()
+			let dataStr = ''
+			try {
+				dataStr = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR')
+			} catch {}
+			return nomeCompleto.includes(termo) ||
+				nomePai.includes(termo) ||
+				nomeMae.includes(termo) ||
+				whatsapp.includes(termo) ||
+				dataStr.includes(termo)
 		})
-	}, [clientes, filtroNome, filtroWhatsapp])
+	}, [clientes, filtroBusca])
 
 	function refresh() { force((x) => x + 1 as unknown as number) }
 
@@ -255,27 +260,13 @@ export default function Clientes() {
 						<input
 							className="input"
 							type="text"
-							placeholder="🔍 Filtrar por nome..."
-							value={filtroNome}
-							onChange={(e) => setFiltroNome(e.target.value)}
-							style={{ width: 200 }}
+							placeholder="🔍 Buscar em todos os campos (nome, pai, mãe, WhatsApp, data)..."
+							value={filtroBusca}
+							onChange={(e) => setFiltroBusca(e.target.value)}
+							style={{ minWidth: 280 }}
 						/>
-						<input
-							className="input"
-							type="text"
-							placeholder="📱 Filtrar por WhatsApp..."
-							value={filtroWhatsapp}
-							onChange={(e) => setFiltroWhatsapp(e.target.value)}
-							style={{ width: 200 }}
-						/>
-						{(filtroNome || filtroWhatsapp) && (
-							<button 
-								className="btn" 
-								onClick={() => {
-									setFiltroNome('')
-									setFiltroWhatsapp('')
-								}}
-							>
+						{filtroBusca && (
+							<button className="btn" onClick={() => setFiltroBusca('')}>
 								Limpar
 							</button>
 						)}

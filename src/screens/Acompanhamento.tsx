@@ -43,13 +43,13 @@ export default function Acompanhamento() {
 		}
 		
 		loadData()
-		
-		const t = setInterval(() => {
-			setTick((x) => x + 1)
-			loadData() // Recarregar dados a cada 30 segundos
-		}, 1000 * 30)
-		
-		return () => clearInterval(t)
+
+		const tRefresh = setInterval(loadData, 1000 * 30)
+		const tTick = setInterval(() => setTick((x) => x + 1), 1000 * 10) // Atualizar valor a pagar a cada 10s
+		return () => {
+			clearInterval(tRefresh)
+			clearInterval(tTick)
+		}
 	}, [])
 
 	function minutosDecorridos(iso: string) {
@@ -147,7 +147,11 @@ export default function Acompanhamento() {
 							const alvo = l.tempoSolicitadoMin ?? Infinity
 							const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
 							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
-							const valor = parametros ? calcularValor(parametros as ParametrosType, l.tempoSolicitadoMin, brinquedo as BrinquedoType | undefined) : l.valorCalculado
+							// Valor a pagar: para abertos usa tempo decorrido (atualiza em tempo real; tempo livre = dec, tempo fixo = até o solicitado)
+							const minutosParaValor = l.tempoSolicitadoMin == null ? dec : Math.min(dec, l.tempoSolicitadoMin)
+							const valor = l.status === 'aberto' && parametros
+								? calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
+								: (l.valorCalculado ?? 0)
 							const alerta = isFinite(restante) && restante <= 5
 							const dataHora = new Date(l.dataHora)
 							const hora = dataHora.getHours().toString().padStart(2, '0')

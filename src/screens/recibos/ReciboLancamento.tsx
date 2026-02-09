@@ -4,18 +4,19 @@ import { lancamentosService, parametrosService } from '../../services/entitiesSe
 
 export default function ReciboLancamento() {
 	const { id } = useParams()
-	const [lanc, setLanc] = useState<Awaited<ReturnType<typeof lancamentosService.get>>>(null)
-	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [lanc, setLanc] = useState<Awaited<ReturnType<typeof lancamentosService.get>> | null>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>> | null>(null)
 	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		if (!id) return
+		const lid = id
+		if (!lid) return
 		let cancelled = false
 		async function load() {
 			setLoading(true)
 			try {
 				const [l, p] = await Promise.all([
-					lancamentosService.get(id),
+					lancamentosService.get(lid!), // lid já verificado acima
 					parametrosService.get(),
 				])
 				if (!cancelled) {
@@ -30,7 +31,7 @@ export default function ReciboLancamento() {
 		}
 		load()
 		return () => { cancelled = true }
-	}, [id])
+	}, [id as string])
 
 	useEffect(() => {
 		if (!loading && lanc) setTimeout(() => window.print(), 300)
@@ -39,7 +40,10 @@ export default function ReciboLancamento() {
 	if (loading) return <div className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
 	if (!lanc) return <div className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
-	const p = params || {}
+	type ParametrosReceipt = { empresaLogoUrl?: string; empresaNome?: string; empresaCnpj?: string }
+	const p: ParametrosReceipt = params || {}
+	const brinquedoNome = (lanc as { brinquedo?: { nome?: string } }).brinquedo?.nome || null
+	const contato = (lanc as { whatsappResponsavel?: string }).whatsappResponsavel
 	return (
 		<div className="receipt">
 			{p.empresaLogoUrl ? (
@@ -53,6 +57,8 @@ export default function ReciboLancamento() {
 			<div>Data/Hora: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
+			{contato && <div>Contato: {contato}</div>}
+			{brinquedoNome && <div>Brinquedo: {brinquedoNome}</div>}
 			{lanc.numeroPulseira && <div>Pulseira: {lanc.numeroPulseira}</div>}
 			<div>Tempo: {lanc.tempoSolicitadoMin == null ? 'Tempo Livre' : `${lanc.tempoSolicitadoMin} min`}</div>
 			<div>Valor: R$ {lanc.valorCalculado.toFixed(2)}</div>

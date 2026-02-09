@@ -1,8 +1,8 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { useEffect, useState, useMemo } from 'react'
-import { db } from '../../services/mockDb'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useCaixa } from '../../hooks/useCaixa'
 
 export default function DashboardLayout() {
 	const { logout } = useAuth()
@@ -11,31 +11,12 @@ export default function DashboardLayout() {
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
 
-	const [refresh, setRefresh] = useState(0)
+	const { caixa: caixaAberto, caixas } = useCaixa()
 	const { hasPermission, user } = usePermissions()
-	const caixaAberto = useMemo(() => {
-		const caixas = db.get().caixas
-		return caixas.find((c) => c.status === 'aberto')
-	}, [refresh])
-
-	// Escutar mudanças no banco de dados (throttle para evitar refresh constante)
-	useEffect(() => {
-		let last = 0
-		const throttleMs = 1500
-		function handleStorageChange() {
-			const now = Date.now()
-			if (now - last >= throttleMs) {
-				last = now
-				setRefresh(prev => prev + 1)
-			}
-		}
-		window.addEventListener('storage', handleStorageChange)
-		window.addEventListener('db-update', handleStorageChange)
-		return () => {
-			window.removeEventListener('storage', handleStorageChange)
-			window.removeEventListener('db-update', handleStorageChange)
-		}
-	}, [])
+	// Status do caixa vem da API (useCaixa) para o menu lateral atualizar ao abrir/fechar
+	const algumCaixaAberto = useMemo(() => {
+		return !!caixas?.some((c) => c.status === 'aberto')
+	}, [caixas])
 
 	function toggleTheme() {
 		const isLight = document.documentElement.dataset.theme === 'light'
@@ -95,9 +76,9 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Lançamento',
 				path: '/lancamento',
-				icon: caixaAberto ? '📝' : '🔒',
-				disabled: !caixaAberto,
-				status: caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
+				icon: algumCaixaAberto ? '📝' : '🔒',
+				disabled: !algumCaixaAberto,
+				status: algumCaixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
 			})
 		}
 		
@@ -113,8 +94,8 @@ export default function DashboardLayout() {
 				items.push({
 					label: 'Caixa',
 					path: '/caixa/abertura',
-					icon: caixaAberto ? '✅' : '💰',
-					status: caixaAberto ? 'Aberto' : 'Fechado',
+					icon: algumCaixaAberto ? '✅' : '💰',
+					status: algumCaixaAberto ? 'Aberto' : 'Fechado',
 					submenu
 				})
 			}
@@ -180,7 +161,7 @@ export default function DashboardLayout() {
 		}
 		
 		return items
-	}, [user, caixaAberto])
+	}, [user, algumCaixaAberto, hasPermission])
 
 	return (
 		<div className="app-layout">
