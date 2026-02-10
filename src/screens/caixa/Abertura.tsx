@@ -38,8 +38,11 @@ export default function Abertura() {
 
 		if (temCaixaFixo) {
 			caixaId = user!.caixaId!
-			const caixaEspecifico = caixas.find(c => c.id === caixaId && c.status === 'aberto')
-			if (caixaEspecifico) {
+			const caixaEspecifico = caixas.find(c => c.id === caixaId)
+			if (caixaEspecifico?.bloqueado) {
+				return alert('Este caixa está bloqueado e não pode ser aberto.')
+			}
+			if (caixaEspecifico?.status === 'aberto') {
 				return alert('Já existe um caixa aberto para este usuário')
 			}
 		} else if (caixaSelecionado) {
@@ -47,6 +50,9 @@ export default function Abertura() {
 			const caixaSelecionadoObj = caixas.find(c => c.id === caixaId)
 			if (!caixaSelecionadoObj) {
 				return alert('Caixa selecionado não encontrado')
+			}
+			if (caixaSelecionadoObj.bloqueado) {
+				return alert('Este caixa está bloqueado e não pode ser aberto.')
 			}
 			if (caixaSelecionadoObj.status === 'aberto') {
 				return alert('Este caixa já está aberto')
@@ -68,9 +74,14 @@ export default function Abertura() {
 			window.dispatchEvent(new Event('caixa:updated'))
 			// Navegar para o comprovante de abertura
 			navigate(`/recibo/abertura/${caixaId}`)
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Erro ao abrir caixa:', error)
-			alert('Erro ao abrir caixa. Tente novamente.')
+			const msg = (error as { message?: string })?.message ?? ''
+			if (typeof msg === 'string' && msg.toLowerCase().includes('bloqueado')) {
+				alert('Este caixa está bloqueado e não pode ser aberto.')
+			} else {
+				alert(msg || 'Erro ao abrir caixa. Tente novamente.')
+			}
 		} finally {
 			setSaving(false)
 		}
@@ -119,9 +130,14 @@ export default function Abertura() {
 								onChange={(e) => setCaixaSelecionado(e.target.value)}
 							>
 								<option value="">Selecione um caixa...</option>
-								{caixasFechados.map((c) => (
+								{caixasFechados.filter((c) => !c.bloqueado).map((c) => (
 									<option key={c.id} value={c.id}>
 										{c.nome}
+									</option>
+								))}
+								{caixasFechados.filter((c) => c.bloqueado).map((c) => (
+									<option key={c.id} value={c.id} disabled>
+										{c.nome} (bloqueado)
 									</option>
 								))}
 							</select>

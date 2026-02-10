@@ -1,23 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCaixa } from '../hooks/useCaixa'
-import { caixasService, type Caixa } from '../services/entitiesService'
+import { caixasService, brinquedosService, type Caixa, type Brinquedo } from '../services/entitiesService'
 
 export default function Caixas() {
 	const { caixas, loading, refresh } = useCaixa()
+	const [brinquedos, setBrinquedos] = useState<Brinquedo[]>([])
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [saving, setSaving] = useState(false)
 	const [form, setForm] = useState({
 		nome: '',
+		bloqueado: false,
+		brinquedoIds: [] as string[],
 	})
 
+	useEffect(() => {
+		brinquedosService.list().then((data) => setBrinquedos(Array.isArray(data) ? data : [])).catch(() => {})
+	}, [])
+
 	function resetForm() {
-		setForm({ nome: '' })
+		setForm({ nome: '', bloqueado: false, brinquedoIds: [] })
 		setEditingId(null)
 	}
 
 	function edit(caixa: Caixa) {
-		setForm({ nome: caixa.nome })
+		const ids = (caixa.brinquedos ?? [])
+			.map((cb) => ('brinquedoId' in cb ? cb.brinquedoId : (cb as { brinquedo?: { id: string } }).brinquedo?.id))
+			.filter((id): id is string => !!id)
+		setForm({
+			nome: caixa.nome,
+			bloqueado: !!caixa.bloqueado,
+			brinquedoIds: ids,
+		})
 		setEditingId(caixa.id)
+	}
+
+	function toggleBrinquedo(id: string) {
+		setForm((f) => ({
+			...f,
+			brinquedoIds: f.brinquedoIds.includes(id) ? f.brinquedoIds.filter((b) => b !== id) : [...f.brinquedoIds, id],
+		}))
 	}
 
 	async function save() {
@@ -28,22 +49,23 @@ export default function Caixas() {
 		try {
 			setSaving(true)
 			if (editingId) {
-				// Editar
-				await caixasService.update(editingId, { nome: form.nome.trim() })
+				await caixasService.update(editingId, {
+					nome: form.nome.trim(),
+					bloqueado: form.bloqueado,
+					brinquedoIds: form.brinquedoIds,
+				})
 				alert('Caixa atualizado com sucesso!')
 			} else {
-				// Criar
-				// Verificar se já existe um caixa com o mesmo nome
 				if (caixas.some(c => c.nome.toLowerCase() === form.nome.trim().toLowerCase())) {
 					return alert('Já existe um caixa com este nome')
 				}
-				
 				await caixasService.create({
 					nome: form.nome.trim(),
 					data: new Date().toISOString().split('T')[0],
 					valorInicial: 0,
 					status: 'fechado',
-					movimentos: []
+					bloqueado: form.bloqueado,
+					brinquedoIds: form.brinquedoIds,
 				})
 				alert('Caixa criado com sucesso!')
 			}
@@ -102,10 +124,36 @@ export default function Caixas() {
 						<input 
 							className="input" 
 							value={form.nome} 
-							onChange={(e) => setForm({ nome: e.target.value })} 
+							onChange={(e) => setForm({ ...form, nome: e.target.value })} 
 							placeholder="Ex: Parquinho, Infláveis, Caixa 1"
 						/>
 						<span className="help">Nome identificador do caixa</span>
+					</label>
+
+					<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+						<input
+							type="checkbox"
+							checked={form.bloqueado}
+							onChange={(e) => setForm({ ...form, bloqueado: e.target.checked })}
+						/>
+						<span>Bloquear caixa (impede abertura)</span>
+					</label>
+
+					<label className="field">
+						<span>Brinquedos deste caixa</span>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+							{brinquedos.map((b) => (
+								<label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+									<input
+										type="checkbox"
+										checked={form.brinquedoIds.includes(b.id)}
+										onChange={() => toggleBrinquedo(b.id)}
+									/>
+									<span>{b.nome}</span>
+								</label>
+							))}
+						</div>
+						<span className="help">No lançamento, só aparecerão os brinquedos selecionados para o caixa em uso</span>
 					</label>
 
 					<div className="actions" style={{ marginTop: 16 }}>
@@ -131,6 +179,7 @@ export default function Caixas() {
 									<th>Data de Abertura</th>
 									<th>Valor Inicial</th>
 									<th>Status</th>
+									<th>Bloqueado</th>
 									<th>Ações</th>
 								</tr>
 							</thead>
@@ -141,6 +190,7 @@ export default function Caixas() {
 										<td>{new Date(c.data).toLocaleDateString('pt-BR')}</td>
 										<td>R$ {c.valorInicial.toFixed(2)}</td>
 										<td><span className="badge on">Aberto</span></td>
+										<td>{c.bloqueado ? <span className="badge off">Sim</span> : 'Não'}</td>
 										<td>
 											<div className="row" style={{ gap: 8 }}>
 												<button className="btn" onClick={() => edit(c)} disabled>✏️ Editar</button>
@@ -168,6 +218,7 @@ export default function Caixas() {
 									<th>Nome</th>
 									<th>Data de Criação</th>
 									<th>Status</th>
+									<th>Bloqueado</th>
 									<th>Ações</th>
 								</tr>
 							</thead>
@@ -183,6 +234,7 @@ export default function Caixas() {
 												<span className="badge off">Fechado</span>
 											)}
 										</td>
+										<td>{c.bloqueado ? <span className="badge off">Sim</span> : 'Não'}</td>
 										<td>
 											<div className="row" style={{ gap: 8 }}>
 												<button 

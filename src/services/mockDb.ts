@@ -41,13 +41,16 @@ export type MovimentoCaixa = {
 	valor: number
 	motivo?: string
 }
+export type CaixaBrinquedo = { caixaId: string; brinquedoId: string; brinquedo?: Brinquedo }
 export type Caixa = { 
 	id: string
 	nome: string // Nome do caixa (ex: "Parquinho", "Infláveis")
 	data: string
 	valorInicial: number
 	status: CaixaStatus
+	bloqueado?: boolean
 	movimentos?: MovimentoCaixa[]
+	brinquedos?: CaixaBrinquedo[]
 }
 export type Cliente = {
 	id: string
@@ -109,6 +112,7 @@ export type Usuario = {
 	permissoes: PermissoesModulo
 	usaCaixa: boolean
 	caixaId?: string // ID do caixa que o usuário pode usar (se usaCaixa for true)
+	bloqueado?: boolean
 }
 
 export type Estacionamento = {

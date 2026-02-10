@@ -75,9 +75,18 @@ export default function Lancamento() {
 	})
 	const [valorAntesTempoLivre, setValorAntesTempoLivre] = useState<number>(0)
 
+	// Brinquedos disponíveis: se o caixa em uso tem brinquedos vinculados, só esses; senão todos
+	const brinquedosDoCaixa = useMemo(() => {
+		if (!caixa?.brinquedos?.length) return brinquedos
+		const list = (caixa.brinquedos as { brinquedo?: BrinquedoType }[])
+			.map((cb) => cb.brinquedo)
+			.filter((b): b is BrinquedoType => !!b)
+		return list.length > 0 ? list : brinquedos
+	}, [caixa?.brinquedos, brinquedos])
+
 	const brinquedoSelecionado = useMemo(() => 
-		form.brinquedoId ? brinquedos.find(b => b.id === form.brinquedoId) : undefined,
-		[form.brinquedoId, brinquedos]
+		form.brinquedoId ? brinquedosDoCaixa.find(b => b.id === form.brinquedoId) : undefined,
+		[form.brinquedoId, brinquedosDoCaixa]
 	)
 	
 	const valor = useMemo(() => {
@@ -375,7 +384,7 @@ export default function Lancamento() {
 						<span>Brinquedo</span>
 						<select className="select" value={form.brinquedoId} onChange={(e) => setForm({ ...form, brinquedoId: e.target.value })}>
 							<option value="">(opcional)</option>
-							{brinquedos.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+							{brinquedosDoCaixa.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
 						</select>
 					</label>
 				</div>

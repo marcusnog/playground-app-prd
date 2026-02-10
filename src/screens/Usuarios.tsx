@@ -10,6 +10,7 @@ type UsuarioAPI = {
 	contato: string
 	usaCaixa: boolean
 	caixaId?: string | null
+	bloqueado?: boolean
 	acompanhamento?: boolean
 	lancamento?: boolean
 	caixaAbertura?: boolean
@@ -61,6 +62,7 @@ function apiUsuarioToForm(u: UsuarioAPI): Usuario {
 		permissoes,
 		usaCaixa: u.usaCaixa ?? false,
 		caixaId: u.caixaId ?? undefined,
+		bloqueado: u.bloqueado ?? false,
 	}
 }
 
@@ -74,6 +76,7 @@ function formToApiPayload(form: Partial<Usuario>, includeSenha: boolean) {
 		contato: (form.contato ?? '').trim(),
 		usaCaixa: form.usaCaixa ?? false,
 		caixaId,
+		bloqueado: form.bloqueado ?? false,
 		acompanhamento: !!p?.acompanhamento,
 		lancamento: !!p?.lancamento,
 		caixaAbertura: !!p?.caixa?.abertura,
@@ -143,6 +146,7 @@ export default function Usuarios() {
 			permissoes: {},
 			usaCaixa: false,
 			caixaId: undefined,
+			bloqueado: false,
 		})
 		setEditingId(null)
 	}
@@ -156,6 +160,7 @@ export default function Usuarios() {
 			permissoes: { ...usuario.permissoes },
 			usaCaixa: usuario.usaCaixa,
 			caixaId: usuario.caixaId,
+			bloqueado: usuario.bloqueado,
 		})
 		setEditingId(usuario.id)
 	}
@@ -558,6 +563,20 @@ export default function Usuarios() {
 					</div>
 				</div>
 
+				{/* Bloquear usuário */}
+				<div style={{ marginTop: 24 }}>
+					<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }} htmlFor="usuarios-bloqueado">
+						<input 
+							id="usuarios-bloqueado"
+							type="checkbox" 
+							checked={form.bloqueado || false}
+							onChange={(e) => setForm(prev => ({ ...prev, bloqueado: e.target.checked }))}
+						/>
+						<span><strong>Bloquear usuário</strong></span>
+					</label>
+					<span className="help" style={{ display: 'block', marginTop: -4, marginBottom: 12 }}>Usuário bloqueado não consegue fazer login</span>
+				</div>
+
 				{/* Usuário utiliza caixa */}
 				<div style={{ marginTop: 24 }}>
 					<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }} htmlFor="usuarios-usa-caixa">
@@ -629,6 +648,7 @@ export default function Usuarios() {
 									<th>Nome Completo</th>
 									<th>Apelido</th>
 									<th>Contato</th>
+									<th>Bloqueado</th>
 									<th>Usa Caixa</th>
 									<th>Caixa</th>
 									<th>Ações</th>
@@ -642,8 +662,9 @@ export default function Usuarios() {
 											<td>{u.nomeCompleto}</td>
 											<td>{u.apelido}</td>
 											<td>{u.contato}</td>
-									<td>{u.usaCaixa ? '✅' : '❌'}</td>
-									<td>{u.usaCaixa ? (caixa ? caixa.nome : 'Todos os caixas') : '-'}</td>
+											<td>{u.bloqueado ? <span className="badge off">Sim</span> : 'Não'}</td>
+											<td>{u.usaCaixa ? '✅' : '❌'}</td>
+											<td>{u.usaCaixa ? (caixa ? caixa.nome : 'Todos os caixas') : '-'}</td>
 											<td>
 												<div className="row" style={{ gap: 8 }}>
 													<button className="btn" onClick={() => edit(u)}>✏️ Editar</button>
