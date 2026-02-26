@@ -1,29 +1,30 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { caixasService, parametrosService, estacionamentosService } from '../../services/entitiesService'
+import { caixasService, parametrosService, estacionamentosService, type Parametros } from '../../services/entitiesService'
 
 export default function ReciboEstacionamentoAbertura() {
 	const { id } = useParams()
-	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>>>(null)
-	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>> | null>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>> | null>(null)
 	const [estacionamento, setEstacionamento] = useState<Awaited<ReturnType<typeof estacionamentosService.get>> | null>(null)
 	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		if (!id) return
+		const idStr = id
+		if (!idStr) return
 		let cancelled = false
 		async function load() {
 			setLoading(true)
 			try {
 				const [c, p, list] = await Promise.all([
-					caixasService.get(id),
+					caixasService.get(idStr as string),
 					parametrosService.get(),
 					estacionamentosService.list(),
 				])
 				if (!cancelled) {
 					setCaixa(c)
 					setParams(p)
-					const est = (list || []).find((e: { caixaId: string }) => e.caixaId === id)
+					const est = (list || []).find((e: { caixaId: string }) => e.caixaId === idStr)
 					setEstacionamento(est ?? null)
 				}
 			} catch (e) {
@@ -43,7 +44,7 @@ export default function ReciboEstacionamentoAbertura() {
 	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
 	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
 
-	const p = params || {}
+	const p = (params ?? {}) as Parametros
 	const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data ?? new Date().toISOString()
 	return (
 		<div className="receipt">

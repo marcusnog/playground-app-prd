@@ -51,6 +51,7 @@ export type Caixa = {
 	bloqueado?: boolean
 	movimentos?: MovimentoCaixa[]
 	brinquedos?: CaixaBrinquedo[]
+	brinquedoIds?: string[] // Aceito pela API em create/update
 }
 export type Cliente = {
 	id: string

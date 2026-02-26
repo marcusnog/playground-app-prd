@@ -11,7 +11,7 @@ export default function DashboardLayout() {
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
 
-	const { caixa: caixaAberto, caixas } = useCaixa()
+	const { caixas } = useCaixa()
 	const { hasPermission, user } = usePermissions()
 	// Status do caixa vem da API (useCaixa) para o menu lateral atualizar ao abrir/fechar
 	const algumCaixaAberto = useMemo(() => {

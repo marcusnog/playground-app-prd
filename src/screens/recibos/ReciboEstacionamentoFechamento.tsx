@@ -1,25 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { caixasService, parametrosService, estacionamentosService, lancamentosEstacionamentoService, formasPagamentoService } from '../../services/entitiesService'
+import { caixasService, parametrosService, estacionamentosService, lancamentosEstacionamentoService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 
 export default function ReciboEstacionamentoFechamento() {
 	const { id } = useParams()
-	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>>>(null)
-	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>>>(null)
+	const [caixa, setCaixa] = useState<Awaited<ReturnType<typeof caixasService.get>> | null>(null)
+	const [params, setParams] = useState<Awaited<ReturnType<typeof parametrosService.get>> | null>(null)
 	const [estacionamento, setEstacionamento] = useState<Awaited<ReturnType<typeof estacionamentosService.get>> | null>(null)
 	const [lancamentos, setLancamentos] = useState<Awaited<ReturnType<typeof lancamentosEstacionamentoService.list>>>([])
 	const [formas, setFormas] = useState<Awaited<ReturnType<typeof formasPagamentoService.list>>>([])
 	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		if (!id) return
+		const idStr = id
+		if (!idStr) return
 		let cancelled = false
 		async function load() {
 			setLoading(true)
 			try {
 				const [c, p, estList, lancList, f] = await Promise.all([
-					caixasService.get(id),
+					caixasService.get(idStr as string),
 					parametrosService.get(),
 					estacionamentosService.list(),
 					lancamentosEstacionamentoService.list(),
@@ -30,7 +31,7 @@ export default function ReciboEstacionamentoFechamento() {
 					setParams(p)
 					setLancamentos(lancList || [])
 					setFormas(f || [])
-					const est = (estList || []).find((e: { caixaId: string }) => e.caixaId === id)
+					const est = (estList || []).find((e: { caixaId: string }) => e.caixaId === idStr)
 					if (est) {
 						const estDetail = await estacionamentosService.get(est.id)
 						if (!cancelled) setEstacionamento(estDetail)
@@ -92,7 +93,7 @@ export default function ReciboEstacionamentoFechamento() {
 	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
 	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
 
-	const p = params || {}
+	const p = (params ?? {}) as Parametros
 	return (
 		<div className="receipt">
 			{p.empresaLogoUrl ? (
