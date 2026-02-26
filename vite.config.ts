@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react-swc'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/playground-app-prd/', // Base path para GitHub Pages
   plugins: [
     react()
   ],

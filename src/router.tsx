@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { createBrowserRouter, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import Login from './screens/Login'
 import DashboardLayout from './screens/layouts/DashboardLayout'
@@ -52,16 +53,38 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
 	return children
 }
 
+const basename = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '')
+
+// Wrapper para redirecionar rotas acessadas diretamente (404 do GitHub Pages)
+function RedirectWrapper() {
+	const navigate = useNavigate()
+	useEffect(() => {
+		const redirect = sessionStorage.redirect
+		if (redirect) {
+			delete sessionStorage.redirect
+			const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+			const path = redirect.replace(new RegExp(`^${window.location.origin}${base}`), '') || '/'
+			window.history.replaceState(null, '', base + path)
+			navigate(path, { replace: true })
+		}
+	}, [navigate])
+	return <Outlet />
+}
+
 export const router = createBrowserRouter([
-	{ path: '/', element: <Navigate to="/acompanhamento" replace /> },
-	{ path: '/login', element: <Login /> },
 	{
 		path: '/',
-		element: (
-			<ProtectedRoute>
-				<DashboardLayout />
-			</ProtectedRoute>
-		),
+		element: <RedirectWrapper />,
+		children: [
+			{ index: true, element: <Navigate to="/acompanhamento" replace /> },
+			{ path: 'login', element: <Login /> },
+			{
+				path: '/',
+				element: (
+					<ProtectedRoute>
+						<DashboardLayout />
+					</ProtectedRoute>
+				),
 		children: [
 			{ path: 'parametros', element: <Parametros /> },
 			{ path: 'formas-pagamento', element: <FormasPagamento /> },
@@ -91,7 +114,9 @@ export const router = createBrowserRouter([
 			{ path: 'recibo/estacionamento/abertura/:id', element: <ReciboEstacionamentoAbertura /> },
 			{ path: 'recibo/estacionamento/fechamento/:id', element: <ReciboEstacionamentoFechamento /> },
 		],
+			},
+		],
 	},
-])
+], { basename })
 
 
