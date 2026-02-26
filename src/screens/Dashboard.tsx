@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { db } from '../services/mockDb'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { lancamentosService, brinquedosService } from '../services/entitiesService'
+import type { Lancamento, Brinquedo } from '../services/entitiesService'
 import { 
 	AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
 	XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
@@ -7,9 +8,31 @@ import {
 
 export default function Dashboard() {
 	const [periodo, setPeriodo] = useState<'hoje' | 'semana' | 'mes' | 'todos'>('hoje')
-	
-	const lancamentos = useMemo(() => db.get().lancamentos, [])
-	const brinquedos = useMemo(() => db.get().brinquedos, [])
+	const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
+	const [brinquedos, setBrinquedos] = useState<Brinquedo[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	useEffect(() => {
+		async function load() {
+			try {
+				setLoading(true)
+				setError(null)
+				const [lancamentosData, brinquedosData] = await Promise.all([
+					lancamentosService.list(),
+					brinquedosService.list(),
+				])
+				setLancamentos(lancamentosData ?? [])
+				setBrinquedos(brinquedosData ?? [])
+			} catch (e) {
+				console.error('Erro ao carregar dashboard:', e)
+				setError('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
+		}
+		load()
+	}, [])
 	
 	// Filtrar dados por período
 	const dadosFiltrados = useMemo(() => {
@@ -108,6 +131,28 @@ export default function Dashboard() {
 	}, [dadosFiltrados, brinquedos])
 	
 	const cores = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00']
+
+	if (loading) {
+		return (
+			<div className="container">
+				<h2>Dashboard</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (error) {
+		return (
+			<div className="container">
+				<h2>Dashboard</h2>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			</div>
+		)
+	}
 	
 	return (
 		<div className="container">
@@ -117,7 +162,7 @@ export default function Dashboard() {
 					<select 
 						className="select" 
 						value={periodo} 
-						onChange={(e) => setPeriodo(e.target.value as any)}
+						onChange={(e) => setPeriodo(e.target.value as 'hoje' | 'semana' | 'mes' | 'todos')}
 					>
 						<option value="hoje">Hoje</option>
 						<option value="semana">Esta Semana</option>
@@ -221,7 +266,7 @@ export default function Dashboard() {
 									cx="50%"
 									cy="50%"
 									labelLine={false}
-									label={(props: any) => `${props.status} ${(props.percent * 100).toFixed(0)}%`}
+									label={((props: { status?: string; percent?: number }) => `${props.status ?? ''} ${((props.percent ?? 0) * 100).toFixed(0)}%`) as (props: unknown) => ReactNode}
 									outerRadius={80}
 									fill="#8884d8"
 									dataKey="quantidade"

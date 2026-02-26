@@ -254,25 +254,18 @@ export default function DashboardLayout() {
 
 				<div className="sidebar-footer">
 					<div className="user-actions">
-						{user && (
-							<div style={{ 
-								padding: '8px 16px', 
-								fontSize: '0.9rem', 
-								color: 'var(--text)', 
-								fontWeight: '500',
-								textAlign: 'center',
-								marginBottom: '8px'
-							}}>
-								{user.apelido || user.username}
-							</div>
-						)}
-						<label className="switch">
-							<span className="icon sun">☀️</span>
-							<input type="checkbox" onChange={toggleTheme} defaultChecked={isLight} />
-							<span className="slider"></span>
-							<span className="icon moon">🌙</span>
-						</label>
-						<button className="btn" onClick={onLogout}>Sair</button>
+						<div className="user-actions-row">
+							{user && (
+								<span className="user-name">{user.apelido || user.username}</span>
+							)}
+							<label className="switch switch-compact">
+								<span className="icon sun">☀️</span>
+								<input type="checkbox" onChange={toggleTheme} defaultChecked={isLight} />
+								<span className="slider"></span>
+								<span className="icon moon">🌙</span>
+							</label>
+						</div>
+						<button className="btn btn-logout" onClick={onLogout}>Sair</button>
 					</div>
 				</div>
 			</aside>

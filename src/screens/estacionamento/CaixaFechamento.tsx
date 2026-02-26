@@ -1,16 +1,45 @@
-import { useMemo, useState } from 'react'
-import { db } from '../../services/mockDb'
+import { useEffect, useMemo, useState } from 'react'
+import { estacionamentosService, caixasService, lancamentosEstacionamentoService, formasPagamentoService } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
 
 export default function CaixaFechamento() {
-	const [_, force] = useState(0)
-	const estacionamentos = useMemo(() => db.get().estacionamentos, [_])
-	const caixas = useMemo(() => db.get().caixas, [_])
+	const [estacionamentos, setEstacionamentos] = useState<Awaited<ReturnType<typeof estacionamentosService.list>>>([])
+	const [caixas, setCaixas] = useState<Awaited<ReturnType<typeof caixasService.list>>>([])
+	const [lancamentos, setLancamentos] = useState<Awaited<ReturnType<typeof lancamentosEstacionamentoService.list>>>([])
+	const [formasPagamento, setFormasPagamento] = useState<Awaited<ReturnType<typeof formasPagamentoService.list>>>([])
 	const [estacionamentoSelecionado, setEstacionamentoSelecionado] = useState<string>('')
+	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 	const navigate = useNavigate()
 	const { hasPermission } = usePermissions()
+
+	useEffect(() => {
+		async function load() {
+			try {
+				setLoading(true)
+				setError(null)
+				const [estData, caixasData, lancData, formasData] = await Promise.all([
+					estacionamentosService.list(),
+					caixasService.list(),
+					lancamentosEstacionamentoService.list(),
+					formasPagamentoService.list(),
+				])
+				setEstacionamentos(estData ?? [])
+				setCaixas(caixasData ?? [])
+				setLancamentos(lancData ?? [])
+				setFormasPagamento(formasData ?? [])
+			} catch (e) {
+				console.error('Erro ao carregar fechamento:', e)
+				setError('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
+		}
+		load()
+	}, [])
 
 	// Verificar permissão
 	if (!hasPermission('estacionamento', 'caixa', 'fechamento')) {
@@ -24,28 +53,20 @@ export default function CaixaFechamento() {
 		)
 	}
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
-
-	// Buscar caixa do estacionamento selecionado
-	const estacionamento = useMemo(() => 
-		estacionamentos.find(e => e.id === estacionamentoSelecionado),
-		[estacionamentos, estacionamentoSelecionado]
-	)
+	const estacionamento = estacionamentos.find(e => e.id === estacionamentoSelecionado)
 	
-	const caixaEstacionamento = useMemo(() => {
-		if (!estacionamento) return null
-		return caixas.find(c => c.id === estacionamento.caixaId)
-	}, [estacionamento, caixas])
+	const caixaEstacionamento = estacionamento
+		? caixas.find(c => c.id === estacionamento.caixaId)
+		: null
 
 	const caixaAberto = caixaEstacionamento?.status === 'aberto'
 
 	// Resumo por forma de pagamento usando lançamentos pagos do dia
 	const resumo = useMemo(() => {
-		const d = db.get()
 		if (!caixaEstacionamento || !estacionamento) return []
 		
 		const dataCaixa = new Date(caixaEstacionamento.data).toDateString()
-		const pagos = d.lancamentosEstacionamento.filter((l) => {
+		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
 			if (l.estacionamentoId !== estacionamento.id) return false
 			const dataLancamento = new Date(l.dataHora).toDateString()
@@ -59,30 +80,30 @@ export default function CaixaFechamento() {
 			map.set(forma, (map.get(forma) || 0) + l.valor)
 		}
 		return Array.from(map.entries())
-	}, [_, caixaEstacionamento, estacionamento])
+	}, [lancamentos, caixaEstacionamento, estacionamento])
+
+	const formasMap = new Map(formasPagamento.map(f => [f.id, f.descricao]))
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
-		if (!caixaEstacionamento || !caixaEstacionamento.movimentos) return 0
+		if (!caixaEstacionamento?.movimentos) return 0
 		return caixaEstacionamento.movimentos
 			.filter(m => m.tipo === 'sangria')
 			.reduce((sum, m) => sum + m.valor, 0)
 	}, [caixaEstacionamento])
 
 	const totalSuprimentos = useMemo(() => {
-		if (!caixaEstacionamento || !caixaEstacionamento.movimentos) return 0
+		if (!caixaEstacionamento?.movimentos) return 0
 		return caixaEstacionamento.movimentos
 			.filter(m => m.tipo === 'suprimento')
 			.reduce((sum, m) => sum + m.valor, 0)
 	}, [caixaEstacionamento])
 
-	const totalVendas = useMemo(() => {
-		return resumo.reduce((sum, [, total]) => sum + total, 0)
-	}, [resumo])
+	const totalVendas = resumo.reduce((sum, [, total]) => sum + total, 0)
 
 	const saldoFinal = (caixaEstacionamento?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
 
-	function fechar() {
+	async function fechar() {
 		if (!estacionamentoSelecionado) {
 			return alert('Selecione um estacionamento')
 		}
@@ -91,23 +112,55 @@ export default function CaixaFechamento() {
 		}
 		if (!confirm('Deseja realmente fechar o caixa?')) return
 		
-		const caixaId = caixaEstacionamento.id
-		db.update((d) => {
-			const c = d.caixas.find((x) => x.id === caixaId)
-			if (c) c.status = 'fechado'
-		})
-		refresh()
-		alert('Caixa fechado com sucesso!')
-		navigate(`/recibo/estacionamento/fechamento/${caixaId}`)
+		try {
+			setSaving(true)
+			setError(null)
+			const caixaId = caixaEstacionamento.id
+			await caixasService.fechar(caixaId)
+			alert('Caixa fechado com sucesso!')
+			navigate(`/recibo/estacionamento/fechamento/${caixaId}`)
+		} catch (e) {
+			console.error('Erro ao fechar caixa:', e)
+			setError('Erro ao fechar caixa. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
 	}
 
 	function imprimir() {
 		window.print()
 	}
 
+	if (loading) {
+		return (
+			<div className="container" style={{ maxWidth: 800 }}>
+				<h2>Fechamento de Caixa - Estacionamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (error && !estacionamentoSelecionado) {
+		return (
+			<div className="container" style={{ maxWidth: 800 }}>
+				<h2>Fechamento de Caixa - Estacionamento</h2>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			</div>
+		)
+	}
+
 	return (
 		<div className="container" style={{ maxWidth: 800 }}>
 			<h2>Fechamento de Caixa - Estacionamento</h2>
+			{error && (
+				<div className="card" style={{ marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			)}
 			
 			<label className="field" style={{ marginBottom: 16 }}>
 				<span>Selecione o Estacionamento *</span>
@@ -186,12 +239,12 @@ export default function CaixaFechamento() {
 										<tr><th>Forma</th><th>Total (R$)</th></tr>
 									</thead>
 									<tbody>
-										{resumo.map(([forma, total]) => (
-											<tr key={forma}>
+										{resumo.map(([formaId, total]) => (
+											<tr key={formaId}>
 												<td>
 													<span className="row center">
-														<PaymentIcon kind={resolvePaymentKind(forma)} /> 
-														<span>{forma}</span>
+														<PaymentIcon kind={resolvePaymentKind(formasMap.get(formaId) || formaId)} /> 
+														<span>{formasMap.get(formaId) || formaId}</span>
 													</span>
 												</td>
 												<td>R$ {total.toFixed(2)}</td>
@@ -207,11 +260,12 @@ export default function CaixaFechamento() {
 
 					<div className="actions no-print">
 						<button className="btn" onClick={imprimir}>🖨️ Imprimir Relatório</button>
-						<button className="btn primary" onClick={fechar}>🔒 Fechar Caixa</button>
+						<button className="btn primary" onClick={fechar} disabled={saving}>
+							{saving ? 'Fechando...' : '🔒 Fechar Caixa'}
+						</button>
 					</div>
 				</>
 			)}
 		</div>
 	)
 }
-

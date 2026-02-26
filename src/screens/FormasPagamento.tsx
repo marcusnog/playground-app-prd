@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
-import { db, uid, type FormaPagamento } from '../services/mockDb'
+import { formasPagamentoService } from '../services/entitiesService'
+import type { FormaPagamento } from '../services/entitiesService'
 
 export default function FormasPagamento() {
-	const [_, force] = useState(0)
-	const formas = useMemo(() => db.get().formasPagamento, [_])
+	const [formas, setFormas] = useState<FormaPagamento[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
 	const [descricao, setDescricao] = useState('')
 	const [status, setStatus] = useState<'ativo' | 'inativo'>('ativo')
 	const [editId, setEditId] = useState<string | null>(null)
@@ -13,26 +15,41 @@ export default function FormasPagamento() {
 	const [editPixChave, setEditPixChave] = useState('')
 	const [editPixConta, setEditPixConta] = useState('')
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
-
-	function add() {
-		if (!descricao.trim()) return alert('Informe a descrição')
-		
-		const forma: FormaPagamento = {
-			id: uid('fp'),
-			descricao: descricao.trim(),
-			status,
-			pixChave: descricao.toLowerCase().includes('pix') ? '' : undefined,
-			pixConta: descricao.toLowerCase().includes('pix') ? '' : undefined
+	async function refresh() {
+		try {
+			setLoading(true)
+			setError(null)
+			const data = await formasPagamentoService.list()
+			setFormas(data ?? [])
+		} catch (e) {
+			console.error('Erro ao carregar formas de pagamento:', e)
+			setError('Erro ao carregar formas de pagamento.')
+		} finally {
+			setLoading(false)
 		}
-		
-		db.update((d) => {
-			d.formasPagamento.push(forma)
-		})
-		
-		setDescricao('')
-		setStatus('ativo')
+	}
+
+	useEffect(() => {
 		refresh()
+	}, [])
+
+	async function add() {
+		if (!descricao.trim()) return alert('Informe a descrição')
+		try {
+			setError(null)
+			await formasPagamentoService.create({
+				descricao: descricao.trim(),
+				status,
+				pixChave: descricao.toLowerCase().includes('pix') ? '' : undefined,
+				pixConta: descricao.toLowerCase().includes('pix') ? '' : undefined
+			})
+			setDescricao('')
+			setStatus('ativo')
+			await refresh()
+		} catch (e) {
+			console.error('Erro ao adicionar forma de pagamento:', e)
+			setError('Erro ao adicionar. Tente novamente.')
+		}
 	}
 
 	function iniciarEdicao(forma: FormaPagamento) {
@@ -51,42 +68,60 @@ export default function FormasPagamento() {
 		setEditPixConta('')
 	}
 
-	function salvarEdicao(id: string) {
+	async function salvarEdicao(id: string) {
 		if (!editDescricao.trim()) return alert('Informe a descrição')
-		
-		db.update((d) => {
-			const forma = d.formasPagamento.find((x) => x.id === id)
-			if (forma) {
-				forma.descricao = editDescricao.trim()
-				forma.status = editStatus
-				if (forma.descricao.toLowerCase().includes('pix')) {
-					forma.pixChave = editPixChave.trim() || undefined
-					forma.pixConta = editPixConta.trim() || undefined
-				} else {
-					forma.pixChave = undefined
-					forma.pixConta = undefined
-				}
-			}
-		})
-		
-		cancelarEdicao()
-		refresh()
+		try {
+			setError(null)
+			await formasPagamentoService.update(id, {
+				descricao: editDescricao.trim(),
+				status: editStatus,
+				pixChave: editDescricao.toLowerCase().includes('pix') ? (editPixChave.trim() || undefined) : undefined,
+				pixConta: editDescricao.toLowerCase().includes('pix') ? (editPixConta.trim() || undefined) : undefined
+			})
+			cancelarEdicao()
+			await refresh()
+		} catch (e) {
+			console.error('Erro ao salvar forma de pagamento:', e)
+			setError('Erro ao salvar. Tente novamente.')
+		}
 	}
 
-	function toggle(id: string) {
-		db.update((d) => {
-			const f = d.formasPagamento.find((x) => x.id === id)
-			if (f) f.status = f.status === 'ativo' ? 'inativo' : 'ativo'
-		})
-		refresh()
+	async function toggle(id: string) {
+		const forma = formas.find(f => f.id === id)
+		if (!forma) return
+		const novoStatus = forma.status === 'ativo' ? 'inativo' : 'ativo'
+		try {
+			setError(null)
+			await formasPagamentoService.update(id, { status: novoStatus })
+			await refresh()
+		} catch (e) {
+			console.error('Erro ao alterar status:', e)
+			setError('Erro ao alterar status. Tente novamente.')
+		}
 	}
 
 	const isPix = (descricao: string) => descricao.toLowerCase().includes('pix')
+
+	if (loading && formas.length === 0) {
+		return (
+			<div className="container medium">
+				<h2>Formas de Pagamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className="container medium">
 			<h2>Formas de Pagamento</h2>
 			<p className="subtitle">Gerencie as formas de pagamento aceitas e configure o PIX</p>
+			{error && (
+				<div className="card" style={{ marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			)}
 			
 			{/* Formulário de Cadastro/Edição */}
 			<div className="card" style={{ marginBottom: 16 }}>
@@ -107,7 +142,7 @@ export default function FormasPagamento() {
 						<select 
 							className="select" 
 							value={editId ? editStatus : status} 
-							onChange={(e) => editId ? setEditStatus(e.target.value as any) : setStatus(e.target.value as any)}
+							onChange={(e) => editId ? setEditStatus(e.target.value as 'ativo' | 'inativo') : setStatus(e.target.value as 'ativo' | 'inativo')}
 						>
 							<option value="ativo">Ativo</option>
 							<option value="inativo">Inativo</option>
@@ -124,7 +159,7 @@ export default function FormasPagamento() {
 									className="input" 
 									placeholder="CPF, CNPJ, Email, Telefone ou Chave Aleatória" 
 									value={editId ? editPixChave : ''} 
-									onChange={(e) => editId ? setEditPixChave(e.target.value) : null}
+									onChange={(e) => editId ? setEditPixChave(e.target.value) : undefined}
 								/>
 								<span className="help">Chave PIX para geração do QR Code</span>
 							</label>
@@ -135,7 +170,7 @@ export default function FormasPagamento() {
 									className="input" 
 									placeholder="Nome da conta ou identificação" 
 									value={editId ? editPixConta : ''} 
-									onChange={(e) => editId ? setEditPixConta(e.target.value) : null}
+									onChange={(e) => editId ? setEditPixConta(e.target.value) : undefined}
 								/>
 								<span className="help">Informação adicional para identificação da conta</span>
 							</label>

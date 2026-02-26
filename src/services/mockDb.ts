@@ -45,13 +45,14 @@ export type CaixaBrinquedo = { caixaId: string; brinquedoId: string; brinquedo?:
 export type Caixa = { 
 	id: string
 	nome: string // Nome do caixa (ex: "Parquinho", "Infláveis")
-	data: string
+	data: string // ISO string (data/hora da abertura, do servidor)
 	valorInicial: number
 	status: CaixaStatus
 	bloqueado?: boolean
 	movimentos?: MovimentoCaixa[]
 	brinquedos?: CaixaBrinquedo[]
 	brinquedoIds?: string[] // Aceito pela API em create/update
+	updatedAt?: string // ISO string (data/hora da última atualização, ex. fechamento)
 }
 export type Cliente = {
 	id: string
@@ -75,6 +76,7 @@ export type Lancamento = {
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
 	formaPagamentoId?: string // ID da forma de pagamento (quando pago)
+	updatedAt?: string // ISO string - hora da última atualização (ex.: pagamento)
 }
 
 export type PermissoesModulo = {

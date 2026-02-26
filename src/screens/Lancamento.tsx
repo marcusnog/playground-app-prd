@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { calcularValor } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
+import ClienteAutocomplete from '../components/ClienteAutocomplete'
 import type { Brinquedo as BrinquedoType, Cliente, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Lancamento() {
@@ -213,19 +214,13 @@ export default function Lancamento() {
 					<label className="field">
 						<span>Cliente Cadastrado (Opcional)</span>
 						<div className="row" style={{ gap: 8, alignItems: 'center' }}>
-							<select 
-								className="select" 
-								value={form.clienteId} 
-								onChange={(e) => selecionarCliente(e.target.value)}
+							<ClienteAutocomplete
+								clientes={clientes}
+								value={form.clienteId}
+								onSelect={selecionarCliente}
+								placeholder="Selecione ou digite para buscar..."
 								style={{ flex: 1 }}
-							>
-								<option value="">Selecione um cliente cadastrado...</option>
-								{clientes.map((c) => (
-									<option key={c.id} value={c.id}>
-										{c.nomeCompleto} - {new Date(c.dataNascimento).toLocaleDateString('pt-BR')}
-									</option>
-								))}
-							</select>
+							/>
 							<button 
 								className="btn" 
 								type="button"

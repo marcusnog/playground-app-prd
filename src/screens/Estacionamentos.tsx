@@ -1,10 +1,16 @@
-import { useMemo, useState } from 'react'
-import { db, type Estacionamento, uid } from '../services/mockDb'
+import { useState, useEffect } from 'react'
+import { useCaixa } from '../hooks/useCaixa'
+import {
+	estacionamentosService,
+	lancamentosEstacionamentoService,
+	type Estacionamento,
+} from '../services/entitiesService'
 
 export default function Estacionamentos() {
-	const [refresh, setRefresh] = useState(0)
-	const estacionamentos = useMemo(() => db.get().estacionamentos, [refresh])
-	const caixas = useMemo(() => db.get().caixas, [refresh])
+	const { caixas, loading: loadingCaixas, refresh: refreshCaixas } = useCaixa()
+	const [estacionamentos, setEstacionamentos] = useState<Estacionamento[]>([])
+	const [loadingEstacionamentos, setLoadingEstacionamentos] = useState(true)
+	const [saving, setSaving] = useState(false)
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [form, setForm] = useState({
 		nome: '',
@@ -12,8 +18,25 @@ export default function Estacionamentos() {
 		valor: 0,
 	})
 
-	function refreshList() {
-		setRefresh(prev => prev + 1)
+	async function loadEstacionamentos() {
+		try {
+			setLoadingEstacionamentos(true)
+			const data = await estacionamentosService.list()
+			setEstacionamentos(Array.isArray(data) ? data : [])
+		} catch (err) {
+			console.error('Erro ao carregar estacionamentos:', err)
+			alert('Erro ao carregar estacionamentos. Tente novamente.')
+		} finally {
+			setLoadingEstacionamentos(false)
+		}
+	}
+
+	useEffect(() => {
+		loadEstacionamentos()
+	}, [])
+
+	async function refreshList() {
+		await Promise.all([refreshCaixas(), loadEstacionamentos()])
 	}
 
 	function resetForm() {
@@ -30,7 +53,7 @@ export default function Estacionamentos() {
 		setEditingId(estacionamento.id)
 	}
 
-	function save() {
+	async function save() {
 		if (!form.nome.trim()) {
 			return alert('Preencha o nome do estacionamento')
 		}
@@ -41,51 +64,66 @@ export default function Estacionamentos() {
 			return alert('Informe um valor válido')
 		}
 
-		if (editingId) {
-			// Editar
-			db.update((d) => {
-				const est = d.estacionamentos.find(e => e.id === editingId)
-				if (est) {
-					est.nome = form.nome.trim()
-					est.caixaId = form.caixaId
-					est.valor = form.valor
-				}
-			})
-			alert('Estacionamento atualizado com sucesso!')
-		} else {
-			// Criar
-			if (estacionamentos.some(e => e.nome.toLowerCase() === form.nome.trim().toLowerCase())) {
-				return alert('Já existe um estacionamento com este nome')
-			}
-			
-			db.update((d) => {
-				d.estacionamentos.push({
-					id: uid('est'),
+		try {
+			setSaving(true)
+			if (editingId) {
+				await estacionamentosService.update(editingId, {
 					nome: form.nome.trim(),
 					caixaId: form.caixaId,
 					valor: form.valor,
 				})
-			})
-			alert('Estacionamento criado com sucesso!')
+				alert('Estacionamento atualizado com sucesso!')
+			} else {
+				if (estacionamentos.some(e => e.nome.toLowerCase() === form.nome.trim().toLowerCase())) {
+					return alert('Já existe um estacionamento com este nome')
+				}
+				await estacionamentosService.create({
+					nome: form.nome.trim(),
+					caixaId: form.caixaId,
+					valor: form.valor,
+				})
+				alert('Estacionamento criado com sucesso!')
+			}
+			await refreshList()
+			resetForm()
+		} catch (error) {
+			console.error('Erro ao salvar estacionamento:', error)
+			alert('Erro ao salvar estacionamento. Tente novamente.')
+		} finally {
+			setSaving(false)
 		}
-		refreshList()
-		resetForm()
 	}
 
-	function remove(id: string) {
+	async function remove(id: string) {
 		if (!confirm('Deseja realmente excluir este estacionamento?')) return
-		
-		// Verificar se há lançamentos associados
-		const lancamentos = db.get().lancamentosEstacionamento
-		const temLancamentos = lancamentos.some(l => l.estacionamentoId === id)
-		if (temLancamentos) {
-			return alert('Não é possível excluir um estacionamento que possui lançamentos associados.')
+
+		try {
+			const lancamentos = await lancamentosEstacionamentoService.list()
+			const temLancamentos = lancamentos.some(l => l.estacionamentoId === id)
+			if (temLancamentos) {
+				return alert('Não é possível excluir um estacionamento que possui lançamentos associados.')
+			}
+
+			await estacionamentosService.delete(id)
+			alert('Estacionamento excluído com sucesso!')
+			await refreshList()
+		} catch (error) {
+			console.error('Erro ao excluir estacionamento:', error)
+			alert('Erro ao excluir estacionamento. Tente novamente.')
 		}
-		
-		db.update((d) => {
-			d.estacionamentos = d.estacionamentos.filter(e => e.id !== id)
-		})
-		refreshList()
+	}
+
+	const loading = loadingCaixas || loadingEstacionamentos
+
+	if (loading && estacionamentos.length === 0 && caixas.length === 0) {
+		return (
+			<div className="container" style={{ maxWidth: 1000 }}>
+				<h2>Cadastro de Estacionamentos</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -98,19 +136,19 @@ export default function Estacionamentos() {
 				<div className="form two">
 					<label className="field">
 						<span>Nome do Estacionamento *</span>
-						<input 
-							className="input" 
-							value={form.nome} 
-							onChange={(e) => setForm({ ...form, nome: e.target.value })} 
+						<input
+							className="input"
+							value={form.nome}
+							onChange={(e) => setForm({ ...form, nome: e.target.value })}
 							placeholder="Ex: Estacionamento 1, Estacionamento Principal"
 						/>
 					</label>
-					
+
 					<label className="field">
 						<span>Caixa *</span>
-						<select 
-							className="select" 
-							value={form.caixaId} 
+						<select
+							className="select"
+							value={form.caixaId}
 							onChange={(e) => setForm({ ...form, caixaId: e.target.value })}
 						>
 							<option value="">Selecione um caixa...</option>
@@ -121,15 +159,20 @@ export default function Estacionamentos() {
 							))}
 						</select>
 						<span className="help">Selecione o caixa que será usado para este estacionamento</span>
+						{caixas.length === 0 && !loadingCaixas && (
+							<span className="help" style={{ color: 'var(--warning)' }}>
+								Cadastre caixas em &quot;Cadastro de Caixas&quot; para poder criar estacionamentos.
+							</span>
+						)}
 					</label>
-					
+
 					<label className="field">
 						<span>Valor do Estacionamento (R$) *</span>
-						<input 
-							className="input" 
-							type="number" 
-							value={form.valor} 
-							onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} 
+						<input
+							className="input"
+							type="number"
+							value={form.valor}
+							onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
 							step="0.01"
 							min="0"
 							placeholder="0.00"
@@ -140,9 +183,11 @@ export default function Estacionamentos() {
 
 				<div className="actions" style={{ marginTop: 16 }}>
 					{editingId && (
-						<button className="btn" onClick={resetForm}>Cancelar</button>
+						<button className="btn" onClick={resetForm}>
+							Cancelar
+						</button>
 					)}
-					<button className="btn primary" onClick={save}>
+					<button className="btn primary" onClick={save} disabled={saving || caixas.length === 0}>
 						{editingId ? '💾 Atualizar' : '➕ Criar'}
 					</button>
 				</div>
@@ -169,13 +214,19 @@ export default function Estacionamentos() {
 									const caixa = caixas.find(c => c.id === e.caixaId)
 									return (
 										<tr key={e.id}>
-											<td><strong>{e.nome}</strong></td>
+											<td>
+												<strong>{e.nome}</strong>
+											</td>
 											<td>{caixa ? caixa.nome : 'Caixa não encontrado'}</td>
 											<td>R$ {e.valor.toFixed(2)}</td>
 											<td>
 												<div className="row" style={{ gap: 8 }}>
-													<button className="btn" onClick={() => edit(e)}>✏️ Editar</button>
-													<button className="btn" onClick={() => remove(e.id)}>🗑️ Excluir</button>
+													<button className="btn" onClick={() => edit(e)}>
+														✏️ Editar
+													</button>
+													<button className="btn" onClick={() => remove(e.id)}>
+														🗑️ Excluir
+													</button>
 												</div>
 											</td>
 										</tr>
@@ -189,4 +240,3 @@ export default function Estacionamentos() {
 		</div>
 	)
 }
-

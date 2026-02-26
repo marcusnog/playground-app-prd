@@ -1,28 +1,41 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { lancamentosService, formasPagamentoService } from '../services/entitiesService'
+import { lancamentosService, formasPagamentoService, parametrosService, brinquedosService } from '../services/entitiesService'
+import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
-import type { Lancamento, FormaPagamento } from '../services/entitiesService'
+import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
 
 export default function Pagamento() {
 	const { id } = useParams()
 	const navigate = useNavigate()
 	const [lanc, setLanc] = useState<Lancamento | null>(null)
 	const [formas, setFormas] = useState<FormaPagamento[]>([])
+	const [parametros, setParametros] = useState<ParametrosType | null>(null)
+	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
 	const [loading, setLoading] = useState(true)
 	const [forma, setForma] = useState<string>('')
 	const [recebido, setRecebido] = useState<string>('')
 	const [saving, setSaving] = useState(false)
+	const [tick, setTick] = useState(0)
+
+	useEffect(() => {
+		const t = setInterval(() => setTick(x => x + 1), 10000)
+		return () => clearInterval(t)
+	}, [])
 
 	useEffect(() => {
 		async function loadData() {
 			try {
 				setLoading(true)
-				const [lancamentoData, formasData] = await Promise.all([
+				const [lancamentoData, formasData, parametrosData, brinquedosData] = await Promise.all([
 					lancamentosService.get(id!),
 					formasPagamentoService.list(),
+					parametrosService.get(),
+					brinquedosService.list(),
 				])
 				setLanc(lancamentoData)
+				setParametros(parametrosData)
+				setBrinquedos(Array.isArray(brinquedosData) ? brinquedosData : [])
 				const formasAtivas = formasData.filter(f => f.status === 'ativo')
 				setFormas(formasAtivas)
 				if (formasAtivas.length > 0) {
@@ -50,20 +63,38 @@ export default function Pagamento() {
 		return formaSelecionada.descricao.toLowerCase().includes('dinheiro')
 	}, [formaSelecionada])
 
+	function minutosDecorridos(iso: string) {
+		const ms = Date.now() - new Date(iso).getTime()
+		return Math.floor(ms / 60000)
+	}
+
+	const valorAtual = useMemo(() => {
+		if (!lanc || !parametros) return lanc?.valorCalculado ?? 0
+		if (lanc.status !== 'aberto') return lanc.valorCalculado
+		const dec = minutosDecorridos(lanc.dataHora)
+		const brinquedo = lanc.brinquedoId ? brinquedos.find(b => b.id === lanc.brinquedoId) : undefined
+		const temCiclos = temCiclosCobranca(brinquedo, parametros)
+		const minutosParaValor = lanc.tempoSolicitadoMin == null
+			? dec
+			: temCiclos ? dec : Math.min(dec, lanc.tempoSolicitadoMin)
+		return calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
+	}, [lanc, parametros, brinquedos, tick])
+
 	const troco = useMemo(() => {
 		if (!isDinheiro || !recebido || !lanc) return 0
 		const recebidoNum = parseFloat(recebido.replace(',', '.')) || 0
-		return Math.max(0, recebidoNum - lanc.valorCalculado)
-	}, [isDinheiro, recebido, lanc])
+		return Math.max(0, recebidoNum - valorAtual)
+	}, [isDinheiro, recebido, lanc, valorAtual])
 
 	async function finalizar() {
 		if (!lanc || !forma) return
-		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < lanc.valorCalculado)) {
+		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorAtual)) {
 			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
 		}
 		
 		try {
 			setSaving(true)
+			await lancamentosService.update(lanc.id, { valorCalculado: valorAtual })
 			await lancamentosService.pagar(lanc.id, forma)
 			alert('Pagamento concluído. Gerando recibo...')
 			navigate(`/recibo/pagamento/${lanc.id}`)
@@ -108,7 +139,7 @@ export default function Pagamento() {
 				<div>
 					<label className="field">
 						<span>Valor</span>
-						<input className="input" readOnly value={`R$ ${lanc.valorCalculado.toFixed(2)}`} />
+						<input className="input" readOnly value={`R$ ${valorAtual.toFixed(2)}`} />
 					</label>
 					<label className="field">
 						<span>Forma de pagamento</span>

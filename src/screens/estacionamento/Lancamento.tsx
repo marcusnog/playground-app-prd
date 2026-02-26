@@ -1,33 +1,38 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { db, uid } from '../../services/mockDb'
+import { estacionamentosService, formasPagamentoService, lancamentosEstacionamentoService } from '../../services/entitiesService'
+import { useCaixa } from '../../hooks/useCaixa'
 import { usePermissions } from '../../hooks/usePermissions'
 
 export default function LancamentoEstacionamento() {
-	const [refresh, setRefresh] = useState(0)
-	const estacionamentos = useMemo(() => db.get().estacionamentos, [refresh])
-	const formasPagamento = useMemo(() => db.get().formasPagamento.filter(f => f.status === 'ativo'), [])
-	const caixas = useMemo(() => db.get().caixas, [refresh])
+	const { caixas, refresh: refreshCaixas } = useCaixa()
+	const [estacionamentos, setEstacionamentos] = useState<Awaited<ReturnType<typeof estacionamentosService.list>>>([])
+	const [formasPagamento, setFormasPagamento] = useState<Awaited<ReturnType<typeof formasPagamentoService.list>>>([])
+	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 	const navigate = useNavigate()
 	const { hasPermission } = usePermissions()
 
-	// Escutar mudanças no banco de dados (throttle para evitar refresh constante)
 	useEffect(() => {
-		let last = 0
-		const throttleMs = 1500
-		function handleStorageChange() {
-			const now = Date.now()
-			if (now - last >= throttleMs) {
-				last = now
-				setRefresh(prev => prev + 1)
+		async function load() {
+			try {
+				setLoading(true)
+				setError(null)
+				const [estData, formasData] = await Promise.all([
+					estacionamentosService.list(),
+					formasPagamentoService.list(),
+				])
+				setEstacionamentos(estData ?? [])
+				setFormasPagamento((formasData ?? []).filter(f => f.status === 'ativo'))
+			} catch (e) {
+				console.error('Erro ao carregar dados:', e)
+				setError('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
 			}
 		}
-		window.addEventListener('storage', handleStorageChange)
-		window.addEventListener('db-update', handleStorageChange)
-		return () => {
-			window.removeEventListener('storage', handleStorageChange)
-			window.removeEventListener('db-update', handleStorageChange)
-		}
+		load()
 	}, [])
 
 	// Verificar permissão
@@ -51,28 +56,21 @@ export default function LancamentoEstacionamento() {
 	})
 
 	// Buscar estacionamento selecionado e verificar caixa
-	const estacionamento = useMemo(() => 
-		form.estacionamentoId ? estacionamentos.find(e => e.id === form.estacionamentoId) : undefined,
-		[estacionamentos, form.estacionamentoId]
-	)
+	const estacionamento = estacionamentos.find(e => e.id === form.estacionamentoId)
 
-	const caixaEstacionamento = useMemo(() => {
-		if (!estacionamento) return null
-		return caixas.find(c => c.id === estacionamento.caixaId)
-	}, [estacionamento, caixas])
+	const caixaEstacionamento = estacionamento
+		? caixas.find(c => c.id === estacionamento.caixaId)
+		: null
 
 	const caixaAberto = caixaEstacionamento?.status === 'aberto'
 
 	// Valor do estacionamento
-	const valor = estacionamento?.valor || 0
+	const valor = estacionamento?.valor ?? 0
 
 	// Hora atual
-	const horaAtual = useMemo(() => {
-		const agora = new Date()
-		return agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-	}, [])
+	const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
-	function onSave() {
+	async function onSave() {
 		if (!estacionamento) {
 			return alert('Selecione um estacionamento')
 		}
@@ -86,29 +84,49 @@ export default function LancamentoEstacionamento() {
 			return alert('Selecione uma forma de pagamento')
 		}
 
-		let lancamentoId = ''
-		db.update((d) => {
-			lancamentoId = uid('est_lan')
-			d.lancamentosEstacionamento.push({
-				id: lancamentoId,
+		try {
+			setSaving(true)
+			setError(null)
+			const created = await lancamentosEstacionamentoService.create({
 				estacionamentoId: estacionamento.id,
 				placa: form.placa.trim().toUpperCase(),
 				modelo: form.modelo.trim() || undefined,
 				telefoneContato: form.telefoneContato.trim() || undefined,
-				dataHora: new Date().toISOString(),
-				valor: valor,
-				formaPagamentoId: form.formaPagamentoId,
-				status: 'pago', // Já pago no momento do lançamento
+				valor,
 			})
-		})
+			// Backend cria com status 'aberto'; pagar para marcar como pago
+			const lancamentoPago = await lancamentosEstacionamentoService.pagar(created.id, form.formaPagamentoId)
+			await refreshCaixas()
+			window.dispatchEvent(new Event('caixa:updated'))
+			alert('Lançamento salvo. Gerando cupom...')
+			navigate(`/recibo/estacionamento/pagamento/${lancamentoPago.id}`)
+		} catch (e) {
+			console.error('Erro ao salvar lançamento:', e)
+			setError('Erro ao salvar lançamento. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
+	}
 
-		alert('Lançamento salvo. Gerando cupom...')
-		navigate(`/recibo/estacionamento/pagamento/${lancamentoId}`)
+	if (loading) {
+		return (
+			<div className="container" style={{ maxWidth: 860 }}>
+				<h2>Lançamento de Estacionamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
 	}
 
 	return (
 		<div className="container" style={{ maxWidth: 860 }}>
 			<h2>Lançamento de Estacionamento</h2>
+			{error && (
+				<div className="card" style={{ marginBottom: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			)}
 			
 			{/* Status do Caixa */}
 			{!caixaAberto && estacionamento && (
@@ -232,13 +250,12 @@ export default function LancamentoEstacionamento() {
 					<button 
 						className="btn primary icon" 
 						onClick={onSave}
-						disabled={!caixaAberto || !form.placa.trim() || !form.formaPagamentoId}
+						disabled={!caixaAberto || !form.placa.trim() || !form.formaPagamentoId || saving}
 					>
-						{caixaAberto ? '🧾 Salvar e Gerar Cupom' : '❌ Caixa Fechado'}
+						{saving ? 'Salvando...' : caixaAberto ? '🧾 Salvar e Gerar Cupom' : '❌ Caixa Fechado'}
 					</button>
 				</div>
 			</div>
 		</div>
 	)
 }
-

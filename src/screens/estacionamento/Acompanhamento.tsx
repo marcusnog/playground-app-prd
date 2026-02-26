@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { db } from '../../services/mockDb'
+import { estacionamentosService, lancamentosEstacionamentoService } from '../../services/entitiesService'
 import { usePermissions } from '../../hooks/usePermissions'
 
 export default function AcompanhamentoEstacionamento() {
@@ -9,9 +9,32 @@ export default function AcompanhamentoEstacionamento() {
 	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
 	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
 	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
-	const d = db.get()
-	const estacionamentos = d.estacionamentos
+	const [estacionamentos, setEstacionamentos] = useState<Awaited<ReturnType<typeof estacionamentosService.list>>>([])
+	const [lancamentos, setLancamentos] = useState<Awaited<ReturnType<typeof lancamentosEstacionamentoService.list>>>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
 	const { hasPermission } = usePermissions()
+
+	useEffect(() => {
+		async function load() {
+			try {
+				setLoading(true)
+				setError(null)
+				const [estData, lancData] = await Promise.all([
+					estacionamentosService.list(),
+					lancamentosEstacionamentoService.list(),
+				])
+				setEstacionamentos(estData ?? [])
+				setLancamentos(lancData ?? [])
+			} catch (e) {
+				console.error('Erro ao carregar acompanhamento:', e)
+				setError('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
+		}
+		load()
+	}, [tick])
 
 	// Verificar permissão
 	if (!hasPermission('estacionamento', 'acompanhamento')) {
@@ -26,7 +49,7 @@ export default function AcompanhamentoEstacionamento() {
 	}
 
 	const lancamentosFiltrados = useMemo(() => {
-		let filtrados = d.lancamentosEstacionamento
+		let filtrados = lancamentos
 
 		// Filtro por estacionamento
 		if (estacionamentoFiltro) {
@@ -41,7 +64,7 @@ export default function AcompanhamentoEstacionamento() {
 		}
 
 		return filtrados.sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
-	}, [tick, filtroStatus, estacionamentoFiltro])
+	}, [lancamentos, filtroStatus, estacionamentoFiltro])
 
 	useEffect(() => {
 		const t = setInterval(() => setTick((x) => x + 1), 1000 * 30)
@@ -69,11 +92,32 @@ export default function AcompanhamentoEstacionamento() {
 	}
 
 	function formatarPlaca(placa: string) {
-		// Formatar placa no padrão brasileiro (ABC1234 ou ABC1D23)
 		if (placa.length === 7) {
 			return `${placa.slice(0, 3)}-${placa.slice(3)}`
 		}
 		return placa
+	}
+
+	if (loading) {
+		return (
+			<div className="container" style={{ maxWidth: 1200 }}>
+				<h2>Acompanhamento de Estacionamento</h2>
+				<div className="card">
+					<div>Carregando...</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (error) {
+		return (
+			<div className="container" style={{ maxWidth: 1200 }}>
+				<h2>Acompanhamento de Estacionamento</h2>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -229,4 +273,3 @@ export default function AcompanhamentoEstacionamento() {
 		</div>
 	)
 }
-

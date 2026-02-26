@@ -1,19 +1,68 @@
-import { useMemo, useState } from 'react'
-import { db } from '../services/mockDb'
+import { useEffect, useMemo, useState } from 'react'
+import { lancamentosService, caixasService, brinquedosService } from '../services/entitiesService'
+import type { Lancamento, Caixa, Brinquedo } from '../services/entitiesService'
 import { 
 	LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
 	XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 export default function Relatorios() {
+	const [draftDataInicio, setDraftDataInicio] = useState('')
+	const [draftDataFim, setDraftDataFim] = useState('')
+	const [draftStatus, setDraftStatus] = useState<'todos' | 'aberto' | 'pago' | 'cancelado'>('todos')
 	const [filtroDataInicio, setFiltroDataInicio] = useState('')
 	const [filtroDataFim, setFiltroDataFim] = useState('')
 	const [filtroStatus, setFiltroStatus] = useState<'todos' | 'aberto' | 'pago' | 'cancelado'>('todos')
 	const [tipoRelatorio, setTipoRelatorio] = useState<'vendas' | 'caixa' | 'clientes'>('vendas')
 
-	const lancamentos = useMemo(() => db.get().lancamentos, [])
-	const caixas = useMemo(() => db.get().caixas, [])
-	const brinquedos = useMemo(() => db.get().brinquedos, [])
+	const aplicarFiltros = () => {
+		setFiltroDataInicio(draftDataInicio)
+		setFiltroDataFim(draftDataFim)
+		setFiltroStatus(draftStatus)
+	}
+
+	const limparFiltros = () => {
+		setDraftDataInicio('')
+		setDraftDataFim('')
+		setDraftStatus('todos')
+		setFiltroDataInicio('')
+		setFiltroDataFim('')
+		setFiltroStatus('todos')
+	}
+
+	const temFiltrosAplicados = filtroDataInicio || filtroDataFim || filtroStatus !== 'todos'
+
+	const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
+	const [caixas, setCaixas] = useState<Caixa[]>([])
+	const [brinquedos, setBrinquedos] = useState<Brinquedo[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	useEffect(() => {
+		async function loadData() {
+			try {
+				setLoading(true)
+				setError(null)
+				const [lancamentosData, caixasData, brinquedosData] = await Promise.all([
+					lancamentosService.list(),
+					caixasService.list(),
+					brinquedosService.list(),
+				])
+				setLancamentos(lancamentosData ?? [])
+				setCaixas(caixasData ?? [])
+				setBrinquedos(brinquedosData ?? [])
+			} catch (err) {
+				console.error('Erro ao carregar dados para relatórios:', err)
+				setError('Erro ao carregar dados. Tente novamente.')
+			} finally {
+				setLoading(false)
+			}
+		}
+		loadData()
+	}, [])
 
 	// Filtrar lançamentos
 	const lancamentosFiltrados = useMemo(() => {
@@ -177,24 +226,138 @@ export default function Relatorios() {
 		}
 	}, [lancamentosFiltrados, relatorioVendas, relatorioClientes])
 
-	const exportarRelatorio = () => {
-		const dados = {
-			periodo: {
-				inicio: filtroDataInicio || 'Todos',
-				fim: filtroDataFim || 'Todos'
-			},
-			vendas: relatorioVendas,
-			caixa: relatorioCaixa,
-			clientes: relatorioClientes
+	const periodoLabel = filtroDataInicio || filtroDataFim
+		? `${filtroDataInicio || '...'} a ${filtroDataFim || '...'}`
+		: 'Todos'
+
+	const exportarPDF = () => {
+		const doc = new jsPDF()
+		doc.setFontSize(16)
+		doc.text('Relatório', 14, 20)
+		doc.setFontSize(10)
+		doc.text(`Período: ${periodoLabel}`, 14, 28)
+		let y = 38
+
+		if (tipoRelatorio === 'vendas') {
+			doc.setFontSize(12)
+			doc.text('Resumo de Vendas', 14, y)
+			y += 8
+			doc.setFontSize(10)
+			doc.text(`Total Lançamentos: ${relatorioVendas.totalLancamentos} | Pago: ${relatorioVendas.totalPagos} | Cancelado: ${relatorioVendas.totalCancelados} | Aberto: ${relatorioVendas.totalAbertos}`, 14, y)
+			y += 6
+			doc.text(`Faturamento Total: R$ ${relatorioVendas.totalVendas.toFixed(2)}`, 14, y)
+			y += 12
+
+			if (relatorioVendas.vendasPorForma.length > 0) {
+				autoTable(doc, {
+					startY: y,
+					head: [['Forma de Pagamento', 'Total (R$)']],
+					body: relatorioVendas.vendasPorForma.map(([forma, total]) => [forma, total.toFixed(2)]),
+				})
+				y = (doc as any).lastAutoTable.finalY + 10
+			}
+			if (relatorioVendas.vendasPorBrinquedo.length > 0) {
+				autoTable(doc, {
+					startY: y,
+					head: [['Brinquedo', 'Total (R$)']],
+					body: relatorioVendas.vendasPorBrinquedo.map(([b, total]) => [b, total.toFixed(2)]),
+				})
+			}
+		} else if (tipoRelatorio === 'caixa') {
+			doc.setFontSize(12)
+			doc.text('Resumo de Caixa', 14, y)
+			y += 8
+			doc.setFontSize(10)
+			doc.text(`Total Caixas: ${relatorioCaixa.totalCaixas} | Abertos: ${relatorioCaixa.caixasAbertos} | Fechados: ${relatorioCaixa.caixasFechados}`, 14, y)
+			y += 6
+			doc.text(`Valor Inicial Total: R$ ${relatorioCaixa.totalValorInicial.toFixed(2)}`, 14, y)
+		} else {
+			doc.setFontSize(12)
+			doc.text('Resumo de Clientes', 14, y)
+			y += 8
+			doc.setFontSize(10)
+			doc.text(`Total Clientes: ${relatorioClientes.totalClientes} | Faturamento: R$ ${relatorioClientes.totalFaturamento.toFixed(2)}`, 14, y)
+			y += 12
+			if (relatorioClientes.topClientes.length > 0) {
+				autoTable(doc, {
+					startY: y,
+					head: [['Cliente', 'Lançamentos', 'Total (R$)']],
+					body: relatorioClientes.topClientes.map(c => [c.nome, String(c.lancamentos), c.total.toFixed(2)]),
+				})
+			}
 		}
 
-		const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = `relatorio_${new Date().toISOString().split('T')[0]}.json`
-		a.click()
-		URL.revokeObjectURL(url)
+		doc.save(`relatorio_${tipoRelatorio}_${new Date().toISOString().split('T')[0]}.pdf`)
+	}
+
+	const exportarXLSX = () => {
+		const wb = XLSX.utils.book_new()
+
+		const wsVendas = XLSX.utils.aoa_to_sheet([
+			['Relatório de Vendas', ''],
+			['Período', periodoLabel],
+			[],
+			['Resumo', ''],
+			['Total Lançamentos', relatorioVendas.totalLancamentos],
+			['Total Pago', relatorioVendas.totalPagos],
+			['Total Cancelado', relatorioVendas.totalCancelados],
+			['Total Aberto', relatorioVendas.totalAbertos],
+			['Faturamento Total', relatorioVendas.totalVendas.toFixed(2)],
+			[],
+			['Forma de Pagamento', 'Total'],
+			...relatorioVendas.vendasPorForma.map(([f, t]) => [f, t]),
+			[],
+			['Brinquedo', 'Total'],
+			...relatorioVendas.vendasPorBrinquedo.map(([b, t]) => [b, t]),
+		])
+		XLSX.utils.book_append_sheet(wb, wsVendas, 'Vendas')
+
+		const wsCaixa = XLSX.utils.aoa_to_sheet([
+			['Relatório de Caixa', ''],
+			['Período', periodoLabel],
+			[],
+			['Total Caixas', relatorioCaixa.totalCaixas],
+			['Caixas Abertos', relatorioCaixa.caixasAbertos],
+			['Caixas Fechados', relatorioCaixa.caixasFechados],
+			['Valor Inicial Total', relatorioCaixa.totalValorInicial.toFixed(2)],
+		])
+		XLSX.utils.book_append_sheet(wb, wsCaixa, 'Caixa')
+
+		const wsClientes = XLSX.utils.aoa_to_sheet([
+			['Relatório de Clientes', ''],
+			['Período', periodoLabel],
+			[],
+			['Total Clientes', relatorioClientes.totalClientes],
+			['Faturamento Total', relatorioClientes.totalFaturamento.toFixed(2)],
+			[],
+			['Cliente', 'Lançamentos', 'Total'],
+			...relatorioClientes.topClientes.map(c => [c.nome, c.lancamentos, c.total.toFixed(2)]),
+		])
+		XLSX.utils.book_append_sheet(wb, wsClientes, 'Clientes')
+
+		XLSX.writeFile(wb, `relatorio_${new Date().toISOString().split('T')[0]}.xlsx`)
+	}
+
+	if (loading) {
+		return (
+			<div className="container">
+				<h2>Relatórios</h2>
+				<div className="card">
+					<div>Carregando dados...</div>
+				</div>
+			</div>
+		)
+	}
+
+	if (error) {
+		return (
+			<div className="container">
+				<h2>Relatórios</h2>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<p style={{ color: 'var(--danger)' }}>{error}</p>
+				</div>
+			</div>
+		)
 	}
 
 	return (
@@ -203,15 +366,20 @@ export default function Relatorios() {
 			
 			{/* Filtros */}
 			<div className="card" style={{ marginBottom: 16 }}>
-				<h3>Filtros</h3>
+				<div className="title" style={{ marginBottom: 12 }}>
+					<h3>Filtros</h3>
+					{temFiltrosAplicados && (
+						<span className="badge on">Filtros aplicados</span>
+					)}
+				</div>
 				<div className="form three">
 					<label className="field">
 						<span>Data Início</span>
 						<input 
 							type="date" 
 							className="input" 
-							value={filtroDataInicio} 
-							onChange={(e) => setFiltroDataInicio(e.target.value)} 
+							value={draftDataInicio} 
+							onChange={(e) => setDraftDataInicio(e.target.value)} 
 						/>
 					</label>
 					<label className="field">
@@ -219,16 +387,16 @@ export default function Relatorios() {
 						<input 
 							type="date" 
 							className="input" 
-							value={filtroDataFim} 
-							onChange={(e) => setFiltroDataFim(e.target.value)} 
+							value={draftDataFim} 
+							onChange={(e) => setDraftDataFim(e.target.value)} 
 						/>
 					</label>
 					<label className="field">
 						<span>Status</span>
 						<select 
 							className="select" 
-							value={filtroStatus} 
-							onChange={(e) => setFiltroStatus(e.target.value as any)}
+							value={draftStatus} 
+							onChange={(e) => setDraftStatus(e.target.value as any)}
 						>
 							<option value="todos">Todos</option>
 							<option value="aberto">Aberto</option>
@@ -236,6 +404,14 @@ export default function Relatorios() {
 							<option value="cancelado">Cancelado</option>
 						</select>
 					</label>
+				</div>
+				<div className="row" style={{ marginTop: 12, gap: 8 }}>
+					<button className="btn primary" onClick={aplicarFiltros}>
+						🔍 Aplicar filtros
+					</button>
+					<button className="btn" onClick={limparFiltros}>
+						Limpar
+					</button>
 				</div>
 			</div>
 
@@ -269,9 +445,14 @@ export default function Relatorios() {
 				<div className="card">
 					<div className="title">
 						<h3>Relatório de Vendas</h3>
-						<button className="btn primary" onClick={exportarRelatorio}>
-							📥 Exportar
-						</button>
+						<div className="row" style={{ gap: 8 }}>
+							<button className="btn primary" onClick={exportarPDF}>
+								📄 PDF
+							</button>
+							<button className="btn primary" onClick={exportarXLSX}>
+								📊 Excel
+							</button>
+						</div>
 					</div>
 					
 					{/* Dashboard com Gráficos */}
@@ -367,7 +548,10 @@ export default function Relatorios() {
 									</tbody>
 								</table>
 							) : (
-								<div className="empty">Nenhuma venda encontrada</div>
+								<div className="empty">
+									Nenhuma venda encontrada. O relatório considera apenas lançamentos com status &quot;Pago&quot;.
+									{temFiltrosAplicados && ' Verifique se há dados no período e status selecionados.'}
+								</div>
 							)}
 						</div>
 					</div>
@@ -398,9 +582,14 @@ export default function Relatorios() {
 				<div className="card">
 					<div className="title">
 						<h3>Relatório de Caixa</h3>
-						<button className="btn primary" onClick={exportarRelatorio}>
-							📥 Exportar
-						</button>
+						<div className="row" style={{ gap: 8 }}>
+							<button className="btn primary" onClick={exportarPDF}>
+								📄 PDF
+							</button>
+							<button className="btn primary" onClick={exportarXLSX}>
+								📊 Excel
+							</button>
+						</div>
 					</div>
 					
 					<div className="grid-2">
@@ -422,9 +611,14 @@ export default function Relatorios() {
 				<div className="card">
 					<div className="title">
 						<h3>Relatório de Clientes</h3>
-						<button className="btn primary" onClick={exportarRelatorio}>
-							📥 Exportar
-						</button>
+						<div className="row" style={{ gap: 8 }}>
+							<button className="btn primary" onClick={exportarPDF}>
+								📄 PDF
+							</button>
+							<button className="btn primary" onClick={exportarXLSX}>
+								📊 Excel
+							</button>
+						</div>
 					</div>
 					
 					{/* Dashboard com Gráficos de Clientes */}

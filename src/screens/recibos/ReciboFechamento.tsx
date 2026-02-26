@@ -64,11 +64,15 @@ export default function ReciboFechamento() {
 		return Array.from(map.entries())
 	}, [caixa, lancamentos, formas])
 
-	const totalSangrias = useMemo(() => {
+	const sangriasList = useMemo(() => {
 		const movs = caixa?.movimentos
-		if (!movs || !Array.isArray(movs)) return 0
-		return movs.filter((m: { tipo: string }) => m.tipo === 'sangria').reduce((sum: number, m: { valor: number }) => sum + m.valor, 0)
+		if (!movs || !Array.isArray(movs)) return []
+		return movs
+			.filter((m: { tipo: string }) => m.tipo === 'sangria')
+			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 	}, [caixa])
+
+	const totalSangrias = useMemo(() => sangriasList.reduce((sum: number, m: { valor: number }) => sum + m.valor, 0), [sangriasList])
 
 	const totalSuprimentos = useMemo(() => {
 		const movs = caixa?.movimentos
@@ -79,7 +83,8 @@ export default function ReciboFechamento() {
 	const totalVendas = useMemo(() => resumo.reduce((sum, [, total]) => sum + total, 0), [resumo])
 
 	const saldoFinal = (caixa?.valorInicial ?? 0) + totalVendas + totalSuprimentos - totalSangrias
-	const dataStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
+	const dataAberturaStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
+	const dataFechamentoStr = caixa && (caixa as { updatedAt?: string }).updatedAt
 
 	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
 	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
@@ -99,7 +104,8 @@ export default function ReciboFechamento() {
 			</div>
 
 			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div><strong>Data de Abertura:</strong> {dataStr ? new Date(dataStr).toLocaleDateString('pt-BR') : '-'}</div>
+			<div><strong>Data/Hora de Abertura:</strong> {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
+			<div><strong>Data/Hora de Fechamento:</strong> {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
 			<div><strong>Valor Inicial:</strong> R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />
 
@@ -116,6 +122,16 @@ export default function ReciboFechamento() {
 			)}
 
 			<div style={{ color: 'var(--danger)' }}><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
+			{sangriasList.length > 0 && (
+				<div style={{ marginLeft: 8, fontSize: '0.9em', marginTop: 4, marginBottom: 8 }}>
+					{sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) => (
+						<div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+							<span>{new Date(m.dataHora).toLocaleString('pt-BR')} - {m.motivo || '-'}</span>
+							<span style={{ color: 'var(--danger)' }}>- R$ {m.valor.toFixed(2)}</span>
+						</div>
+					))}
+				</div>
+			)}
 			<div style={{ color: 'var(--success)' }}><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
 
 			<hr />

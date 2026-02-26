@@ -54,7 +54,7 @@ export default function ReciboLancamento() {
 			<h3>{p.empresaNome || 'Recibo'}</h3>
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div>Recibo de Lançamento</div>
-			<div>Data/Hora: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
+			<div>Hora inicial: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
 			{contato && <div>Contato: {contato}</div>}

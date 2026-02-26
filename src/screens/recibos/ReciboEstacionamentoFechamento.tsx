@@ -88,7 +88,8 @@ export default function ReciboEstacionamentoFechamento() {
 
 	const totalVendas = useMemo(() => resumo.reduce((sum, [, total]) => sum + total, 0), [resumo])
 	const saldoFinal = (caixa?.valorInicial ?? 0) + totalVendas + totalSuprimentos - totalSangrias
-	const dataStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
+	const dataAberturaStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
+	const dataFechamentoStr = caixa && (caixa as { updatedAt?: string }).updatedAt
 
 	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
 	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
@@ -109,7 +110,8 @@ export default function ReciboEstacionamentoFechamento() {
 
 			{estacionamento && <div><strong>Estacionamento:</strong> {estacionamento.nome}</div>}
 			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div><strong>Data de Abertura:</strong> {dataStr ? new Date(dataStr).toLocaleDateString('pt-BR') : '-'}</div>
+			<div><strong>Data/Hora de Abertura:</strong> {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
+			<div><strong>Data/Hora de Fechamento:</strong> {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
 			<div><strong>Valor Inicial:</strong> R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />
 

@@ -6,16 +6,47 @@ import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
 
 export default function Fechamento() {
-	const { caixa: aberto, refresh } = useCaixa()
+	const { caixas, refresh } = useCaixa()
 	const navigate = useNavigate()
 	const { hasPermission, canUseCaixa, user } = usePermissions()
 	const [loading, setLoading] = useState(false)
 	const [lancamentos, setLancamentos] = useState<any[]>([])
 	const [formasPagamento, setFormasPagamento] = useState<any[]>([])
 
+	const caixasAbertos = useMemo(
+		() => caixas.filter((c) => c.status === 'aberto'),
+		[caixas]
+	)
+	const caixasPermitidos = useMemo(
+		() => caixasAbertos.filter((c) => canUseCaixa(c.id)),
+		[caixasAbertos, canUseCaixa]
+	)
+
+	const defaultSelectedId = useMemo(() => {
+		if (caixasPermitidos.length === 0) return ''
+		if (user?.usaCaixa && user.caixaId && caixasPermitidos.some((c) => c.id === user.caixaId)) {
+			return user.caixaId
+		}
+		return caixasPermitidos[0]?.id ?? ''
+	}, [caixasPermitidos, user?.usaCaixa, user?.caixaId])
+
+	const [selectedId, setSelectedId] = useState(defaultSelectedId)
+
+	useEffect(() => {
+		setSelectedId((prev) => {
+			if (caixasPermitidos.some((c) => c.id === prev)) return prev
+			return defaultSelectedId
+		})
+	}, [caixasPermitidos, defaultSelectedId])
+
+	const selectedCaixa = useMemo(
+		() => caixasPermitidos.find((c) => c.id === selectedId),
+		[caixasPermitidos, selectedId]
+	)
+
 	useEffect(() => {
 		async function loadData() {
-			if (!aberto) return
+			if (!selectedCaixa) return
 			try {
 				setLoading(true)
 				const [lancs, formas] = await Promise.all([
@@ -31,37 +62,13 @@ export default function Fechamento() {
 			}
 		}
 		loadData()
-	}, [aberto])
-
-	// Verificar permissão
-	if (!hasPermission('caixa', 'fechamento')) {
-		return (
-			<div className="container" style={{ maxWidth: 800 }}>
-				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
-					<p>Você não tem permissão para acessar esta funcionalidade.</p>
-				</div>
-			</div>
-		)
-	}
-
-	// Verificar se pode usar este caixa específico
-	if (aberto && user?.usaCaixa && user.caixaId && !canUseCaixa(aberto.id)) {
-		return (
-			<div className="container" style={{ maxWidth: 800 }}>
-				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
-					<p>Você não tem permissão para usar este caixa. Este caixa está associado a outro usuário.</p>
-				</div>
-			</div>
-		)
-	}
+	}, [selectedCaixa])
 
 	// Resumo por forma de pagamento usando lancamentos pagos do dia
 	const resumo = useMemo(() => {
-		if (!aberto) return []
+		if (!selectedCaixa) return []
 		
-		const dataCaixa = new Date(aberto.data).toDateString()
+		const dataCaixa = new Date(selectedCaixa.data).toDateString()
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
 			const dataLancamento = new Date(l.dataHora).toDateString()
@@ -78,42 +85,78 @@ export default function Fechamento() {
 			map.set(formaId, { nome: atual.nome, total: atual.total + l.valorCalculado })
 		}
 		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
-	}, [aberto, lancamentos, formasPagamento])
+	}, [selectedCaixa, lancamentos, formasPagamento])
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
-		if (!aberto || !aberto.movimentos) return 0
-		return aberto.movimentos
+		if (!selectedCaixa || !selectedCaixa.movimentos) return 0
+		return selectedCaixa.movimentos
 			.filter(m => m.tipo === 'sangria')
 			.reduce((sum, m) => sum + m.valor, 0)
-	}, [aberto])
+	}, [selectedCaixa])
 
 	const totalSuprimentos = useMemo(() => {
-		if (!aberto || !aberto.movimentos) return 0
-		return aberto.movimentos
+		if (!selectedCaixa || !selectedCaixa.movimentos) return 0
+		return selectedCaixa.movimentos
 			.filter(m => m.tipo === 'suprimento')
 			.reduce((sum, m) => sum + m.valor, 0)
-	}, [aberto])
+	}, [selectedCaixa])
 
 	// Calcular totais
 	const totalVendas = useMemo(() => {
 		return resumo.reduce((sum, [, total]) => sum + total, 0)
 	}, [resumo])
 
-	const saldoFinal = (aberto?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
+	const saldoFinal = (selectedCaixa?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
+
+	// Verificar permissão
+	if (!hasPermission('caixa', 'fechamento')) {
+		return (
+			<div className="container" style={{ maxWidth: 800 }}>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
+					<p>Você não tem permissão para acessar esta funcionalidade.</p>
+				</div>
+			</div>
+		)
+	}
+
+	// Sem caixas permitidos para fechar
+	if (caixasPermitidos.length === 0) {
+		return (
+			<div className="container" style={{ maxWidth: 800 }}>
+				<h2>Fechamento de Caixa</h2>
+				<div className="card">
+					<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+						<div className="row center" style={{ gap: 8 }}>
+							<span style={{ fontSize: '1.2rem' }}>⚠️</span>
+							<div>
+								<strong style={{ color: 'var(--danger)' }}>Nenhum caixa disponível</strong>
+								<div className="subtitle">
+									{caixasAbertos.length > 0
+										? 'Não há caixa aberto que você pode fechar. Verifique os caixas associados ao seu usuário.'
+										: 'Não há caixa aberto para fechar.'}
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		)
+	}
 
 	async function fechar() {
-		if (!aberto) return alert('Não há caixa aberto para fechar')
+		if (!selectedCaixa) return alert('Selecione um caixa para fechar')
 		if (!confirm('Deseja realmente fechar o caixa?')) return
 		
 		try {
 			setLoading(true)
-			await caixasService.fechar(aberto.id)
+			await caixasService.fechar(selectedCaixa.id)
 			await refresh()
 			// Disparar evento para atualizar outros componentes que usam useCaixa
 			window.dispatchEvent(new Event('caixa:updated'))
 			// Navegar para o comprovante de fechamento
-			navigate(`/recibo/fechamento/${aberto.id}`)
+			navigate(`/recibo/fechamento/${selectedCaixa.id}`)
 		} catch (error) {
 			console.error('Erro ao fechar caixa:', error)
 			alert('Erro ao fechar caixa. Tente novamente.')
@@ -130,7 +173,7 @@ export default function Fechamento() {
 		<div className="container" style={{ maxWidth: 800 }}>
 			<h2>Fechamento de Caixa</h2>
 			
-			{!aberto ? (
+			{!selectedCaixa ? (
 				<div className="card">
 					<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
 						<div className="row center" style={{ gap: 8 }}>
@@ -148,7 +191,27 @@ export default function Fechamento() {
 					<div className="card" style={{ marginBottom: 16 }}>
 						<div className="title">
 							<h3>Resumo do Dia</h3>
-							<div className="row" style={{ gap: 8 }}>
+							<div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+								{caixasPermitidos.length > 1 && (
+									<label className="row center" style={{ gap: 8 }}>
+										<span>Caixa:</span>
+										<select
+											className="input"
+											value={selectedId}
+											onChange={(e) => setSelectedId(e.target.value)}
+											style={{ minWidth: 140 }}
+										>
+											{caixasPermitidos.map((c) => (
+												<option key={c.id} value={c.id}>
+													{c.nome}
+												</option>
+											))}
+										</select>
+									</label>
+								)}
+								{caixasPermitidos.length === 1 && (
+									<span style={{ color: 'var(--muted)' }}>CAIXA: {selectedCaixa.nome}</span>
+								)}
 								<button className="btn" onClick={imprimir}>🖨️ Imprimir</button>
 							</div>
 						</div>
@@ -157,9 +220,9 @@ export default function Fechamento() {
 							<div className="card">
 								<h4>Informações do Caixa</h4>
 								<div className="stack">
-									<div><strong>Caixa:</strong> {aberto.nome}</div>
-									<div><strong>Data de Abertura:</strong> {new Date(aberto.data).toLocaleDateString('pt-BR')}</div>
-									<div><strong>Valor Inicial:</strong> R$ {aberto.valorInicial.toFixed(2)}</div>
+									<div><strong>Caixa:</strong> {selectedCaixa.nome}</div>
+									<div><strong>Data de Abertura:</strong> {new Date(selectedCaixa.data).toLocaleDateString('pt-BR')}</div>
+									<div><strong>Valor Inicial:</strong> R$ {selectedCaixa.valorInicial.toFixed(2)}</div>
 									<div><strong>Status:</strong> <span className="badge on">Aberto</span></div>
 								</div>
 							</div>
@@ -212,14 +275,14 @@ export default function Fechamento() {
 						{/* Sangrias */}
 						<div className="card">
 							<h3 style={{ color: 'var(--danger)' }}>Sangrias (-)</h3>
-							{aberto.movimentos && aberto.movimentos.filter(m => m.tipo === 'sangria').length > 0 ? (
+							{selectedCaixa.movimentos && selectedCaixa.movimentos.filter(m => m.tipo === 'sangria').length > 0 ? (
 								<div className="table-wrap">
 									<table className="table">
 										<thead>
 											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
 										</thead>
 										<tbody>
-											{aberto.movimentos
+											{selectedCaixa.movimentos
 												.filter(m => m.tipo === 'sangria')
 												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 												.map((mov) => (
@@ -243,14 +306,14 @@ export default function Fechamento() {
 						{/* Suprimentos */}
 						<div className="card">
 							<h3 style={{ color: 'var(--success)' }}>Suprimentos (+)</h3>
-							{aberto.movimentos && aberto.movimentos.filter(m => m.tipo === 'suprimento').length > 0 ? (
+							{selectedCaixa.movimentos && selectedCaixa.movimentos.filter(m => m.tipo === 'suprimento').length > 0 ? (
 								<div className="table-wrap">
 									<table className="table">
 										<thead>
 											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
 										</thead>
 										<tbody>
-											{aberto.movimentos
+											{selectedCaixa.movimentos
 												.filter(m => m.tipo === 'suprimento')
 												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 												.map((mov) => (

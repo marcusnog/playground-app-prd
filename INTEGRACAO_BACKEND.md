@@ -33,6 +33,7 @@ VITE_API_BASE_URL=https://playground-backend-ijgt.onrender.com
 - ✅ `src/screens/Lancamento.tsx` - Criar lançamentos via API
 - ✅ `src/screens/Acompanhamento.tsx` - Listar lançamentos via API
 - ✅ `src/screens/caixa/Abertura.tsx` - Abrir caixa via API
+- ✅ `src/screens/Clientes.tsx` - CRUD de clientes via API (lista, cadastro, edição, exclusão)
 
 ### Autenticação
 

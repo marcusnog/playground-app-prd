@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcularValor } from '../services/utils'
+import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { lancamentosService, brinquedosService, parametrosService } from '../services/entitiesService'
 import { Link } from 'react-router-dom'
 import type { Lancamento, Brinquedo as BrinquedoType, Parametros as ParametrosType } from '../services/entitiesService'
@@ -134,7 +134,8 @@ export default function Acompanhamento() {
 								<tr>
 									<th>Criança</th>
 									<th>Responsável</th>
-									<th>Hora/Minuto</th>
+									<th>Hora inicial</th>
+									<th>Hora final</th>
 									<th>Tempo</th>
 									<th>Valor</th>
 									<th>Status</th>
@@ -147,8 +148,11 @@ export default function Acompanhamento() {
 							const alvo = l.tempoSolicitadoMin ?? Infinity
 							const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
 							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
-							// Valor a pagar: para abertos usa tempo decorrido (atualiza em tempo real; tempo livre = dec, tempo fixo = até o solicitado)
-							const minutosParaValor = l.tempoSolicitadoMin == null ? dec : Math.min(dec, l.tempoSolicitadoMin)
+							// Valor a pagar: tempo livre = dec; com ciclos = dec (cobra extras); sem ciclos = cap no tempo solicitado
+							const temCiclos = temCiclosCobranca(brinquedo, parametros)
+							const minutosParaValor = l.tempoSolicitadoMin == null
+								? dec
+								: temCiclos ? dec : Math.min(dec, l.tempoSolicitadoMin)
 							const valor = l.status === 'aberto' && parametros
 								? calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
 								: (l.valorCalculado ?? 0)
@@ -157,6 +161,9 @@ export default function Acompanhamento() {
 							const hora = dataHora.getHours().toString().padStart(2, '0')
 							const minuto = dataHora.getMinutes().toString().padStart(2, '0')
 							
+							const horaFinal = l.status === 'pago' && (l as { updatedAt?: string }).updatedAt
+								? new Date((l as { updatedAt: string }).updatedAt).toLocaleString('pt-BR')
+								: '-'
 							return (
 								<tr key={l.id} className={alerta ? 'highlight' : undefined}>
 									<td>{l.nomeCrianca}</td>
@@ -192,6 +199,7 @@ export default function Acompanhamento() {
 											/>
 										</div>
 									</td>
+									<td>{horaFinal}</td>
 									<td>
 										{filtroStatus === 'abertos' 
 											? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)

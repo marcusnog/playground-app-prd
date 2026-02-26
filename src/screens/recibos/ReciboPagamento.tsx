@@ -61,7 +61,10 @@ export default function ReciboPagamento() {
 			<h3>{p.empresaNome || 'Recibo'}</h3>
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div>Recibo de Pagamento</div>
-			<div>Data/Hora: {new Date().toLocaleString('pt-BR')}</div>
+			<div>Hora inicial: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
+			<div>Hora final: {(lanc as { updatedAt?: string }).updatedAt
+				? new Date((lanc as { updatedAt: string }).updatedAt).toLocaleString('pt-BR')
+				: new Date().toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
 			<div>Valor pago: R$ {lanc.valorCalculado.toFixed(2)}</div>

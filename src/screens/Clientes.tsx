@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
-import { db, uid, type Cliente } from '../services/mockDb'
+import { useMemo, useState, useEffect } from 'react'
+import { clientesService, lancamentosService } from '../services/entitiesService'
+import type { Cliente } from '../services/entitiesService'
 
 export default function Clientes() {
-	const [_, force] = useState(0)
-	const clientes = useMemo(() => db.get().clientes || [], [_])
+	const [clientes, setClientes] = useState<Cliente[]>([])
+	const [loading, setLoading] = useState(true)
 	const [editId, setEditId] = useState<string | null>(null)
 	const [filtroBusca, setFiltroBusca] = useState<string>('')
 	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
@@ -38,7 +39,30 @@ export default function Clientes() {
 		})
 	}, [clientes, filtroBusca])
 
-	function refresh() { force((x) => x + 1 as unknown as number) }
+	async function loadClientes() {
+		try {
+			setLoading(true)
+			const data = await clientesService.list()
+			setClientes(Array.isArray(data) ? data : [])
+		} catch (error) {
+			console.error('Erro ao carregar clientes:', error)
+			alert('Erro ao carregar clientes. Tente novamente.')
+			setClientes([])
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	useEffect(() => {
+		loadClientes()
+	}, [])
+
+	// Atualizar lista quando a janela recebe foco (ex.: voltou de outra aba)
+	useEffect(() => {
+		const handleFocus = () => loadClientes()
+		window.addEventListener('focus', handleFocus)
+		return () => window.removeEventListener('focus', handleFocus)
+	}, [])
 
 	function calcularIdade(dataNascimento: string): number {
 		if (!dataNascimento) return 0
@@ -74,42 +98,34 @@ export default function Clientes() {
 		}
 	}
 
-	function salvar() {
+	async function salvar() {
 		if (!form.nomeCompleto.trim()) return alert('Informe o nome completo da criança')
 		if (!form.dataNascimento) return alert('Informe a data de nascimento')
 		if (!form.telefoneWhatsapp.trim()) return alert('Informe o WhatsApp para contato')
 		
-		// Converter data para ISO string
 		const dataNascimentoISO = new Date(form.dataNascimento + 'T00:00:00').toISOString()
-		
-		if (editId) {
-			db.update((d) => {
-				const cliente = d.clientes.find((c) => c.id === editId)
-				if (cliente) {
-					cliente.nomeCompleto = form.nomeCompleto.trim()
-					cliente.dataNascimento = dataNascimentoISO
-					cliente.nomePai = form.nomePai.trim()
-					cliente.nomeMae = form.nomeMae.trim()
-					cliente.telefoneWhatsapp = form.telefoneWhatsapp.trim()
-				}
-			})
-			alert('Cliente atualizado com sucesso!')
-		} else {
-			db.update((d) => {
-				d.clientes.push({
-					id: uid('cli'),
-					nomeCompleto: form.nomeCompleto.trim(),
-					dataNascimento: dataNascimentoISO,
-					nomePai: form.nomePai.trim(),
-					nomeMae: form.nomeMae.trim(),
-					telefoneWhatsapp: form.telefoneWhatsapp.trim()
-				})
-			})
-			alert('Cliente cadastrado com sucesso!')
+		const payload = {
+			nomeCompleto: form.nomeCompleto.trim(),
+			dataNascimento: dataNascimentoISO,
+			nomePai: form.nomePai.trim(),
+			nomeMae: form.nomeMae.trim(),
+			telefoneWhatsapp: form.telefoneWhatsapp.trim()
 		}
-		
-		limparForm()
-		refresh()
+
+		try {
+			if (editId) {
+				await clientesService.update(editId, payload)
+				alert('Cliente atualizado com sucesso!')
+			} else {
+				await clientesService.create(payload)
+				alert('Cliente cadastrado com sucesso!')
+			}
+			limparForm()
+			await loadClientes()
+		} catch (error) {
+			console.error('Erro ao salvar cliente:', error)
+			alert('Erro ao salvar cliente. Tente novamente.')
+		}
 	}
 
 	function limparForm() {
@@ -145,14 +161,18 @@ export default function Clientes() {
 		}
 	}
 
-	function remover(id: string) {
-		const temLancamentos = db.get().lancamentos.some((l) => l.clienteId === id)
-		if (temLancamentos) return alert('Não é possível excluir: existem lançamentos vinculados a este cliente.')
-		if (!confirm('Excluir este cliente?')) return
-		db.update((d) => {
-			d.clientes = d.clientes.filter((c) => c.id !== id)
-		})
-		refresh()
+	async function remover(id: string) {
+		try {
+			const lancamentos = await lancamentosService.list()
+			const temLancamentos = lancamentos.some((l) => l.clienteId === id)
+			if (temLancamentos) return alert('Não é possível excluir: existem lançamentos vinculados a este cliente.')
+			if (!confirm('Excluir este cliente?')) return
+			await clientesService.delete(id)
+			await loadClientes()
+		} catch (error) {
+			console.error('Erro ao excluir cliente:', error)
+			alert('Erro ao excluir cliente. Tente novamente.')
+		}
 	}
 
 	function abrirWhatsapp(telefone: string, mensagem: string) {
@@ -272,10 +292,20 @@ export default function Clientes() {
 						)}
 					</div>
 				</div>
-				{clientes.length === 0 ? (
+				{loading ? (
+					<div className="empty">
+						<p>Carregando clientes...</p>
+					</div>
+				) : clientes.length === 0 ? (
 					<div className="empty">
 						<p>Nenhum cliente cadastrado</p>
 						<p className="hint">Cadastre clientes acima para começar</p>
+					</div>
+				) : filtroBusca.trim() && clientesFiltrados.length === 0 ? (
+					<div className="empty">
+						<p>Nenhum cliente encontrado com o filtro</p>
+						<p className="hint">Limpe a busca para ver todos os {clientes.length} clientes cadastrados</p>
+						<button className="btn" onClick={() => setFiltroBusca('')}>Limpar busca</button>
 					</div>
 				) : (
 					<div className="table-wrap">

@@ -33,6 +33,9 @@ export default function Abertura() {
 	}
 
 	async function abrir() {
+		if (valorInicial < 0) {
+			return alert('O valor inicial não pode ser negativo.')
+		}
 		// Determinar qual caixa usar: caixa fixo do usuário (se tiver) ou o selecionado no dropdown
 		let caixaId = ''
 
@@ -172,7 +175,7 @@ export default function Abertura() {
 							className="input" 
 							type="number" 
 							value={valorInicial} 
-							onChange={(e) => setValorInicial(Number(e.target.value))}
+							onChange={(e) => setValorInicial(Math.max(0, Number(e.target.value)) || 0)}
 							step="0.01"
 							min="0"
 							placeholder="0.00"
@@ -186,6 +189,7 @@ export default function Abertura() {
 							onClick={abrir} 
 							disabled={
 								saving ||
+								valorInicial < 0 ||
 								caixaAlvoJaAberto ||
 								((!user?.usaCaixa || !user?.caixaId) && !caixaSelecionado && caixasFechados.length > 0)
 							}
