@@ -12,6 +12,7 @@ export type RegrasCobranca = {
 	valorInicial: number
 	cicloMinutos: number | null // null = não usa ciclos
 	valorCiclo: number
+	cicloToleranciaMinutos?: number // min de tolerância no início de cada ciclo (0 = cobra imediatamente)
 }
 export type Brinquedo = { 
 	id: string
@@ -20,6 +21,7 @@ export type Brinquedo = {
 	valorInicial?: number
 	cicloMinutos?: number | null // null = não usa ciclos
 	valorCiclo?: number
+	cicloToleranciaMinutos?: number // min de tolerância no início de cada ciclo
 	regrasCobranca?: RegrasCobranca // Se não tiver, usa regras globais (compatibilidade)
 }
 export type Parametros = {
@@ -27,6 +29,7 @@ export type Parametros = {
 	valorInicialReais: number;
 	valorCicloMinutos: number;
 	valorCicloReais: number;
+	cicloToleranciaMinutos?: number; // min de tolerância no início de cada ciclo (0 = cobra imediatamente)
 	empresaNome?: string;
 	empresaCnpj?: string;
 	empresaLogoUrl?: string;
@@ -158,7 +161,7 @@ const defaultDb: DbShape = {
 		{ id: 'debito', descricao: 'Débito', status: 'ativo' },
 	],
 	brinquedos: [],
-	parametros: { valorInicialMinutos: 30, valorInicialReais: 20, valorCicloMinutos: 3, valorCicloReais: 10, empresaNome: 'Parque Infantil', empresaCnpj: '00.000.000/0000-00', empresaLogoUrl: '', pixChave: '', pixCidade: 'Sua Cidade' },
+	parametros: { valorInicialMinutos: 30, valorInicialReais: 20, valorCicloMinutos: 15, valorCicloReais: 10, cicloToleranciaMinutos: 3, empresaNome: 'Parque Infantil', empresaCnpj: '00.000.000/0000-00', empresaLogoUrl: '', pixChave: '', pixCidade: 'Sua Cidade' },
 	caixas: [],
 	lancamentos: [],
 	clientes: [],
@@ -322,6 +325,16 @@ export const db = {
 	},
 }
 
+function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, tolerancia: number): number {
+	const ciclo = Math.max(1, cicloMinutos)
+	const ciclosCompletos = Math.floor(excedente / ciclo)
+	const restoNoCiclo = excedente % ciclo
+	const tol = tolerancia ?? 0
+	if (restoNoCiclo === 0) return ciclosCompletos
+	if (restoNoCiclo <= tol) return ciclosCompletos
+	return ciclosCompletos + 1
+}
+
 export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
 	
@@ -342,15 +355,19 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 		}
 		
 		const excedente = Math.max(0, tempoMin - regras.inicialMinutos)
-		const ciclos = Math.floor(excedente / Math.max(1, regras.cicloMinutos))
+		const ciclo = Math.max(1, regras.cicloMinutos)
+		const tolerancia = regras.cicloToleranciaMinutos ?? 0
+		const ciclos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
 		return regras.valorInicial + ciclos * regras.valorCiclo
 	}
 	
 	// Usa regras globais do parâmetro
-	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais } = param
+	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais, cicloToleranciaMinutos } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
-	const ciclos = Math.floor(excedente / Math.max(1, valorCicloMinutos))
+	const ciclo = Math.max(1, valorCicloMinutos)
+	const tolerancia = cicloToleranciaMinutos ?? 0
+	const ciclos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
 	return valorInicialReais + ciclos * valorCicloReais
 }
 

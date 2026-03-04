@@ -23,6 +23,16 @@ export function temCiclosCobranca(brinquedo?: Brinquedo | null, param?: Parametr
 	return !!param?.valorCicloMinutos
 }
 
+function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, tolerancia: number): number {
+	const ciclo = Math.max(1, cicloMinutos)
+	const ciclosCompletos = Math.floor(excedente / ciclo)
+	const restoNoCiclo = excedente % ciclo
+	const tol = tolerancia ?? 0
+	if (restoNoCiclo === 0) return ciclosCompletos
+	if (restoNoCiclo <= tol) return ciclosCompletos
+	return ciclosCompletos + 1
+}
+
 export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
 
@@ -32,6 +42,7 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	const valorInicial = Number(brinquedo?.valorInicial ?? regras?.valorInicial)
 	const cicloMinutos = brinquedo?.cicloMinutos ?? regras?.cicloMinutos
 	const valorCiclo = Number(brinquedo?.valorCiclo ?? regras?.valorCiclo ?? 0)
+	const cicloToleranciaMinutos = brinquedo?.cicloToleranciaMinutos ?? regras?.cicloToleranciaMinutos ?? 0
 
 	if (inicialMinutos !== undefined && !Number.isNaN(valorInicial)) {
 		// Taxa única sem limite de tempo
@@ -49,17 +60,18 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 
 		const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
 		const ciclo = Math.max(1, Number(cicloMinutos))
-		const ciclos = Math.floor(excedente / ciclo)
+		const ciclos = ciclosPagosComTolerancia(excedente, ciclo, cicloToleranciaMinutos)
 		const valorExcedente = ciclos * valorCiclo
 		return Math.round((valorInicial + valorExcedente) * 100) / 100
 	}
 	
 	// Usa regras globais do parâmetro
-	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais } = param
+	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais, cicloToleranciaMinutos: tolParam } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
 	const ciclo = Math.max(1, valorCicloMinutos)
-	const ciclos = Math.floor(excedente / ciclo)
+	const tolerancia = tolParam ?? 0
+	const ciclos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
 	const valorExcedente = ciclos * valorCicloReais
 	return Math.round((valorInicialReais + valorExcedente) * 100) / 100
 }
