@@ -49,7 +49,8 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 
 		const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
 		const ciclo = Math.max(1, Number(cicloMinutos))
-		const valorExcedente = excedente * (valorCiclo / ciclo)
+		const ciclos = Math.floor(excedente / ciclo)
+		const valorExcedente = ciclos * valorCiclo
 		return Math.round((valorInicial + valorExcedente) * 100) / 100
 	}
 	
@@ -58,7 +59,8 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
 	const ciclo = Math.max(1, valorCicloMinutos)
-	const valorExcedente = excedente * (valorCicloReais / ciclo)
+	const ciclos = Math.floor(excedente / ciclo)
+	const valorExcedente = ciclos * valorCicloReais
 	return Math.round((valorInicialReais + valorExcedente) * 100) / 100
 }
 

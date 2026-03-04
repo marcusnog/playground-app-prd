@@ -158,7 +158,7 @@ const defaultDb: DbShape = {
 		{ id: 'debito', descricao: 'Débito', status: 'ativo' },
 	],
 	brinquedos: [],
-	parametros: { valorInicialMinutos: 30, valorInicialReais: 20, valorCicloMinutos: 15, valorCicloReais: 10, empresaNome: 'Parque Infantil', empresaCnpj: '00.000.000/0000-00', empresaLogoUrl: '', pixChave: '', pixCidade: 'Sua Cidade' },
+	parametros: { valorInicialMinutos: 30, valorInicialReais: 20, valorCicloMinutos: 3, valorCicloReais: 10, empresaNome: 'Parque Infantil', empresaCnpj: '00.000.000/0000-00', empresaLogoUrl: '', pixChave: '', pixCidade: 'Sua Cidade' },
 	caixas: [],
 	lancamentos: [],
 	clientes: [],
@@ -342,7 +342,7 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 		}
 		
 		const excedente = Math.max(0, tempoMin - regras.inicialMinutos)
-		const ciclos = Math.ceil(excedente / Math.max(1, regras.cicloMinutos))
+		const ciclos = Math.floor(excedente / Math.max(1, regras.cicloMinutos))
 		return regras.valorInicial + ciclos * regras.valorCiclo
 	}
 	
@@ -350,7 +350,7 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
-	const ciclos = Math.ceil(excedente / Math.max(1, valorCicloMinutos))
+	const ciclos = Math.floor(excedente / Math.max(1, valorCicloMinutos))
 	return valorInicialReais + ciclos * valorCicloReais
 }
 
