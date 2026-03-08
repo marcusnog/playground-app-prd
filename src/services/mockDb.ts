@@ -73,11 +73,13 @@ export type Lancamento = {
 	tipoParente?: string // pai, mae, avo, ava, tio, tia, outro
 	whatsappResponsavel: string
 	numeroPulseira?: string
-	tempoSolicitadoMin: number | null // null -> Tempo Livre
+	tempoSolicitadoMin: number | null // null -> Tempo Livre ou modo quantidade
+	quantidade?: number // número de pulseiras (modo TRENZINHO/INFLÁVEL)
 	brinquedoId?: string
 	clienteId?: string // ID do cliente cadastrado
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
+	valorDesconto?: number // valor do desconto aplicado (dos acréscimos)
 	formaPagamentoId?: string // ID da forma de pagamento (quando pago)
 	updatedAt?: string // ISO string - hora da última atualização (ex.: pagamento)
 }
@@ -107,6 +109,7 @@ export type PermissoesModulo = {
 		brinquedos?: boolean
 	}
 	clientes?: boolean
+	descontoAutorizado?: boolean
 }
 
 export type Usuario = {

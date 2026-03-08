@@ -175,6 +175,7 @@ export default function Abertura() {
 							className="input" 
 							type="number" 
 							value={valorInicial} 
+							onFocus={(e) => e.target.select()}
 							onChange={(e) => setValorInicial(Math.max(0, Number(e.target.value)) || 0)}
 							step="0.01"
 							min="0"

@@ -89,8 +89,8 @@ export const lancamentosService = {
 		return api.put<Lancamento>(endpoints.lancamentos.update(id), data)
 	},
 
-	pagar: async (id: string, formaPagamentoId: string): Promise<Lancamento> => {
-		return api.post<Lancamento>(endpoints.lancamentos.pagar(id), { formaPagamentoId })
+	pagar: async (id: string, formaPagamentoId: string, opts?: { valorCalculado?: number; valorDesconto?: number }): Promise<Lancamento> => {
+		return api.post<Lancamento>(endpoints.lancamentos.pagar(id), { formaPagamentoId, ...opts })
 	},
 
 	cancelar: async (id: string): Promise<Lancamento> => {

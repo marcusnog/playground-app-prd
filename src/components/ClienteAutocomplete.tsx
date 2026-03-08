@@ -37,9 +37,26 @@ export default function ClienteAutocomplete({
 	const filteredClientes = useMemo(() => {
 		const term = inputValue.trim().toLowerCase()
 		if (!term) return clientes
-		return clientes.filter((c) =>
-			c.nomeCompleto.toLowerCase().includes(term)
-		)
+		return clientes.filter((c) => {
+			const nome = (c.nomeCompleto || '').toLowerCase()
+			const pai = (c.nomePai || '').toLowerCase()
+			const mae = (c.nomeMae || '').toLowerCase()
+			const telefone = (c.telefoneWhatsapp || '').replace(/\D/g, '')
+			let dataStr = ''
+			try {
+				dataStr = new Date(c.dataNascimento).toLocaleDateString('pt-BR')
+			} catch {}
+			const termDataFormatado = term.replace(/\D/g, '')
+			const dataFormatada = dataStr.replace(/\D/g, '')
+			return (
+				nome.includes(term) ||
+				pai.includes(term) ||
+				mae.includes(term) ||
+				telefone.includes(term.replace(/\D/g, '')) ||
+				dataStr.toLowerCase().includes(term) ||
+				dataFormatada.includes(termDataFormatado)
+			)
+		})
 	}, [clientes, inputValue])
 
 	// Sync input display when value changes from parent

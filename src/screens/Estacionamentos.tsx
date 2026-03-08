@@ -172,6 +172,7 @@ export default function Estacionamentos() {
 							className="input"
 							type="number"
 							value={form.valor}
+							onFocus={(e) => e.target.select()}
 							onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
 							step="0.01"
 							min="0"

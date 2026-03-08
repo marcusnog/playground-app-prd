@@ -100,6 +100,7 @@ export default function Brinquedos() {
 			setCicloToleranciaMinutos(tol)
 			setTaxaUnica(ini === null)
 		}
+		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
 	function cancelarEdicao() {
@@ -220,6 +221,7 @@ export default function Brinquedos() {
 										type="number"
 										className="input"
 										value={inicialMinutos ?? ''}
+										onFocus={(e) => e.target.select()}
 										onChange={(e) => setInicialMinutos(e.target.value ? Number(e.target.value) : null)}
 										min="1"
 									/>
@@ -230,6 +232,7 @@ export default function Brinquedos() {
 										type="number"
 										className="input"
 										value={valorInicial}
+										onFocus={(e) => e.target.select()}
 										onChange={(e) => setValorInicial(Number(e.target.value))}
 										step="0.01"
 										min="0"
@@ -241,6 +244,7 @@ export default function Brinquedos() {
 										type="number"
 										className="input"
 										value={cicloMinutos ?? ''}
+										onFocus={(e) => e.target.select()}
 										onChange={(e) => setCicloMinutos(e.target.value ? Number(e.target.value) : null)}
 										min="1"
 										placeholder="Opcional"
@@ -252,6 +256,7 @@ export default function Brinquedos() {
 										type="number"
 										className="input"
 										value={valorCiclo}
+										onFocus={(e) => e.target.select()}
 										onChange={(e) => setValorCiclo(Number(e.target.value))}
 										step="0.01"
 										min="0"
@@ -264,6 +269,7 @@ export default function Brinquedos() {
 										type="number"
 										className="input"
 										value={cicloToleranciaMinutos}
+										onFocus={(e) => e.target.select()}
 										onChange={(e) => setCicloToleranciaMinutos(Math.max(0, Number(e.target.value) || 0))}
 										min="0"
 										disabled={cicloMinutos === null}
@@ -281,6 +287,7 @@ export default function Brinquedos() {
 									type="number"
 									className="input"
 									value={valorInicial}
+									onFocus={(e) => e.target.select()}
 									onChange={(e) => setValorInicial(Number(e.target.value))}
 									step="0.01"
 									min="0"

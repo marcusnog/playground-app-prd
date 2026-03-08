@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { calcularValor } from '../services/utils'
+import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
 import ClienteAutocomplete from '../components/ClienteAutocomplete'
@@ -65,6 +65,7 @@ export default function Lancamento() {
 		brinquedoId: '',
 		tempoSolicitadoMin: 30,
 		tempoLivre: false,
+		quantidade: 1,
 	})
 	const [mostrarFormCliente, setMostrarFormCliente] = useState(false)
 	const [formCliente, setFormCliente] = useState({
@@ -89,9 +90,20 @@ export default function Lancamento() {
 		form.brinquedoId ? brinquedosDoCaixa.find(b => b.id === form.brinquedoId) : undefined,
 		[form.brinquedoId, brinquedosDoCaixa]
 	)
+
+	const isModoQuantidade = useMemo(() =>
+		!!(brinquedoSelecionado && /trenzinho|infl[aá]vel/i.test(brinquedoSelecionado.nome)),
+		[brinquedoSelecionado]
+	)
 	
 	const valor = useMemo(() => {
 		if (!parametros) return 0
+		
+		// Modo quantidade (TRENZINHO/INFLÁVEL): valor = quantidade * valor unitário
+		if (isModoQuantidade && brinquedoSelecionado) {
+			const valorUnitario = Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
+			return Math.max(0, (form.quantidade || 1)) * valorUnitario
+		}
 		
 		// Calcular valor baseado no tempo solicitado
 		const valorCalculado = calcularValor(
@@ -101,17 +113,19 @@ export default function Lancamento() {
 		)
 		
 		if (form.tempoLivre) {
-			// Se tempo livre está ativo, retorna o valor que estava antes de ativar
-			// Se não há valor salvo, usa o valor calculado atual
 			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
-		} else {
-			// Quando não está em tempo livre, atualizar o valor salvo
-			if (valorCalculado > 0) {
-				setValorAntesTempoLivre(valorCalculado)
-			}
-			return valorCalculado
 		}
-	}, [form.tempoSolicitadoMin, form.tempoLivre, parametros, brinquedoSelecionado, valorAntesTempoLivre])
+		return valorCalculado
+	}, [form.tempoSolicitadoMin, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado, valorAntesTempoLivre])
+
+	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
+	useEffect(() => {
+		if (form.tempoLivre || !parametros) return
+		const v = isModoQuantidade && brinquedoSelecionado
+			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
+			: calcularValor(parametros as ParametrosType, form.tempoSolicitadoMin, brinquedoSelecionado as BrinquedoType | undefined)
+		if (v > 0) setValorAntesTempoLivre(v)
+	}, [form.tempoLivre, form.tempoSolicitadoMin, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -152,9 +166,10 @@ export default function Lancamento() {
 				numeroPulseira: form.numeroPulseira.trim() || undefined,
 				brinquedoId: form.brinquedoId || undefined,
 				clienteId: form.clienteId || undefined,
-				tempoSolicitadoMin: form.tempoLivre ? null : form.tempoSolicitadoMin,
+				tempoSolicitadoMin: isModoQuantidade ? null : (form.tempoLivre ? null : form.tempoSolicitadoMin),
+				quantidade: isModoQuantidade ? form.quantidade : undefined,
 				valorCalculado: valor,
-			})
+			} as Parameters<typeof lancamentosService.create>[0])
 			
 			alert('Lançamento salvo. Gerando cupom...')
 			navigate(`/recibo/lancamento/${novoLancamento.id}`)
@@ -210,7 +225,24 @@ export default function Lancamento() {
 			)}
 
 			<div className="card form two" style={{ opacity: caixaAberto ? 1 : 0.6, pointerEvents: caixaAberto ? 'auto' : 'none' }}>
+				{/* Linha 1: Brinquedo + Nome da criança */}
 				<div>
+					<label className="field">
+						<span>Brinquedo</span>
+						<select className="select" value={form.brinquedoId} onChange={(e) => setForm({ ...form, brinquedoId: e.target.value })}>
+							<option value="">(opcional)</option>
+							{brinquedosDoCaixa.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+						</select>
+					</label>
+				</div>
+				<div>
+					<label className="field">
+						<span>Nome da criança *</span>
+						<input className="input" value={form.nomeCrianca} onChange={(e) => setForm({ ...form, nomeCrianca: e.target.value })} />
+					</label>
+				</div>
+				{/* Linha 2: Cliente Cadastrado */}
+				<div style={{ gridColumn: '1 / -1' }}>
 					<label className="field">
 						<span>Cliente Cadastrado (Opcional)</span>
 						<div className="row" style={{ gap: 8, alignItems: 'center' }}>
@@ -230,7 +262,7 @@ export default function Lancamento() {
 								{mostrarFormCliente ? '✖️ Cancelar' : '➕ Novo Cliente'}
 							</button>
 						</div>
-						<span className="help">Selecione um cliente cadastrado ou cadastre um novo</span>
+						<span className="help">Busque por nome, responsável, data de nascimento ou telefone</span>
 					</label>
 					{mostrarFormCliente && (
 						<div className="card" style={{ marginTop: 8, background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--primary)' }}>
@@ -334,23 +366,11 @@ export default function Lancamento() {
 							</div>
 						</div>
 					)}
-					<label className="field">
-						<span>Data/Hora</span>
-						<input className="input" value={new Date().toLocaleString()} readOnly />
-					</label>
-					<label className="field">
-						<span>Nome do responsável *</span>
-						<input className="input" value={form.nomeResponsavel} onChange={(e) => setForm({ ...form, nomeResponsavel: e.target.value })} />
-					</label>
-					<label className="field">
-						<span>Número da pulseira</span>
-						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
-					</label>
 				</div>
 				<div>
 					<label className="field">
-						<span>Nome da criança *</span>
-						<input className="input" value={form.nomeCrianca} onChange={(e) => setForm({ ...form, nomeCrianca: e.target.value })} />
+						<span>Data/Hora</span>
+						<input className="input" value={new Date().toLocaleString()} readOnly />
 					</label>
 					<label className="field">
 						<span>Tipo do parente *</span>
@@ -369,6 +389,10 @@ export default function Lancamento() {
 							<option value="outro">Outro</option>
 						</select>
 					</label>
+					<label className="field">
+						<span>Nome do responsável *</span>
+						<input className="input" value={form.nomeResponsavel} onChange={(e) => setForm({ ...form, nomeResponsavel: e.target.value })} />
+					</label>
 				</div>
 				<div>
 					<label className="field">
@@ -376,61 +400,87 @@ export default function Lancamento() {
 						<input className="input" value={form.whatsappResponsavel} onChange={(e) => setForm({ ...form, whatsappResponsavel: e.target.value })} placeholder="5599999999999" />
 					</label>
 					<label className="field">
-						<span>Brinquedo</span>
-						<select className="select" value={form.brinquedoId} onChange={(e) => setForm({ ...form, brinquedoId: e.target.value })}>
-							<option value="">(opcional)</option>
-							{brinquedosDoCaixa.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
-						</select>
+						<span>Número da pulseira</span>
+						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
 					</label>
 				</div>
-				<div>
-					<label className="field">
-						<span>Tempo Solicitado (minutos)</span>
-						<input className="input" type="number" disabled={form.tempoLivre} value={form.tempoSolicitadoMin} onChange={(e) => setForm({ ...form, tempoSolicitadoMin: Number(e.target.value) })} />
-					</label>
-					<label className="field">
-						<span>Tempo Livre</span>
-						<div className="row">
+				{/* Modo quantidade (TRENZINHO/INFLÁVEL) ou Tempo Solicitado + Tempo Livre */}
+				{isModoQuantidade ? (
+					<div style={{ gridColumn: '1 / -1' }}>
+						<label className="field">
+							<span>Quantidades</span>
 							<input 
-								type="checkbox" 
-								checked={form.tempoLivre} 
-								onChange={(e) => {
-									const novoTempoLivre = e.target.checked
-									if (novoTempoLivre) {
-										// Salvar valor atual antes de ativar tempo livre
-										// Calcular valor atual antes de mudar o estado
-										if (parametros) {
+								className="input" 
+								type="number" 
+								min={1} 
+								value={form.quantidade} 
+								onFocus={(e) => e.target.select()}
+								onChange={(e) => setForm({ ...form, quantidade: Math.max(1, Number(e.target.value) || 1) })} 
+							/>
+							<span className="help">Quantidade de pulseiras que o responsável comprou</span>
+						</label>
+					</div>
+				) : (
+					<div>
+						<label className="field">
+							<span>Tempo Solicitado (minutos)</span>
+							<input className="input" type="number" disabled={form.tempoLivre} value={form.tempoSolicitadoMin} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, tempoSolicitadoMin: Number(e.target.value) })} />
+						</label>
+						<label className="field">
+							<span>Tempo Livre</span>
+							<div className="row">
+								<input 
+									type="checkbox" 
+									checked={form.tempoLivre} 
+									onChange={(e) => {
+										const novoTempoLivre = e.target.checked
+										if (novoTempoLivre && parametros) {
 											const valorAtual = calcularValor(
 												parametros as ParametrosType,
 												form.tempoSolicitadoMin,
 												brinquedoSelecionado as BrinquedoType | undefined
 											)
-											if (valorAtual > 0) {
-												setValorAntesTempoLivre(valorAtual)
-											}
+											if (valorAtual > 0) setValorAntesTempoLivre(valorAtual)
 										}
-									}
-									setForm({ ...form, tempoLivre: novoTempoLivre })
-								}} 
-							/> 
-							<span>Ativar</span>
-						</div>
-						{form.tempoLivre && (
-							<span className="help" style={{ color: 'var(--warning)' }}>
-								Tempo livre ativado. Valor mantido: R$ {valor.toFixed(2)}
-							</span>
-						)}
-					</label>
-				</div>
+										setForm({ ...form, tempoLivre: novoTempoLivre })
+									}} 
+								/> 
+								<span>Ativar</span>
+							</div>
+							{form.tempoLivre && (
+								<span className="help" style={{ color: 'var(--warning)' }}>
+									Tempo livre ativado. Valor mantido: R$ {valor.toFixed(2)}
+								</span>
+							)}
+						</label>
+					</div>
+				)}
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
 						<strong style={{ fontSize: '1.2rem' }}>Valor: R$ {valor.toFixed(2)}</strong>
-						{!form.tempoLivre && parametros && (
+						{!isModoQuantidade && !form.tempoLivre && parametros && (
 							<span className="help" style={{ fontSize: '0.85rem' }}>
-								{form.tempoSolicitadoMin <= (parametros.valorInicialMinutos || 0)
-									? `Valor inicial (até ${parametros.valorInicialMinutos} min): R$ ${(parametros.valorInicialReais || 0).toFixed(2)}`
-									: `Valor inicial: R$ ${(parametros.valorInicialReais || 0).toFixed(2)} + ciclos adicionais`
-								}
+								{(() => {
+									const iniMin = brinquedoSelecionado
+										? (brinquedoSelecionado.inicialMinutos ?? brinquedoSelecionado.regrasCobranca?.inicialMinutos ?? parametros.valorInicialMinutos)
+										: parametros.valorInicialMinutos
+									const valIni = brinquedoSelecionado
+										? Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais)
+										: (parametros.valorInicialReais || 0)
+									const temCiclos = temCiclosCobranca(brinquedoSelecionado as BrinquedoType, parametros)
+									const dentroInicial = iniMin != null && form.tempoSolicitadoMin <= iniMin
+									if (temCiclos) {
+										return dentroInicial
+											? `Valor inicial (até ${iniMin} min): R$ ${valIni.toFixed(2)}`
+											: `Valor inicial: R$ ${valIni.toFixed(2)} + ciclos adicionais`
+									}
+									return `Valor: R$ ${valIni.toFixed(2)}`
+								})()}
+							</span>
+						)}
+						{isModoQuantidade && brinquedoSelecionado && (
+							<span className="help" style={{ fontSize: '0.85rem' }}>
+								{form.quantidade} x R$ {(Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros?.valorInicialReais ?? 20)).toFixed(2)}
 							</span>
 						)}
 					</div>

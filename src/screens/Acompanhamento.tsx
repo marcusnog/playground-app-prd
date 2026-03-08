@@ -16,11 +16,24 @@ export default function Acompanhamento() {
 	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
 
 	const lancamentosFiltrados = useMemo(() => {
+		let lista: Lancamento[]
 		if (filtroStatus === 'abertos') {
-			return lancamentos.filter((l) => l.status === 'aberto')
+			lista = lancamentos.filter((l) => l.status === 'aberto')
+			// Ordenar: criança mais perto de acabar o tempo primeiro (menor tempo restante)
+			const now = Date.now()
+			lista = [...lista].sort((a, b) => {
+				const decA = Math.floor((now - new Date(a.dataHora).getTime()) / 60000)
+				const decB = Math.floor((now - new Date(b.dataHora).getTime()) / 60000)
+				const alvoA = a.tempoSolicitadoMin ?? Infinity
+				const alvoB = b.tempoSolicitadoMin ?? Infinity
+				const restanteA = isFinite(alvoA) ? Math.max(0, alvoA - decA) : Infinity
+				const restanteB = isFinite(alvoB) ? Math.max(0, alvoB - decB) : Infinity
+				return restanteA - restanteB
+			})
 		} else {
-			return lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
+			lista = lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
 		}
+		return lista
 	}, [tick, filtroStatus, lancamentos])
 
 	useEffect(() => {
@@ -166,7 +179,14 @@ export default function Acompanhamento() {
 								: '-'
 							return (
 								<tr key={l.id} className={alerta ? 'highlight' : undefined}>
-									<td>{l.nomeCrianca}</td>
+									<td>
+										<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+											{alerta && (
+												<span title="Tempo acabando - requer atenção" style={{ color: '#e74c3c', fontSize: '1.2em' }}>⚠️</span>
+											)}
+											{l.nomeCrianca}
+										</div>
+									</td>
 									<td>{l.nomeResponsavel}</td>
 									<td>
 										<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

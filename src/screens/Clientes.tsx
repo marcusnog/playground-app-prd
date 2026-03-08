@@ -159,6 +159,7 @@ export default function Clientes() {
 				telefoneWhatsapp: cliente.telefoneWhatsapp
 			})
 		}
+		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
 	async function remover(id: string) {

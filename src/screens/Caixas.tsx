@@ -32,6 +32,7 @@ export default function Caixas() {
 			brinquedoIds: ids,
 		})
 		setEditingId(caixa.id)
+		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
 	function toggleBrinquedo(id: string) {

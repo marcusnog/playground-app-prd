@@ -60,7 +60,10 @@ export default function ReciboLancamento() {
 			{contato && <div>Contato: {contato}</div>}
 			{brinquedoNome && <div>Brinquedo: {brinquedoNome}</div>}
 			{lanc.numeroPulseira && <div>Pulseira: {lanc.numeroPulseira}</div>}
-			<div>Tempo: {lanc.tempoSolicitadoMin == null ? 'Tempo Livre' : `${lanc.tempoSolicitadoMin} min`}</div>
+			{(lanc as { quantidade?: number }).quantidade != null
+				? <div>Quantidade: {(lanc as { quantidade?: number }).quantidade}</div>
+				: <div>Tempo: {lanc.tempoSolicitadoMin == null ? 'Tempo Livre' : `${lanc.tempoSolicitadoMin} min`}</div>
+			}
 			<div>Valor: R$ {lanc.valorCalculado.toFixed(2)}</div>
 			<hr />
 			<small>Apresente este cupom no caixa.</small>

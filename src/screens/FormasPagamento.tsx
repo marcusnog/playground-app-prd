@@ -58,6 +58,7 @@ export default function FormasPagamento() {
 		setEditStatus(forma.status)
 		setEditPixChave(forma.pixChave || '')
 		setEditPixConta(forma.pixConta || '')
+		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
 	function cancelarEdicao() {

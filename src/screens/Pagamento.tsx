@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { lancamentosService, formasPagamentoService, parametrosService, brinquedosService } from '../services/entitiesService'
+import { authService } from '../services/authService'
 import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
 import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
@@ -15,8 +16,13 @@ export default function Pagamento() {
 	const [loading, setLoading] = useState(true)
 	const [forma, setForma] = useState<string>('')
 	const [recebido, setRecebido] = useState<string>('')
+	const [desconto, setDesconto] = useState<string>('')
 	const [saving, setSaving] = useState(false)
 	const [tick, setTick] = useState(0)
+	const [mostrarModalSupervisor, setMostrarModalSupervisor] = useState(false)
+	const [supervisorApelido, setSupervisorApelido] = useState('')
+	const [supervisorSenha, setSupervisorSenha] = useState('')
+	const [erroSupervisor, setErroSupervisor] = useState('')
 
 	useEffect(() => {
 		const t = setInterval(() => setTick(x => x + 1), 10000)
@@ -80,22 +86,21 @@ export default function Pagamento() {
 		return calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
 	}, [lanc, parametros, brinquedos, tick])
 
+	const descontoNum = useMemo(() => parseFloat(desconto.replace(',', '.')) || 0, [desconto])
+	const valorFinal = useMemo(() => Math.max(0, valorAtual - descontoNum), [valorAtual, descontoNum])
+
 	const troco = useMemo(() => {
 		if (!isDinheiro || !recebido || !lanc) return 0
 		const recebidoNum = parseFloat(recebido.replace(',', '.')) || 0
-		return Math.max(0, recebidoNum - valorAtual)
-	}, [isDinheiro, recebido, lanc, valorAtual])
+		return Math.max(0, recebidoNum - valorFinal)
+	}, [isDinheiro, recebido, lanc, valorFinal])
 
-	async function finalizar() {
+	async function executarPagamento() {
 		if (!lanc || !forma) return
-		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorAtual)) {
-			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
-		}
-		
 		try {
 			setSaving(true)
-			await lancamentosService.update(lanc.id, { valorCalculado: valorAtual })
-			await lancamentosService.pagar(lanc.id, forma)
+			const opts = { valorCalculado: valorFinal, ...(descontoNum > 0 && { valorDesconto: descontoNum }) }
+			await lancamentosService.pagar(lanc.id, forma, opts)
 			alert('Pagamento concluído. Gerando recibo...')
 			navigate(`/recibo/pagamento/${lanc.id}`)
 		} catch (error) {
@@ -104,6 +109,38 @@ export default function Pagamento() {
 		} finally {
 			setSaving(false)
 		}
+	}
+
+	async function finalizar() {
+		if (!lanc || !forma) return
+		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
+			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
+		}
+		if (descontoNum > valorAtual) {
+			return alert('O desconto não pode ser maior que o valor do lançamento')
+		}
+		if (descontoNum > 0) {
+			setMostrarModalSupervisor(true)
+			setErroSupervisor('')
+			setSupervisorApelido('')
+			setSupervisorSenha('')
+			return
+		}
+		await executarPagamento()
+	}
+
+	async function confirmarSupervisor() {
+		if (!supervisorApelido.trim() || !supervisorSenha) {
+			setErroSupervisor('Apelido e senha são obrigatórios')
+			return
+		}
+		const ok = await authService.validarDesconto(supervisorApelido.trim(), supervisorSenha)
+		if (!ok) {
+			setErroSupervisor('Credenciais inválidas ou usuário sem permissão para autorizar descontos')
+			return
+		}
+		setMostrarModalSupervisor(false)
+		await executarPagamento()
 	}
 
 	if (loading) {
@@ -138,8 +175,22 @@ export default function Pagamento() {
 				</div>
 				<div>
 					<label className="field">
+						<span>Desconto</span>
+						<input 
+							className="input" 
+							type="text"
+							value={desconto}
+							onFocus={(e) => e.target.select()}
+							onChange={(e) => {
+								const valor = e.target.value.replace(/[^\d,]/g, '')
+								setDesconto(valor)
+							}}
+							placeholder="0,00"
+						/>
+					</label>
+					<label className="field">
 						<span>Valor</span>
-						<input className="input" readOnly value={`R$ ${valorAtual.toFixed(2)}`} />
+						<input className="input" readOnly value={`R$ ${valorFinal.toFixed(2)}`} />
 					</label>
 					<label className="field">
 						<span>Forma de pagamento</span>
@@ -161,6 +212,7 @@ export default function Pagamento() {
 									className="input" 
 									type="text"
 									value={recebido}
+									onFocus={(e) => e.target.select()}
 									onChange={(e) => {
 										const valor = e.target.value.replace(/[^\d,]/g, '')
 										setRecebido(valor)
@@ -197,6 +249,58 @@ export default function Pagamento() {
 					</button>
 				</div>
 			</div>
+
+			{/* Modal de autorização de desconto */}
+			{mostrarModalSupervisor && (
+				<div style={{
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background: 'rgba(0,0,0,0.6)',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					zIndex: 1000,
+				}} onClick={() => !saving && setMostrarModalSupervisor(false)}>
+					<div className="card" style={{ maxWidth: 360, margin: 16 }} onClick={e => e.stopPropagation()}>
+						<h3>Autorização de Desconto</h3>
+						<p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
+							Digite o apelido e a senha do supervisor/coordenador para autorizar o desconto de R$ {descontoNum.toFixed(2)}.
+						</p>
+						<label className="field">
+							<span>Apelido do supervisor *</span>
+							<input 
+								className="input" 
+								value={supervisorApelido} 
+								onChange={(e) => setSupervisorApelido(e.target.value)} 
+								placeholder="apelido"
+								autoFocus
+							/>
+						</label>
+						<label className="field">
+							<span>Senha *</span>
+							<input 
+								className="input" 
+								type="password" 
+								value={supervisorSenha} 
+								onChange={(e) => setSupervisorSenha(e.target.value)} 
+								placeholder="senha"
+							/>
+						</label>
+						{erroSupervisor && (
+							<div style={{ color: 'var(--danger)', fontSize: '0.9rem', marginBottom: 12 }}>{erroSupervisor}</div>
+						)}
+						<div className="row" style={{ gap: 8, marginTop: 16 }}>
+							<button className="btn" onClick={() => setMostrarModalSupervisor(false)} disabled={saving}>Cancelar</button>
+							<button className="btn primary" onClick={confirmarSupervisor} disabled={saving}>
+								{saving ? 'Processando...' : 'Autorizar e Finalizar'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

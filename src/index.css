@@ -556,6 +556,7 @@ table.table th, table.table td { padding: 10px 12px; border-bottom: 1px solid va
 table.table thead th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--card); z-index: 1; }
 tr.highlight { background: #2b2a11; }
 tbody tr:nth-child(odd) { background: rgba(255,255,255,.02); }
+tbody tr.highlight { background: #2b2a11 !important; border-left: 3px solid #e74c3c; }
 tbody tr:hover { background: rgba(255,255,255,.04); }
 
 .title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -597,11 +598,11 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 /* Print styles */
 @media print {
   body { background: white; color: black; }
-  .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page, .container { display: none !important; }
+  .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
+  .main-content { display: block !important; margin-left: 0 !important; padding: 0 !important; }
   .receipt { display: block; }
   .no-print { display: none !important; }
   .card { break-inside: avoid; page-break-inside: avoid; }
-  .main-content { margin-left: 0 !important; padding: 0 !important; }
 }
 
 .receipt {

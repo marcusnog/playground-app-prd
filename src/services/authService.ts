@@ -1,5 +1,6 @@
 import { api } from './api'
 import endpoints from './apiEndpoints'
+import { config } from '../config'
 import type { Usuario } from './mockDb'
 
 export type LoginResponse = {
@@ -51,6 +52,22 @@ export const authService = {
 		} catch (error) {
 			console.error('Erro ao buscar usuário atual:', error)
 			return null
+		}
+	},
+
+	async validarDesconto(apelido: string, password: string): Promise<boolean> {
+		try {
+			// Usar fetch direto para evitar que 401 deslogue o operador (o 401 é das credenciais do supervisor)
+			const res = await fetch(`${config.apiBaseUrl}${endpoints.auth.validarDesconto}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ apelido, password }),
+			})
+			if (!res.ok) return false
+			return true
+		} catch (error) {
+			console.error('Erro ao validar desconto:', error)
+			return false
 		}
 	},
 }

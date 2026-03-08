@@ -163,6 +163,7 @@ export default function Sangria() {
 							className="input"
 							type="number"
 							value={valor}
+							onFocus={(e) => e.target.select()}
 							onChange={(e) => setValor(Number(e.target.value))}
 							step="0.01"
 							min="0.01"

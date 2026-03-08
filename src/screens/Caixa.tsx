@@ -108,7 +108,7 @@ export default function Caixa() {
 				<h3>Abertura</h3>
 				<div>Data: {new Date().toLocaleDateString()}</div>
 				<label className="field">Valor inicial (R$)
-					<input className="input" type="number" value={valorInicial} onChange={(e) => setValorInicial(Number(e.target.value))} />
+					<input className="input" type="number" value={valorInicial} onFocus={(e) => e.target.select()} onChange={(e) => setValorInicial(Number(e.target.value))} />
 				</label>
 				<div>Status: {aberto ? <span className="badge on">Caixa Aberto</span> : <span className="badge off">Caixa Fechado</span>}</div>
 				<button className="btn primary" onClick={abrir} disabled={!!aberto || saving}>

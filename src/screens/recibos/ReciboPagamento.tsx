@@ -67,6 +67,9 @@ export default function ReciboPagamento() {
 				: new Date().toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
+			{(lanc as { valorDesconto?: number }).valorDesconto != null && (lanc as { valorDesconto: number }).valorDesconto > 0 && (
+				<div>Desconto: R$ {(lanc as { valorDesconto: number }).valorDesconto.toFixed(2)}</div>
+			)}
 			<div>Valor pago: R$ {lanc.valorCalculado.toFixed(2)}</div>
 			{forma && <div>Forma: <PaymentIcon kind={resolvePaymentKind(forma.id)} /> {forma.descricao.toUpperCase()}</div>}
 			{formaId === 'pix' && pixPayload && (
