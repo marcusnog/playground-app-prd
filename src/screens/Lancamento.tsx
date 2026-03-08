@@ -150,26 +150,45 @@ export default function Lancamento() {
 			alert('Não é possível fazer lançamentos com o caixa fechado. Abra o caixa primeiro.')
 			return
 		}
-		if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) {
-			return alert('Preencha os campos obrigatórios')
-		}
 		if (!parametros) {
 			return alert('Erro: Parâmetros não carregados')
 		}
+		if (isModoQuantidade) {
+			if (!form.brinquedoId) return alert('Selecione o brinquedo')
+			if (!form.quantidade || form.quantidade < 1) return alert('Informe a quantidade')
+		} else {
+			if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) {
+				return alert('Preencha os campos obrigatórios')
+			}
+		}
 
 		try {
-			const novoLancamento = await lancamentosService.create({
-				nomeCrianca: form.nomeCrianca.trim(),
-				nomeResponsavel: form.nomeResponsavel.trim(),
-				tipoParente: form.tipoParente || undefined,
-				whatsappResponsavel: form.whatsappResponsavel.trim(),
-				numeroPulseira: form.numeroPulseira.trim() || undefined,
-				brinquedoId: form.brinquedoId || undefined,
-				clienteId: form.clienteId || undefined,
-				tempoSolicitadoMin: isModoQuantidade ? null : (form.tempoLivre ? null : form.tempoSolicitadoMin),
-				quantidade: isModoQuantidade ? form.quantidade : undefined,
-				valorCalculado: valor,
-			} as Parameters<typeof lancamentosService.create>[0])
+			const payload = isModoQuantidade
+				? {
+					nomeCrianca: 'Quantidade',
+					nomeResponsavel: '-',
+					tipoParente: undefined,
+					whatsappResponsavel: '0000000000000',
+					numeroPulseira: undefined,
+					brinquedoId: form.brinquedoId,
+					clienteId: undefined,
+					tempoSolicitadoMin: null,
+					quantidade: form.quantidade,
+					valorCalculado: valor,
+				}
+				: {
+					nomeCrianca: form.nomeCrianca.trim(),
+					nomeResponsavel: form.nomeResponsavel.trim(),
+					tipoParente: form.tipoParente || undefined,
+					whatsappResponsavel: form.whatsappResponsavel.trim(),
+					numeroPulseira: form.numeroPulseira.trim() || undefined,
+					brinquedoId: form.brinquedoId || undefined,
+					clienteId: form.clienteId || undefined,
+					tempoSolicitadoMin: form.tempoLivre ? null : form.tempoSolicitadoMin,
+					quantidade: undefined,
+					valorCalculado: valor,
+				}
+			const novoLancamento = await lancamentosService.create(payload as Parameters<typeof lancamentosService.create>[0])
 			
 			alert('Lançamento salvo. Gerando cupom...')
 			navigate(`/recibo/lancamento/${novoLancamento.id}`)
@@ -225,7 +244,7 @@ export default function Lancamento() {
 			)}
 
 			<div className="card form two" style={{ opacity: caixaAberto ? 1 : 0.6, pointerEvents: caixaAberto ? 'auto' : 'none' }}>
-				{/* Linha 1: Brinquedo + Nome da criança */}
+				{/* Linha 1: Brinquedo + (Quantidade em modo quantidade, ou Nome da criança) */}
 				<div>
 					<label className="field">
 						<span>Brinquedo</span>
@@ -236,11 +255,29 @@ export default function Lancamento() {
 					</label>
 				</div>
 				<div>
-					<label className="field">
-						<span>Nome da criança *</span>
-						<input className="input" value={form.nomeCrianca} onChange={(e) => setForm({ ...form, nomeCrianca: e.target.value })} />
-					</label>
+					{isModoQuantidade ? (
+						<label className="field">
+							<span>Quantidades</span>
+							<input 
+								className="input" 
+								type="number" 
+								min={1} 
+								value={form.quantidade} 
+								onFocus={(e) => e.target.select()}
+								onChange={(e) => setForm({ ...form, quantidade: Math.max(1, Number(e.target.value) || 1) })} 
+							/>
+							<span className="help">Quantidade de pulseiras que o responsável comprou</span>
+						</label>
+					) : (
+						<label className="field">
+							<span>Nome da criança *</span>
+							<input className="input" value={form.nomeCrianca} onChange={(e) => setForm({ ...form, nomeCrianca: e.target.value })} />
+						</label>
+					)}
 				</div>
+				{/* Demais campos: ocultos em modo quantidade */}
+				{!isModoQuantidade && (
+				<>
 				{/* Linha 2: Cliente Cadastrado */}
 				<div style={{ gridColumn: '1 / -1' }}>
 					<label className="field">
@@ -404,24 +441,8 @@ export default function Lancamento() {
 						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
 					</label>
 				</div>
-				{/* Modo quantidade (TRENZINHO/INFLÁVEL) ou Tempo Solicitado + Tempo Livre */}
-				{isModoQuantidade ? (
-					<div style={{ gridColumn: '1 / -1' }}>
-						<label className="field">
-							<span>Quantidades</span>
-							<input 
-								className="input" 
-								type="number" 
-								min={1} 
-								value={form.quantidade} 
-								onFocus={(e) => e.target.select()}
-								onChange={(e) => setForm({ ...form, quantidade: Math.max(1, Number(e.target.value) || 1) })} 
-							/>
-							<span className="help">Quantidade de pulseiras que o responsável comprou</span>
-						</label>
-					</div>
-				) : (
-					<div>
+				{/* Tempo Solicitado + Tempo Livre (apenas fora do modo quantidade) */}
+				<div>
 						<label className="field">
 							<span>Tempo Solicitado (minutos)</span>
 							<input className="input" type="number" disabled={form.tempoLivre} value={form.tempoSolicitadoMin} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, tempoSolicitadoMin: Number(e.target.value) })} />
@@ -454,6 +475,7 @@ export default function Lancamento() {
 							)}
 						</label>
 					</div>
+				</>
 				)}
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
 					<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
