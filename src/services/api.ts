@@ -98,8 +98,11 @@ class ApiService {
 					this.setToken(null)
 					localStorage.removeItem('app.auth.user')
 					window.dispatchEvent(new Event('auth:logout'))
-					const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || ''
-					window.location.href = base + '/login'
+					const isLoginPage = window.location.pathname.endsWith('/login') || window.location.pathname === '/login'
+					if (!isLoginPage) {
+						const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || ''
+						window.location.href = base + '/login'
+					}
 				}
 				throw {
 					message: errorData.message || errorData.error || 'Erro na requisição',
