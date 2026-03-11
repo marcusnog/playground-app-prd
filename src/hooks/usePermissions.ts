@@ -24,12 +24,26 @@ export function usePermissions() {
 				return !!user.permissoes.parametros[tela as keyof typeof user.permissoes.parametros]
 			}
 			if (modulo === 'estacionamento' && user.permissoes.estacionamento) {
-				// Para estacionamento, verificar se tem a permissão específica ou se tem o módulo completo
-				return !!user.permissoes.estacionamento[tela as keyof typeof user.permissoes.estacionamento] || !!user.permissoes.estacionamento
+				return !!user.permissoes.estacionamento[tela as keyof typeof user.permissoes.estacionamento]
 			}
 			return false
 		} else {
 			// Verificar permissão de módulo completo
+			if (modulo === 'estacionamento') {
+				const est = user.permissoes.estacionamento
+				if (!est) return false
+				return !!(est.cadastro || est.lancamento || est.acompanhamento || est.caixa?.abertura || est.caixa?.fechamento)
+			}
+			if (modulo === 'caixa') {
+				const caixa = user.permissoes.caixa
+				if (!caixa) return false
+				return !!(caixa.abertura || caixa.fechamento || caixa.sangria || caixa.suprimento)
+			}
+			if (modulo === 'parametros') {
+				const param = user.permissoes.parametros
+				if (!param) return false
+				return !!(param.empresa || param.formasPagamento || param.brinquedos)
+			}
 			return !!user.permissoes[modulo as keyof typeof user.permissoes]
 		}
 	}
