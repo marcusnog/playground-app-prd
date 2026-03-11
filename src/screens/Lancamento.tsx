@@ -222,7 +222,7 @@ export default function Lancamento() {
 							<strong style={{ color: 'var(--danger)' }}>Caixa Fechado</strong>
 							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
 								É necessário abrir o caixa antes de fazer lançamentos. 
-								<a href="/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Ir para Abertura</a>
+								<a href="playground-app-prd/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Ir para Abertura</a>
 							</div>
 						</div>
 					</div>
