@@ -141,8 +141,8 @@ export default function Brinquedos() {
 	async function remover(id: string) {
 		try {
 			const lancamentos = await lancamentosService.list()
-			const temUso = (lancamentos || []).some((l: { brinquedoId?: string }) => l.brinquedoId === id)
-			if (temUso) return alert('Não é possível excluir: existem lançamentos vinculados a este brinquedo.')
+			const temLancamentoAberto = (lancamentos || []).some((l: { brinquedoId?: string; status?: string }) => l.brinquedoId === id && l.status === 'aberto')
+			if (temLancamentoAberto) return alert('Não é possível excluir: há acompanhamento em andamento vinculado a este brinquedo. Encerre o lançamento antes de excluir.')
 			if (!confirm('Excluir este brinquedo?')) return
 			await brinquedosService.delete(id)
 			if (editId === id) cancelarEdicao()
