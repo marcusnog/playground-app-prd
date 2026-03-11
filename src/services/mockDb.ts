@@ -74,6 +74,8 @@ export type Lancamento = {
 	whatsappResponsavel: string
 	numeroPulseira?: string
 	tempoSolicitadoMin: number | null // null -> Tempo Livre ou modo quantidade
+	tempoInicialMin?: number | null
+	tempoAdicionalMin?: number | null
 	quantidade?: number // número de pulseiras (modo TRENZINHO/INFLÁVEL)
 	brinquedoId?: string
 	clienteId?: string // ID do cliente cadastrado

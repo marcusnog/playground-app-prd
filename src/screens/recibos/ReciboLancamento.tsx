@@ -62,7 +62,17 @@ export default function ReciboLancamento() {
 			{lanc.numeroPulseira && <div>Pulseira: {lanc.numeroPulseira}</div>}
 			{(lanc as { quantidade?: number }).quantidade != null
 				? <div>Quantidade: {(lanc as { quantidade?: number }).quantidade}</div>
-				: <div>Tempo: {lanc.tempoSolicitadoMin == null ? 'Tempo Livre' : `${lanc.tempoSolicitadoMin} min`}</div>
+				: (() => {
+					const ti = (lanc as { tempoInicialMin?: number | null }).tempoInicialMin
+					const ta = (lanc as { tempoAdicionalMin?: number | null }).tempoAdicionalMin
+					const showSplit = ti != null && ta != null && ta > 0
+					return (
+						<div>Tempo: {lanc.tempoSolicitadoMin == null
+							? 'Tempo Livre'
+							: showSplit ? `${ti} min + ${ta} min adicional = ${lanc.tempoSolicitadoMin} min` : `${lanc.tempoSolicitadoMin} min`
+						}</div>
+					)
+				})()
 			}
 			<div>Valor: R$ {lanc.valorCalculado.toFixed(2)}</div>
 			<hr />

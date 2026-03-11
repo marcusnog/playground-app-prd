@@ -63,7 +63,8 @@ export default function Lancamento() {
 		whatsappResponsavel: '',
 		numeroPulseira: '',
 		brinquedoId: '',
-		tempoSolicitadoMin: 30,
+		tempoInicialMin: 30,
+		tempoAdicionalMin: 0,
 		tempoLivre: false,
 		quantidade: 1,
 	})
@@ -95,8 +96,15 @@ export default function Lancamento() {
 		!!(brinquedoSelecionado && /trenzinho|infl[aá]vel/i.test(brinquedoSelecionado.nome)),
 		[brinquedoSelecionado]
 	)
+
+	const tempoTotal = useMemo(() =>
+		form.tempoInicialMin + form.tempoAdicionalMin,
+		[form.tempoInicialMin, form.tempoAdicionalMin]
+	)
 	
 	const valor = useMemo(() => {
+		// Sem brinquedo selecionado: valor zerado por padrão
+		if (!brinquedoSelecionado) return 0
 		if (!parametros) return 0
 		
 		// Modo quantidade (TRENZINHO/INFLÁVEL): valor = quantidade * valor unitário
@@ -105,10 +113,10 @@ export default function Lancamento() {
 			return Math.max(0, (form.quantidade || 1)) * valorUnitario
 		}
 		
-		// Calcular valor baseado no tempo solicitado
+		// Calcular valor baseado no tempo total (inicial + adicional)
 		const valorCalculado = calcularValor(
 			parametros as ParametrosType, 
-			form.tempoSolicitadoMin,
+			tempoTotal,
 			brinquedoSelecionado as BrinquedoType | undefined
 		)
 		
@@ -116,16 +124,16 @@ export default function Lancamento() {
 			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
 		}
 		return valorCalculado
-	}, [form.tempoSolicitadoMin, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado, valorAntesTempoLivre])
+	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado, valorAntesTempoLivre])
 
 	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
 	useEffect(() => {
 		if (form.tempoLivre || !parametros) return
 		const v = isModoQuantidade && brinquedoSelecionado
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
-			: calcularValor(parametros as ParametrosType, form.tempoSolicitadoMin, brinquedoSelecionado as BrinquedoType | undefined)
+			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoSelecionado as BrinquedoType | undefined)
 		if (v > 0) setValorAntesTempoLivre(v)
-	}, [form.tempoLivre, form.tempoSolicitadoMin, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado])
+	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -184,7 +192,9 @@ export default function Lancamento() {
 					numeroPulseira: form.numeroPulseira.trim() || undefined,
 					brinquedoId: form.brinquedoId || undefined,
 					clienteId: form.clienteId || undefined,
-					tempoSolicitadoMin: form.tempoLivre ? null : form.tempoSolicitadoMin,
+					tempoSolicitadoMin: form.tempoLivre ? null : tempoTotal,
+					tempoInicialMin: form.tempoLivre ? undefined : form.tempoInicialMin,
+					tempoAdicionalMin: form.tempoLivre ? undefined : form.tempoAdicionalMin,
 					quantidade: undefined,
 					valorCalculado: valor,
 				}
@@ -441,11 +451,16 @@ export default function Lancamento() {
 						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
 					</label>
 				</div>
-				{/* Tempo Solicitado + Tempo Livre (apenas fora do modo quantidade) */}
+				{/* Tempo Inicial + Tempo Adicional + Tempo Livre (apenas fora do modo quantidade) */}
 				<div>
 						<label className="field">
-							<span>Tempo Solicitado (minutos)</span>
-							<input className="input" type="number" disabled={form.tempoLivre} value={form.tempoSolicitadoMin} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, tempoSolicitadoMin: Number(e.target.value) })} />
+							<span>Tempo Inicial (min)</span>
+							<input className="input" type="number" min={0} disabled={form.tempoLivre} value={form.tempoInicialMin} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, tempoInicialMin: Math.max(0, Number(e.target.value) || 0) })} />
+						</label>
+						<label className="field">
+							<span>Tempo Adicional (min)</span>
+							<input className="input" type="number" min={0} disabled={form.tempoLivre} value={form.tempoAdicionalMin} onFocus={(e) => e.target.select()} onChange={(e) => setForm({ ...form, tempoAdicionalMin: Math.max(0, Number(e.target.value) || 0) })} />
+							<span className="help">Total: {tempoTotal} min</span>
 						</label>
 						<label className="field">
 							<span>Tempo Livre</span>
@@ -458,7 +473,7 @@ export default function Lancamento() {
 										if (novoTempoLivre && parametros) {
 											const valorAtual = calcularValor(
 												parametros as ParametrosType,
-												form.tempoSolicitadoMin,
+												tempoTotal,
 												brinquedoSelecionado as BrinquedoType | undefined
 											)
 											if (valorAtual > 0) setValorAntesTempoLivre(valorAtual)
@@ -490,7 +505,7 @@ export default function Lancamento() {
 										? Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais)
 										: (parametros.valorInicialReais || 0)
 									const temCiclos = temCiclosCobranca(brinquedoSelecionado as BrinquedoType, parametros)
-									const dentroInicial = iniMin != null && form.tempoSolicitadoMin <= iniMin
+									const dentroInicial = iniMin != null && tempoTotal <= iniMin
 									if (temCiclos) {
 										return dentroInicial
 											? `Valor inicial (até ${iniMin} min): R$ ${valIni.toFixed(2)}`

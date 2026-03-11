@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createBrowserRouter, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
+import { usePermissions } from './hooks/usePermissions'
 import Login from './screens/Login'
 import DashboardLayout from './screens/layouts/DashboardLayout'
 import Parametros from './screens/Parametros'
@@ -50,6 +51,14 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
 	}
 	
 	if (!isAuthenticated) return <Navigate to="/login" replace />
+	return children
+}
+
+function RequireEstacionamentoPermission({ children }: { children: React.ReactElement }) {
+	const { hasPermission } = usePermissions()
+	if (!hasPermission('estacionamento')) {
+		return <Navigate to="/acompanhamento" replace />
+	}
 	return children
 }
 
@@ -105,11 +114,11 @@ export const router = createBrowserRouter([
 			{ path: 'recibo/pagamento/:id', element: <ReciboPagamento /> },
 			{ path: 'recibo/abertura/:id', element: <ReciboAbertura /> },
 			{ path: 'recibo/fechamento/:id', element: <ReciboFechamento /> },
-			{ path: 'estacionamentos', element: <Estacionamentos /> },
-			{ path: 'estacionamento/lancamento', element: <LancamentoEstacionamento /> },
-			{ path: 'estacionamento/acompanhamento', element: <AcompanhamentoEstacionamento /> },
-			{ path: 'estacionamento/caixa/abertura', element: <CaixaAberturaEstacionamento /> },
-			{ path: 'estacionamento/caixa/fechamento', element: <CaixaFechamentoEstacionamento /> },
+			{ path: 'estacionamentos', element: <RequireEstacionamentoPermission><Estacionamentos /></RequireEstacionamentoPermission> },
+			{ path: 'estacionamento/lancamento', element: <RequireEstacionamentoPermission><LancamentoEstacionamento /></RequireEstacionamentoPermission> },
+			{ path: 'estacionamento/acompanhamento', element: <RequireEstacionamentoPermission><AcompanhamentoEstacionamento /></RequireEstacionamentoPermission> },
+			{ path: 'estacionamento/caixa/abertura', element: <RequireEstacionamentoPermission><CaixaAberturaEstacionamento /></RequireEstacionamentoPermission> },
+			{ path: 'estacionamento/caixa/fechamento', element: <RequireEstacionamentoPermission><CaixaFechamentoEstacionamento /></RequireEstacionamentoPermission> },
 			{ path: 'recibo/estacionamento/pagamento/:id', element: <ReciboEstacionamentoPagamento /> },
 			{ path: 'recibo/estacionamento/abertura/:id', element: <ReciboEstacionamentoAbertura /> },
 			{ path: 'recibo/estacionamento/fechamento/:id', element: <ReciboEstacionamentoFechamento /> },

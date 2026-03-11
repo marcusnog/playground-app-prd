@@ -220,7 +220,15 @@ export default function Acompanhamento() {
 										</div>
 									</td>
 									<td>{horaFinal}</td>
-									<td>
+									<td
+										title={
+											(l as { tempoInicialMin?: number | null; tempoAdicionalMin?: number | null }).tempoInicialMin != null &&
+											(l as { tempoAdicionalMin?: number | null }).tempoAdicionalMin != null &&
+											(l as { tempoAdicionalMin: number }).tempoAdicionalMin > 0
+												? `${(l as { tempoInicialMin: number }).tempoInicialMin} min + ${(l as { tempoAdicionalMin: number }).tempoAdicionalMin} min adicional`
+												: undefined
+										}
+									>
 										{filtroStatus === 'abertos' 
 											? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)
 											: `${dec} min`}

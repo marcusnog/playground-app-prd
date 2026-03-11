@@ -127,13 +127,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	const logout = useCallback(async () => {
 		setLoading(true)
+		// Limpar estado e localStorage imediatamente para evitar dados antigos ao próximo login
+		setUser(null)
+		localStorage.removeItem(AUTH_STORAGE_KEY)
 		try {
 			await authService.logout()
 		} catch (error) {
 			console.error('Erro no logout:', error)
 		} finally {
-			setUser(null)
-			localStorage.removeItem(AUTH_STORAGE_KEY)
 			setLoading(false)
 		}
 	}, [])

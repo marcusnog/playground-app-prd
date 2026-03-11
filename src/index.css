@@ -595,24 +595,60 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 .badge.on { background: rgba(34,197,94,.15); border-color: var(--success); color: #86efac; }
 .badge.off { background: rgba(239,68,68,.15); border-color: var(--danger); color: #fecaca; }
 
-/* Print styles */
+/* Print styles - formato Tranca TP650 (80mm, área útil ~72mm) */
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
 @media print {
-  body { background: white; color: black; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 80mm !important;
+    min-width: 80mm !important;
+    max-width: 80mm !important;
+    background: white !important;
+    color: black !important;
+  }
   .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
-  .main-content { display: block !important; margin-left: 0 !important; padding: 0 !important; }
-  .receipt { display: block; }
+  .main-content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 80mm !important;
+    min-width: 80mm !important;
+    max-width: 80mm !important;
+  }
+  .receipt {
+    display: block !important;
+    width: 72mm !important;
+    max-width: 72mm !important;
+    min-width: 72mm !important;
+    margin: 0 auto !important;
+    padding: 8px 4px !important;
+    box-sizing: border-box;
+    border: none !important;
+  }
+  .receipt img {
+    max-width: 65mm !important;
+    height: auto !important;
+  }
   .no-print { display: none !important; }
   .card { break-inside: avoid; page-break-inside: avoid; }
 }
 
 .receipt {
-  width: 58mm;
+  width: 72mm;
+  max-width: 72mm;
   margin: 0 auto;
-  font-size: 12px;
+  font-size: 11px;
+  font-family: 'Courier New', Courier, monospace;
   color: #111;
   background: white;
   padding: 12px;
   border: 1px dashed #ddd;
+  box-sizing: border-box;
 }
-.receipt h3 { margin: 0 0 8px; text-align: center; }
-.receipt hr { border: none; border-top: 1px dashed #ccc; margin: 8px 0; }
+.receipt h3 { margin: 0 0 6px; text-align: center; font-size: 12px; }
+.receipt hr { border: none; border-top: 1px dashed #ccc; margin: 6px 0; }
