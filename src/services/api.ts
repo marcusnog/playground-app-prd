@@ -88,19 +88,19 @@ class ApiService {
 			}
 
 			if (!response.ok) {
-				// Se for erro 401 (não autorizado), limpar token e sessão
-				if (response.status === 401) {
-					this.setToken(null)
-					if (typeof window !== 'undefined') {
-						localStorage.removeItem('app.auth.user')
-					}
-					// Disparar evento para o AuthContext limpar o estado
-					window.dispatchEvent(new Event('auth:logout'))
-				}
-
 				const errorData = await response.json().catch(() => ({
 					message: response.statusText || 'Erro na requisição',
 				}))
+				const msg = String(errorData?.error || errorData?.message || '').toLowerCase()
+				const isTokenExpiredOrInvalid = msg.includes('token') && (msg.includes('expirado') || msg.includes('inválido'))
+				const shouldRedirectToLogin = response.status === 401 || (response.status === 403 && isTokenExpiredOrInvalid)
+				if (shouldRedirectToLogin && typeof window !== 'undefined') {
+					this.setToken(null)
+					localStorage.removeItem('app.auth.user')
+					window.dispatchEvent(new Event('auth:logout'))
+					const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || ''
+					window.location.href = base + '/login'
+				}
 				throw {
 					message: errorData.message || errorData.error || 'Erro na requisição',
 					status: response.status,
