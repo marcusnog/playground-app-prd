@@ -165,14 +165,17 @@ export default function Clientes() {
 	async function remover(id: string) {
 		try {
 			const lancamentos = await lancamentosService.list()
-			const temLancamentos = lancamentos.some((l) => l.clienteId === id)
-			if (temLancamentos) return alert('Não é possível excluir: existem lançamentos vinculados a este cliente.')
+			const temLancamentoAberto = lancamentos.some((l) => l.clienteId === id && l.status === 'aberto')
+			if (temLancamentoAberto) return alert('Não é possível excluir: há acompanhamento em andamento vinculado a este cliente. Encerre o lançamento antes de excluir.')
 			if (!confirm('Excluir este cliente?')) return
 			await clientesService.delete(id)
 			await loadClientes()
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error('Erro ao excluir cliente:', error)
-			alert('Erro ao excluir cliente. Tente novamente.')
+			const msg = error && typeof error === 'object' && 'message' in error
+				? String((error as { message?: string }).message)
+				: 'Erro ao excluir cliente. Tente novamente.'
+			alert(msg)
 		}
 	}
 
