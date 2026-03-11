@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { estacionamentosService, formasPagamentoService, lancamentosEstacionamentoService } from '../../services/entitiesService'
 import { useCaixa } from '../../hooks/useCaixa'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -137,7 +137,7 @@ export default function LancamentoEstacionamento() {
 							<strong style={{ color: 'var(--danger)' }}>Caixa Fechado</strong>
 							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
 								O caixa do estacionamento está fechado. 
-								<a href="/estacionamento/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Abrir caixa</a>
+								<Link to="/estacionamento/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Abrir caixa</Link>
 							</div>
 						</div>
 					</div>

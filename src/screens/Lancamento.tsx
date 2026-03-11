@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
@@ -222,7 +222,7 @@ export default function Lancamento() {
 							<strong style={{ color: 'var(--danger)' }}>Caixa Fechado</strong>
 							<div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
 								É necessário abrir o caixa antes de fazer lançamentos. 
-								<a href="/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Ir para Abertura</a>
+								<Link to="/caixa/abertura" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Ir para Abertura</Link>
 							</div>
 						</div>
 					</div>
