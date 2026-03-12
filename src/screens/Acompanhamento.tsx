@@ -244,7 +244,7 @@ export default function Acompanhamento() {
 											<>
 												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Por favor, compareça ao local.')} disabled={!l.whatsappResponsavel}>📞 Chamar</button>
 												{alerta && l.whatsappResponsavel && <button className="btn warning icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'O tempo solicitado está acabando.')}>📣 Avisar</button>}
-												<Link to={`/recibo/lancamento/${l.id}`}>
+												<Link to={`lancamento/${l.id}`}>
 													<button className="btn icon">🖨️ Cupom</button>
 												</Link>
 												<Link to={`/pagamento/${l.id}`}><button className="btn primary icon">💳 Pagamento</button></Link>
@@ -254,11 +254,11 @@ export default function Acompanhamento() {
 												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
 													📱 Contato
 												</button>
-												<Link to={`/recibo/lancamento/${l.id}`}>
+												<Link to={`lancamento/${l.id}`}>
 													<button className="btn icon">🖨️ Reimprimir Cupom</button>
 												</Link>
 												{l.status === 'pago' && (
-													<Link to={`/recibo/pagamento/${l.id}`}>
+													<Link to={`recibo/pagamento/${l.id}`}>
 														<button className="btn icon">🖨️ Reimprimir Recibo</button>
 													</Link>
 												)}

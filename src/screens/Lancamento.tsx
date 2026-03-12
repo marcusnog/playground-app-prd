@@ -232,12 +232,13 @@ export default function Lancamento() {
 			
 			if (isModoQuantidade) {
 				// Inflável/trenzinho: gerar cupom em nova aba e redirecionar para pagamento
-				window.open(`/recibo/lancamento/${novoLancamento.id}`, '_blank', 'noopener')
+				const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || ''
+				window.open(`${window.location.origin}${base ? base : ''}/lancamento/${novoLancamento.id}`, '_blank', 'noopener')
 				alert('Lançamento salvo. Redirecionando para pagamento...')
 				navigate(`/pagamento/${novoLancamento.id}`)
 			} else {
 				alert('Lançamento salvo. Gerando cupom...')
-				navigate(`/recibo/lancamento/${novoLancamento.id}`)
+				navigate(`lancamento/${novoLancamento.id}`)
 			}
 		} catch (error) {
 			console.error('Erro ao salvar lançamento:', error)
