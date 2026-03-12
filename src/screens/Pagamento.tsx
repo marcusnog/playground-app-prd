@@ -93,7 +93,10 @@ export default function Pagamento() {
 	}, [lanc, parametros, brinquedos, tick])
 
 	const descontoNum = useMemo(() => parseFloat(desconto.replace(',', '.')) || 0, [desconto])
-	const valorFinal = useMemo(() => Math.max(0, valorAtual - descontoNum), [valorAtual, descontoNum])
+	const valorFinal = useMemo(() => {
+		if (isCortesia) return 0
+		return Math.max(0, valorAtual - descontoNum)
+	}, [valorAtual, descontoNum, isCortesia])
 
 	const troco = useMemo(() => {
 		if (!isDinheiro || !recebido || !lanc) return 0
@@ -135,6 +138,8 @@ export default function Pagamento() {
 			if (codigo.length !== 8) {
 				return alert('Informe o código de cortesia de 8 dígitos')
 			}
+			await executarPagamento()
+			return
 		}
 		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
 			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
@@ -198,23 +203,25 @@ export default function Pagamento() {
 				</div>
 				<div>
 					<label className="field">
-						<span>Desconto</span>
-						<input 
-							className="input" 
-							type="text"
-							value={desconto}
-							onFocus={(e) => e.target.select()}
-							onChange={(e) => {
-								const valor = e.target.value.replace(/[^\d,]/g, '')
-								setDesconto(valor)
-							}}
-							placeholder="0,00"
-						/>
-					</label>
-					<label className="field">
-						<span>Valor</span>
+						<span>Valor total</span>
 						<input className="input" readOnly value={`R$ ${valorFinal.toFixed(2)}`} />
 					</label>
+					{!isCortesia && (
+						<label className="field">
+							<span>Desconto</span>
+							<input 
+								className="input" 
+								type="text"
+								value={desconto}
+								onFocus={(e) => e.target.select()}
+								onChange={(e) => {
+									const valor = e.target.value.replace(/[^\d,]/g, '')
+									setDesconto(valor)
+								}}
+								placeholder="0,00"
+							/>
+						</label>
+					)}
 					<label className="field">
 						<span>Forma de pagamento</span>
 						<div className="row center">
@@ -223,6 +230,8 @@ export default function Pagamento() {
 								setForma(e.target.value)
 								setRecebido('')
 								setCodigoCortesia('')
+								const novaForma = formas.find(f => f.id === e.target.value)
+								if (novaForma?.descricao.toLowerCase().includes('cortesia')) setDesconto('')
 							}}>
 								{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
 							</select>
