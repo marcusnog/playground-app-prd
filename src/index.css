@@ -595,31 +595,35 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 .badge.on { background: rgba(34,197,94,.15); border-color: var(--success); color: #86efac; }
 .badge.off { background: rgba(239,68,68,.15); border-color: var(--danger); color: #fecaca; }
 
-/* Print styles - impressora térmica 80mm x 32mm */
+/* Print styles - impressora térmica 80mm (altura auto = 1 página, evita excesso de papel) */
 @page {
-  size: 80mm 32mm;
+  size: 80mm auto;
   margin: 0;
 }
 
 @media print {
-  html, body {
+  /* 1. Reset total: sem height/min-height que criem espaço em branco */
+  html, body, #root, #root > * {
     margin: 0 !important;
     padding: 0 !important;
     width: 80mm !important;
     min-width: 80mm !important;
     max-width: 80mm !important;
-    min-height: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
     background: white !important;
     color: #000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  /* 2. Esconder todo o layout: sidebar, header, etc */
+  .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
+  /* 3. app-layout e main-content: sem altura mínima, conteúdo no topo */
   .app-layout {
     display: block !important;
-    min-height: auto !important;
-    position: static !important;
+    min-height: 0 !important;
+    height: auto !important;
   }
-  .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
   .main-content {
     display: block !important;
     margin: 0 !important;
@@ -627,16 +631,16 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
     width: 80mm !important;
     min-width: 80mm !important;
     max-width: 80mm !important;
-    position: static !important;
-    min-height: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
   }
+  /* 4. Recibo no topo, fluxo normal */
   .receipt {
     display: block !important;
     width: 72mm !important;
     max-width: 72mm !important;
     min-width: 72mm !important;
     margin: 0 auto !important;
-    margin-top: 0 !important;
     padding: 4px !important;
     box-sizing: border-box;
     border: none !important;
@@ -645,7 +649,6 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
     font-size: 12px !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    position: relative !important;
   }
   .receipt * {
     color: #000 !important;
