@@ -42,7 +42,7 @@ export default function Cortesia() {
 		return whatsappManual.replace(/\D/g, '')
 	})()
 
-	const podeAvancarCliente = modoCliente === 'cadastrado' ? !!clienteId : whatsappManual.replace(/\D/g, '').length >= 10
+	const podeAvancarCliente = modoCliente === 'cadastrado' ? !!clienteId : whatsappDestino.length >= 10
 
 	if (!hasPermission('cortesia')) {
 		return (
