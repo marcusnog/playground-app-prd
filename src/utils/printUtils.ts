@@ -1,7 +1,7 @@
-/** Estilos para impressão - 8cm largura x 7cm altura */
+/** Estilos para impressão - 7cm largura x 8cm altura (retrato) */
 const RECEIPT_PRINT_STYLES = `
 @media print {
-  @page { size: 8cm 7cm; margin: 0; }
+  @page { size: 7cm 8cm; margin: 0; }
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -11,7 +11,7 @@ const RECEIPT_PRINT_STYLES = `
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
-  width: 8cm;
+  width: 7cm;
   margin: 0;
   padding: 0;
   height: auto;
@@ -24,15 +24,15 @@ html, body {
 }
 body { padding: 2mm; }
 .receipt, #recibo {
-  width: 7.6cm;
-  max-width: 7.6cm;
+  width: 6.6cm;
+  max-width: 6.6cm;
   margin: 0 !important;
   padding: 0 !important;
   position: static !important;
 }
 .receipt h3, #recibo h3 { margin: 0 0 6px; text-align: center; font-size: 14px; font-weight: 700; }
 .receipt hr, #recibo hr { border: none; border-top: 2px solid #000; margin: 6px 0; }
-.receipt img, #recibo img { max-width: 7cm; height: auto; display: block; margin: 0 auto; }
+.receipt img, #recibo img { max-width: 6.6cm; height: auto; display: block; margin: 0 auto; }
 .receipt *, #recibo * { color: #000; }
 `
 
