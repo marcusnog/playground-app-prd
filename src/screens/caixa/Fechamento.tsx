@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCaixa } from '../../hooks/useCaixa'
-import { caixasService, lancamentosService, formasPagamentoService } from '../../services/entitiesService'
+import { caixasService, lancamentosService, formasPagamentoService, brinquedosService } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -12,6 +12,7 @@ export default function Fechamento() {
 	const [loading, setLoading] = useState(false)
 	const [lancamentos, setLancamentos] = useState<any[]>([])
 	const [formasPagamento, setFormasPagamento] = useState<any[]>([])
+	const [brinquedos, setBrinquedos] = useState<any[]>([])
 
 	const caixasAbertos = useMemo(
 		() => caixas.filter((c) => c.status === 'aberto'),
@@ -49,12 +50,14 @@ export default function Fechamento() {
 			if (!selectedCaixa) return
 			try {
 				setLoading(true)
-				const [lancs, formas] = await Promise.all([
+				const [lancs, formas, brinqs] = await Promise.all([
 					lancamentosService.list(),
-					formasPagamentoService.list()
+					formasPagamentoService.list(),
+					brinquedosService.list()
 				])
 				setLancamentos(lancs)
 				setFormasPagamento(formas)
+				setBrinquedos(Array.isArray(brinqs) ? brinqs : [])
 			} catch (error) {
 				console.error('Erro ao carregar dados:', error)
 			} finally {
@@ -86,6 +89,29 @@ export default function Fechamento() {
 		}
 		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
 	}, [selectedCaixa, lancamentos, formasPagamento])
+
+	// Resumo por brinquedo usando lancamentos pagos do dia
+	const resumoBrinquedos = useMemo(() => {
+		if (!selectedCaixa) return []
+		const dataCaixa = new Date(selectedCaixa.data).toDateString()
+		const pagos = lancamentos.filter((l) => {
+			if (l.status !== 'pago') return false
+			const dataLancamento = new Date(l.dataHora).toDateString()
+			return dataLancamento === dataCaixa
+		})
+		const map = new Map<string, { nome: string; total: number }>()
+		for (const l of pagos) {
+			const brinqId = l.brinquedoId as string | undefined
+			const brinq = brinquedos.find((b) => b.id === brinqId)
+			const nomeBrinq = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
+			const key = brinqId || '__sem_brinquedo__'
+			const atual = map.get(key) || { nome: nomeBrinq, total: 0 }
+			map.set(key, { nome: atual.nome, total: atual.total + (l.valorCalculado || 0) })
+		}
+		return Array.from(map.values())
+			.sort((a, b) => b.total - a.total)
+			.map((v) => [v.nome, v.total] as [string, number])
+	}, [selectedCaixa, lancamentos, brinquedos])
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
@@ -267,6 +293,30 @@ export default function Fechamento() {
 							</div>
 						) : (
 							<div className="empty">Nenhuma venda registrada hoje</div>
+						)}
+					</div>
+
+					{/* Vendas por Brinquedos */}
+					<div className="card" style={{ marginBottom: 16 }}>
+						<h3>Vendas por Brinquedos</h3>
+						{resumoBrinquedos.length > 0 ? (
+							<div className="table-wrap">
+								<table className="table">
+									<thead>
+										<tr><th>Brinquedo</th><th>Total (R$)</th></tr>
+									</thead>
+									<tbody>
+										{resumoBrinquedos.map(([nome, total], i) => (
+											<tr key={`${nome}-${i}`}>
+												<td>{nome}</td>
+												<td>R$ {total.toFixed(2)}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						) : (
+							<div className="empty">Nenhuma venda por brinquedo hoje</div>
 						)}
 					</div>
 

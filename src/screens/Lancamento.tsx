@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { calcularValor, temCiclosCobranca } from '../services/utils'
+import { calcularValor } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
 import ClienteAutocomplete from '../components/ClienteAutocomplete'
@@ -93,7 +93,7 @@ export default function Lancamento() {
 	)
 
 	const isModoQuantidade = useMemo(() =>
-		!!(brinquedoSelecionado && /trenzinho|infl[aá]vel/i.test(brinquedoSelecionado.nome)),
+		!!(brinquedoSelecionado && /trenzinho|infl[aá]vei?s?/i.test(brinquedoSelecionado.nome)),
 		[brinquedoSelecionado]
 	)
 
@@ -230,8 +230,15 @@ export default function Lancamento() {
 				}
 			const novoLancamento = await lancamentosService.create(payload as Parameters<typeof lancamentosService.create>[0])
 			
-			alert('Lançamento salvo. Gerando cupom...')
-			navigate(`/recibo/lancamento/${novoLancamento.id}`)
+			if (isModoQuantidade) {
+				// Inflável/trenzinho: gerar cupom em nova aba e redirecionar para pagamento
+				window.open(`/recibo/lancamento/${novoLancamento.id}`, '_blank', 'noopener')
+				alert('Lançamento salvo. Redirecionando para pagamento...')
+				navigate(`/pagamento/${novoLancamento.id}`)
+			} else {
+				alert('Lançamento salvo. Gerando cupom...')
+				navigate(`/recibo/lancamento/${novoLancamento.id}`)
+			}
 		} catch (error) {
 			console.error('Erro ao salvar lançamento:', error)
 			alert('Erro ao salvar lançamento. Tente novamente.')
@@ -423,34 +430,7 @@ export default function Lancamento() {
 				</>
 				)}
 				<div className="actions" style={{ gridColumn: '1 / -1' }}>
-					<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-						<strong style={{ fontSize: '1.2rem' }}>Valor: R$ {valor.toFixed(2)}</strong>
-						{!isModoQuantidade && !form.tempoLivre && parametros && (
-							<span className="help" style={{ fontSize: '0.85rem' }}>
-								{(() => {
-									const iniMin = brinquedoParaCalculo
-										? (brinquedoParaCalculo.inicialMinutos ?? parametros.valorInicialMinutos)
-										: parametros.valorInicialMinutos
-									const valIni = brinquedoParaCalculo
-										? Number(brinquedoParaCalculo.valorInicial ?? parametros.valorInicialReais)
-										: (parametros.valorInicialReais || 0)
-									const temCiclos = temCiclosCobranca(brinquedoParaCalculo as BrinquedoType, parametros)
-									const dentroInicial = iniMin != null && tempoTotal <= iniMin
-									if (temCiclos) {
-										return dentroInicial
-											? `Valor inicial (até ${iniMin} min): R$ ${valIni.toFixed(2)}`
-											: `Valor inicial: R$ ${valIni.toFixed(2)} + ciclos adicionais`
-									}
-									return `Valor: R$ ${valIni.toFixed(2)}`
-								})()}
-							</span>
-						)}
-						{isModoQuantidade && brinquedoSelecionado && (
-							<span className="help" style={{ fontSize: '0.85rem' }}>
-								{form.quantidade} x R$ {(Number(brinquedoParaCalculo?.valorInicial ?? brinquedoSelecionado?.valorInicial ?? brinquedoSelecionado?.regrasCobranca?.valorInicial ?? parametros?.valorInicialReais ?? 20)).toFixed(2)}
-							</span>
-						)}
-					</div>
+					<strong style={{ fontSize: '1.2rem' }}>Valor: R$ {valor.toFixed(2)}</strong>
 					<button 
 						className="btn primary icon" 
 						onClick={onSave}
