@@ -1,8 +1,41 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import type { Cliente } from '../services/entitiesService'
 
-function formatClienteLabel(c: Cliente): string {
-	return `${c.nomeCompleto} - ${new Date(c.dataNascimento).toLocaleDateString('pt-BR')}`
+function formatDataNascimento(d: string): string {
+	try {
+		return new Date(d).toLocaleDateString('pt-BR')
+	} catch {
+		return ''
+	}
+}
+
+function formatResponsavel(c: Cliente): string {
+	if (c.nomePai && c.nomeMae) return `Pai: ${c.nomePai} / Mãe: ${c.nomeMae}`
+	if (c.nomePai) return `Pai: ${c.nomePai}`
+	if (c.nomeMae) return `Mãe: ${c.nomeMae}`
+	return ''
+}
+
+/** Label curto para o input quando selecionado */
+function formatClienteLabelShort(c: Cliente): string {
+	const parts = [c.nomeCompleto]
+	const resp = formatResponsavel(c)
+	if (resp) parts.push(resp)
+	parts.push(formatDataNascimento(c.dataNascimento))
+	if (c.telefoneWhatsapp) parts.push(c.telefoneWhatsapp)
+	return parts.join(' • ')
+}
+
+/** Linha principal no dropdown: nome + infos ao lado */
+function formatClienteDisplay(c: Cliente): { nome: string; infos: string } {
+	const infos: string[] = []
+	if (formatResponsavel(c)) infos.push(formatResponsavel(c))
+	infos.push(formatDataNascimento(c.dataNascimento))
+	if (c.telefoneWhatsapp) infos.push(c.telefoneWhatsapp)
+	return {
+		nome: c.nomeCompleto,
+		infos: infos.join(' | '),
+	}
 }
 
 type Props = {
@@ -19,7 +52,7 @@ export default function ClienteAutocomplete({
 	clientes,
 	value,
 	onSelect,
-	placeholder = 'Selecione ou digite para buscar...',
+	placeholder = 'Nome, responsável, data nasc. ou telefone...',
 	disabled = false,
 	className = '',
 	style,
@@ -35,8 +68,9 @@ export default function ClienteAutocomplete({
 	)
 
 	const filteredClientes = useMemo(() => {
-		const term = inputValue.trim().toLowerCase()
+		const term = inputValue.trim()
 		if (!term) return clientes
+		const termos = term.toLowerCase().split(/\s+/).filter(Boolean)
 		return clientes.filter((c) => {
 			const nome = (c.nomeCompleto || '').toLowerCase()
 			const pai = (c.nomePai || '').toLowerCase()
@@ -46,23 +80,20 @@ export default function ClienteAutocomplete({
 			try {
 				dataStr = new Date(c.dataNascimento).toLocaleDateString('pt-BR')
 			} catch {}
-			const termDataFormatado = term.replace(/\D/g, '')
 			const dataFormatada = dataStr.replace(/\D/g, '')
-			return (
-				nome.includes(term) ||
-				pai.includes(term) ||
-				mae.includes(term) ||
-				telefone.includes(term.replace(/\D/g, '')) ||
-				dataStr.toLowerCase().includes(term) ||
-				dataFormatada.includes(termDataFormatado)
-			)
+			const campos = [nome, pai, mae, dataStr.toLowerCase(), dataFormatada, telefone]
+			const termoMatch = (t: string) => {
+				const tDig = t.replace(/\D/g, '')
+				return campos.some((campo) => campo.includes(t)) || (tDig.length >= 2 && telefone.includes(tDig))
+			}
+			return termos.every(termoMatch)
 		})
 	}, [clientes, inputValue])
 
 	// Sync input display when value changes from parent
 	useEffect(() => {
 		if (value && selectedCliente) {
-			setInputValue(formatClienteLabel(selectedCliente))
+			setInputValue(formatClienteLabelShort(selectedCliente))
 		} else {
 			setInputValue('')
 		}
@@ -86,7 +117,7 @@ export default function ClienteAutocomplete({
 
 	function handleSelect(cliente: Cliente) {
 		onSelect(cliente.id)
-		setInputValue(formatClienteLabel(cliente))
+		setInputValue(formatClienteLabelShort(cliente))
 		setIsOpen(false)
 	}
 
@@ -141,7 +172,7 @@ export default function ClienteAutocomplete({
 				e.preventDefault()
 				setIsOpen(false)
 				if (value && selectedCliente) {
-					setInputValue(formatClienteLabel(selectedCliente))
+					setInputValue(formatClienteLabelShort(selectedCliente))
 				}
 				break
 			case 'Backspace':
@@ -208,7 +239,7 @@ export default function ClienteAutocomplete({
 						marginTop: 4,
 						padding: 0,
 						listStyle: 'none',
-						maxHeight: 220,
+						maxHeight: 280,
 						overflowY: 'auto',
 						zIndex: 100,
 						borderRadius: 8,
@@ -228,30 +259,38 @@ export default function ClienteAutocomplete({
 							Nenhum cliente encontrado
 						</li>
 					) : (
-						filteredClientes.map((c, i) => (
-							<li
-								key={c.id}
-								role="option"
-								aria-selected={i === highlightedIndex}
-								onClick={() => handleSelect(c)}
-								style={{
-									padding: '10px 12px',
-									cursor: 'pointer',
-									background:
-										i === highlightedIndex
-											? 'rgba(59, 130, 246, 0.2)'
-											: 'transparent',
-									borderBottom:
-										i < filteredClientes.length - 1
-											? '1px solid var(--border)'
-											: 'none',
-									fontSize: '0.95rem',
-								}}
-								onMouseEnter={() => setHighlightedIndex(i)}
-							>
-								{formatClienteLabel(c)}
-							</li>
-						))
+						filteredClientes.map((c, i) => {
+							const { nome, infos } = formatClienteDisplay(c)
+							return (
+								<li
+									key={c.id}
+									role="option"
+									aria-selected={i === highlightedIndex}
+									onClick={() => handleSelect(c)}
+									style={{
+										padding: '10px 12px',
+										cursor: 'pointer',
+										background:
+											i === highlightedIndex
+												? 'rgba(59, 130, 246, 0.2)'
+												: 'transparent',
+										borderBottom:
+											i < filteredClientes.length - 1
+												? '1px solid var(--border)'
+												: 'none',
+										fontSize: '0.95rem',
+									}}
+									onMouseEnter={() => setHighlightedIndex(i)}
+								>
+									<div style={{ fontWeight: 600 }}>{nome}</div>
+									{infos && (
+										<div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 2 }}>
+											{infos}
+										</div>
+									)}
+								</li>
+							)
+						})
 					)}
 				</ul>
 			)}

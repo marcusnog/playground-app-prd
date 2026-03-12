@@ -97,6 +97,36 @@ export default function Lancamento() {
 		[brinquedoSelecionado]
 	)
 
+	// Brinquedo normalizado para cálculo (API usa campos na raiz; mock/legado pode usar regrasCobranca)
+	const brinquedoParaCalculo = useMemo((): BrinquedoType | undefined => {
+		if (!brinquedoSelecionado) return undefined
+		const r = brinquedoSelecionado.regrasCobranca
+		const valorIni = brinquedoSelecionado.valorInicial ?? r?.valorInicial
+		const iniMin = brinquedoSelecionado.inicialMinutos ?? r?.inicialMinutos
+		return {
+			...brinquedoSelecionado,
+			valorInicial: valorIni != null ? valorIni : parametros?.valorInicialReais,
+			inicialMinutos: iniMin !== undefined ? iniMin : (parametros?.valorInicialMinutos ?? 30),
+			cicloMinutos: brinquedoSelecionado.cicloMinutos ?? r?.cicloMinutos,
+			valorCiclo: brinquedoSelecionado.valorCiclo ?? r?.valorCiclo ?? 0,
+		}
+	}, [brinquedoSelecionado, parametros?.valorInicialReais, parametros?.valorInicialMinutos])
+
+	// Ao selecionar um brinquedo, sincronizar tempo inicial com as regras do brinquedo
+	useEffect(() => {
+		if (!brinquedoSelecionado || isModoQuantidade) return
+		const iniMin = brinquedoSelecionado.inicialMinutos ?? brinquedoSelecionado.regrasCobranca?.inicialMinutos ?? parametros?.valorInicialMinutos ?? 30
+		setForm(f => {
+			if (iniMin !== null && (f.tempoInicialMin !== iniMin || f.tempoAdicionalMin !== 0)) {
+				return { ...f, tempoInicialMin: iniMin, tempoAdicionalMin: 0 }
+			}
+			if (iniMin === null && (f.tempoInicialMin !== (parametros?.valorInicialMinutos ?? 30) || f.tempoAdicionalMin !== 0)) {
+				return { ...f, tempoInicialMin: parametros?.valorInicialMinutos ?? 30, tempoAdicionalMin: 0 }
+			}
+			return f
+		})
+	}, [form.brinquedoId, brinquedoSelecionado, isModoQuantidade, parametros?.valorInicialMinutos])
+
 	const tempoTotal = useMemo(() =>
 		form.tempoInicialMin + form.tempoAdicionalMin,
 		[form.tempoInicialMin, form.tempoAdicionalMin]
@@ -117,23 +147,23 @@ export default function Lancamento() {
 		const valorCalculado = calcularValor(
 			parametros as ParametrosType, 
 			tempoTotal,
-			brinquedoSelecionado as BrinquedoType | undefined
+			brinquedoParaCalculo as BrinquedoType | undefined
 		)
 		
 		if (form.tempoLivre) {
 			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
 		}
 		return valorCalculado
-	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado, valorAntesTempoLivre])
+	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo, valorAntesTempoLivre])
 
 	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
 	useEffect(() => {
 		if (form.tempoLivre || !parametros) return
 		const v = isModoQuantidade && brinquedoSelecionado
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
-			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoSelecionado as BrinquedoType | undefined)
+			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 		if (v > 0) setValorAntesTempoLivre(v)
-	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoSelecionado])
+	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -267,7 +297,7 @@ export default function Lancamento() {
 				<div>
 					{isModoQuantidade ? (
 						<label className="field">
-							<span>Quantidades</span>
+							<span>Quantidade</span>
 							<input 
 								className="input" 
 								type="number" 
@@ -276,7 +306,7 @@ export default function Lancamento() {
 								onFocus={(e) => e.target.select()}
 								onChange={(e) => setForm({ ...form, quantidade: Math.max(1, Number(e.target.value) || 1) })} 
 							/>
-							<span className="help">Quantidade de pulseiras que o responsável comprou</span>
+							<span className="help">Quantidade de pulseiras</span>
 						</label>
 					) : (
 						<label className="field">
@@ -285,10 +315,7 @@ export default function Lancamento() {
 						</label>
 					)}
 				</div>
-				{/* Demais campos: ocultos em modo quantidade */}
-				{!isModoQuantidade && (
-				<>
-				{/* Linha 2: Cliente Cadastrado */}
+				{/* Cliente Cadastrado + Novo Cliente - visível em ambos os modos */}
 				<div style={{ gridColumn: '1 / -1' }}>
 					<label className="field">
 						<span>Cliente Cadastrado (Opcional)</span>
@@ -303,117 +330,20 @@ export default function Lancamento() {
 							<button 
 								className="btn" 
 								type="button"
-								onClick={() => setMostrarFormCliente(!mostrarFormCliente)}
+								onClick={() => setMostrarFormCliente(true)}
 								style={{ whiteSpace: 'nowrap' }}
 							>
-								{mostrarFormCliente ? '✖️ Cancelar' : '➕ Novo Cliente'}
+								➕ Novo Cliente
 							</button>
 						</div>
-						<span className="help">Busque por nome, responsável, data de nascimento ou telefone</span>
+						{!isModoQuantidade && (
+							<span className="help">Busque por nome da criança, pai/mãe, data de nascimento ou telefone. Múltiplas crianças com o mesmo telefone aparecem listadas.</span>
+						)}
 					</label>
-					{mostrarFormCliente && (
-						<div className="card" style={{ marginTop: 8, background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--primary)' }}>
-							<h4 style={{ marginTop: 0, marginBottom: 12 }}>Cadastrar Novo Cliente</h4>
-							<div className="form two">
-								<label className="field">
-									<span>Nome Completo da Criança *</span>
-									<input 
-										className="input" 
-										value={formCliente.nomeCompleto} 
-										onChange={(e) => setFormCliente({ ...formCliente, nomeCompleto: e.target.value })} 
-										placeholder="Nome completo da criança"
-									/>
-								</label>
-								<label className="field">
-									<span>Data de Nascimento *</span>
-									<input 
-										type="date" 
-										className="input" 
-										value={formCliente.dataNascimento} 
-										onChange={(e) => setFormCliente({ ...formCliente, dataNascimento: e.target.value })} 
-									/>
-								</label>
-								<label className="field">
-									<span>Nome do Pai</span>
-									<input 
-										className="input" 
-										value={formCliente.nomePai} 
-										onChange={(e) => setFormCliente({ ...formCliente, nomePai: e.target.value })} 
-										placeholder="Nome completo do pai"
-									/>
-								</label>
-								<label className="field">
-									<span>Nome da Mãe</span>
-									<input 
-										className="input" 
-										value={formCliente.nomeMae} 
-										onChange={(e) => setFormCliente({ ...formCliente, nomeMae: e.target.value })} 
-										placeholder="Nome completo da mãe"
-									/>
-								</label>
-								<label className="field" style={{ gridColumn: '1 / -1' }}>
-									<span>WhatsApp para Contato *</span>
-									<input 
-										className="input" 
-										value={formCliente.telefoneWhatsapp} 
-										onChange={(e) => setFormCliente({ ...formCliente, telefoneWhatsapp: e.target.value })} 
-										placeholder="5599999999999"
-									/>
-								</label>
-								<div className="actions" style={{ gridColumn: '1 / -1' }}>
-									<button 
-										className="btn primary" 
-										onClick={async () => {
-											if (!formCliente.nomeCompleto.trim()) {
-												return alert('Informe o nome completo da criança')
-											}
-											if (!formCliente.dataNascimento) {
-												return alert('Informe a data de nascimento')
-											}
-											if (!formCliente.telefoneWhatsapp.trim()) {
-												return alert('Informe o WhatsApp para contato')
-											}
-											
-											try {
-												const dataNascimentoISO = new Date(formCliente.dataNascimento + 'T00:00:00').toISOString()
-												const novoCliente = await clientesService.create({
-													nomeCompleto: formCliente.nomeCompleto.trim(),
-													dataNascimento: dataNascimentoISO,
-													nomePai: formCliente.nomePai.trim() || '',
-													nomeMae: formCliente.nomeMae.trim() || '',
-													telefoneWhatsapp: formCliente.telefoneWhatsapp.trim()
-												})
-												
-												// Recarregar lista de clientes
-												const clientesData = await clientesService.list()
-												setClientes(clientesData)
-												
-												// Preencher formulário com o novo cliente
-												selecionarCliente(novoCliente.id)
-												
-												// Limpar e fechar formulário
-												setFormCliente({
-													nomeCompleto: '',
-													dataNascimento: '',
-													nomePai: '',
-													nomeMae: '',
-													telefoneWhatsapp: ''
-												})
-												setMostrarFormCliente(false)
-												alert('Cliente cadastrado com sucesso!')
-											} catch (error) {
-												console.error('Erro ao cadastrar cliente:', error)
-												alert('Erro ao cadastrar cliente. Tente novamente.')
-											}
-										}}
-									>
-										💾 Cadastrar e Usar
-									</button>
-								</div>
-							</div>
-						</div>
-					)}
 				</div>
+				{/* Demais campos: ocultos em modo quantidade (inflável/trenzinho) */}
+				{!isModoQuantidade && (
+				<>
 				<div>
 					<label className="field">
 						<span>Data/Hora</span>
@@ -474,7 +404,7 @@ export default function Lancamento() {
 											const valorAtual = calcularValor(
 												parametros as ParametrosType,
 												tempoTotal,
-												brinquedoSelecionado as BrinquedoType | undefined
+												brinquedoParaCalculo as BrinquedoType | undefined
 											)
 											if (valorAtual > 0) setValorAntesTempoLivre(valorAtual)
 										}
@@ -498,13 +428,13 @@ export default function Lancamento() {
 						{!isModoQuantidade && !form.tempoLivre && parametros && (
 							<span className="help" style={{ fontSize: '0.85rem' }}>
 								{(() => {
-									const iniMin = brinquedoSelecionado
-										? (brinquedoSelecionado.inicialMinutos ?? brinquedoSelecionado.regrasCobranca?.inicialMinutos ?? parametros.valorInicialMinutos)
+									const iniMin = brinquedoParaCalculo
+										? (brinquedoParaCalculo.inicialMinutos ?? parametros.valorInicialMinutos)
 										: parametros.valorInicialMinutos
-									const valIni = brinquedoSelecionado
-										? Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais)
+									const valIni = brinquedoParaCalculo
+										? Number(brinquedoParaCalculo.valorInicial ?? parametros.valorInicialReais)
 										: (parametros.valorInicialReais || 0)
-									const temCiclos = temCiclosCobranca(brinquedoSelecionado as BrinquedoType, parametros)
+									const temCiclos = temCiclosCobranca(brinquedoParaCalculo as BrinquedoType, parametros)
 									const dentroInicial = iniMin != null && tempoTotal <= iniMin
 									if (temCiclos) {
 										return dentroInicial
@@ -517,7 +447,7 @@ export default function Lancamento() {
 						)}
 						{isModoQuantidade && brinquedoSelecionado && (
 							<span className="help" style={{ fontSize: '0.85rem' }}>
-								{form.quantidade} x R$ {(Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros?.valorInicialReais ?? 20)).toFixed(2)}
+								{form.quantidade} x R$ {(Number(brinquedoParaCalculo?.valorInicial ?? brinquedoSelecionado?.valorInicial ?? brinquedoSelecionado?.regrasCobranca?.valorInicial ?? parametros?.valorInicialReais ?? 20)).toFixed(2)}
 							</span>
 						)}
 					</div>
@@ -530,6 +460,126 @@ export default function Lancamento() {
 					</button>
 				</div>
 			</div>
+
+			{/* Modal Cadastrar Novo Cliente */}
+			{mostrarFormCliente && (
+				<div
+					style={{
+						position: 'fixed',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						background: 'rgba(0, 0, 0, 0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 1000,
+					}}
+					onClick={() => setMostrarFormCliente(false)}
+				>
+					<div
+						className="card"
+						style={{ maxWidth: 500, width: '90%', margin: 20 }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<h3 style={{ marginTop: 0, marginBottom: 16 }}>Cadastrar Novo Cliente</h3>
+						<div className="form two">
+							<label className="field">
+								<span>Nome Completo da Criança *</span>
+								<input
+									className="input"
+									value={formCliente.nomeCompleto}
+									onChange={(e) => setFormCliente({ ...formCliente, nomeCompleto: e.target.value })}
+									placeholder="Nome completo da criança"
+								/>
+							</label>
+							<label className="field">
+								<span>Data de Nascimento *</span>
+								<input
+									type="date"
+									className="input"
+									value={formCliente.dataNascimento}
+									onChange={(e) => setFormCliente({ ...formCliente, dataNascimento: e.target.value })}
+								/>
+							</label>
+							<label className="field">
+								<span>Nome do Pai</span>
+								<input
+									className="input"
+									value={formCliente.nomePai}
+									onChange={(e) => setFormCliente({ ...formCliente, nomePai: e.target.value })}
+									placeholder="Nome completo do pai"
+								/>
+							</label>
+							<label className="field">
+								<span>Nome da Mãe</span>
+								<input
+									className="input"
+									value={formCliente.nomeMae}
+									onChange={(e) => setFormCliente({ ...formCliente, nomeMae: e.target.value })}
+									placeholder="Nome completo da mãe"
+								/>
+							</label>
+							<label className="field" style={{ gridColumn: '1 / -1' }}>
+								<span>WhatsApp para Contato *</span>
+								<input
+									className="input"
+									value={formCliente.telefoneWhatsapp}
+									onChange={(e) => setFormCliente({ ...formCliente, telefoneWhatsapp: e.target.value })}
+									placeholder="5599999999999"
+								/>
+							</label>
+							<div className="actions" style={{ gridColumn: '1 / -1' }}>
+								<button className="btn" onClick={() => setMostrarFormCliente(false)}>
+									Cancelar
+								</button>
+								<button
+									className="btn primary"
+									onClick={async () => {
+										if (!formCliente.nomeCompleto.trim()) {
+											return alert('Informe o nome completo da criança')
+										}
+										if (!formCliente.dataNascimento) {
+											return alert('Informe a data de nascimento')
+										}
+										if (!formCliente.telefoneWhatsapp.trim()) {
+											return alert('Informe o WhatsApp para contato')
+										}
+										try {
+											const dataNascimentoISO = new Date(formCliente.dataNascimento + 'T00:00:00').toISOString()
+											const novoCliente = await clientesService.create({
+												nomeCompleto: formCliente.nomeCompleto.trim(),
+												dataNascimento: dataNascimentoISO,
+												nomePai: formCliente.nomePai.trim() || '',
+												nomeMae: formCliente.nomeMae.trim() || '',
+												telefoneWhatsapp: formCliente.telefoneWhatsapp.trim(),
+											})
+											const clientesData = await clientesService.list()
+											setClientes(clientesData)
+											selecionarCliente(novoCliente.id)
+											setFormCliente({
+												nomeCompleto: '',
+												dataNascimento: '',
+												nomePai: '',
+												nomeMae: '',
+												telefoneWhatsapp: '',
+											})
+											setMostrarFormCliente(false)
+											alert('Cliente cadastrado com sucesso!')
+										} catch (error) {
+											console.error('Erro ao cadastrar cliente:', error)
+											alert('Erro ao cadastrar cliente. Tente novamente.')
+										}
+									}}
+								>
+									💾 Cadastrar e Usar
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

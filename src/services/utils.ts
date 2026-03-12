@@ -33,17 +33,20 @@ function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, toler
 	return ciclosCompletos + 1
 }
 
+
 export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
 
 	// Se o brinquedo tem regras específicas, usa elas (API retorna campos diretos; mock pode ter regrasCobranca)
 	const regras = brinquedo?.regrasCobranca
 	const inicialMinutos = brinquedo?.inicialMinutos ?? regras?.inicialMinutos
-	const valorInicial = Number(brinquedo?.valorInicial ?? regras?.valorInicial)
+	const valorInicialRaw = brinquedo?.valorInicial ?? regras?.valorInicial
+	const valorInicial = typeof valorInicialRaw === 'number' ? valorInicialRaw : Number(valorInicialRaw)
 	const cicloMinutos = brinquedo?.cicloMinutos ?? regras?.cicloMinutos
 	const valorCiclo = Number(brinquedo?.valorCiclo ?? regras?.valorCiclo ?? 0)
 	const cicloToleranciaMinutos = brinquedo?.cicloToleranciaMinutos ?? regras?.cicloToleranciaMinutos ?? 0
 
+	// Brinquedo com valor fixo (taxa única) ou com regras próprias
 	if (inicialMinutos !== undefined && !Number.isNaN(valorInicial)) {
 		// Taxa única sem limite de tempo
 		if (inicialMinutos === null) {
