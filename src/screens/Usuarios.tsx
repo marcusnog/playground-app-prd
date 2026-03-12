@@ -28,6 +28,7 @@ type UsuarioAPI = {
 	parametrosBrinquedos?: boolean
 	clientes?: boolean
 	descontoAutorizado?: boolean
+	cortesia?: boolean
 }
 
 function apiUsuarioToForm(u: UsuarioAPI): Usuario {
@@ -54,6 +55,7 @@ function apiUsuarioToForm(u: UsuarioAPI): Usuario {
 			brinquedos: u.parametrosBrinquedos,
 		} : undefined,
 		clientes: u.clientes,
+		cortesia: u.cortesia,
 	}
 	return {
 		id: u.id,
@@ -96,6 +98,7 @@ function formToApiPayload(form: Partial<Usuario>, includeSenha: boolean) {
 		parametrosFormasPagamento: !!p?.parametros?.formasPagamento,
 		parametrosBrinquedos: !!p?.parametros?.brinquedos,
 		clientes: !!p?.clientes,
+		cortesia: !!p?.cortesia,
 	}
 	if (includeSenha && form.senha?.trim()) payload.senha = form.senha.trim()
 	return payload
@@ -430,6 +433,16 @@ export default function Usuarios() {
 								onChange={() => togglePermissao('descontoAutorizado')}
 							/>
 							<span>Autorizar desconto</span>
+						</label>
+
+						{/* Cortesia */}
+						<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+							<input 
+								type="checkbox" 
+								checked={!!form.permissoes?.cortesia}
+								onChange={() => togglePermissao('cortesia')}
+							/>
+							<span>Cortesia (gerar códigos)</span>
 						</label>
 
 						{/* Parâmetros */}

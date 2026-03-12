@@ -98,6 +98,12 @@ const endpoints = {
 		cancelar: (id: string) => `/api/estacionamentos/lancamentos/${id}/cancelar`,
 	},
 
+	// Cortesias
+	cortesias: {
+		gerar: '/api/cortesias/gerar',
+		validar: '/api/cortesias/validar',
+	},
+
 	// Relatórios
 	relatorios: {
 		vendas: '/api/relatorios/vendas',

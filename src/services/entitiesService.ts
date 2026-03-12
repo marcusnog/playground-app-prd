@@ -89,7 +89,7 @@ export const lancamentosService = {
 		return api.put<Lancamento>(endpoints.lancamentos.update(id), data)
 	},
 
-	pagar: async (id: string, formaPagamentoId: string, opts?: { valorCalculado?: number; valorDesconto?: number }): Promise<Lancamento> => {
+	pagar: async (id: string, formaPagamentoId: string, opts?: { valorCalculado?: number; valorDesconto?: number; codigoCortesia?: string }): Promise<Lancamento> => {
 		return api.post<Lancamento>(endpoints.lancamentos.pagar(id), { formaPagamentoId, ...opts })
 	},
 
@@ -168,6 +168,16 @@ export const formasPagamentoService = {
 
 	delete: async (id: string): Promise<void> => {
 		return api.delete(endpoints.formasPagamento.delete(id))
+	},
+}
+
+// Serviço de Cortesias
+export const cortesiasService = {
+	gerar: async (): Promise<{ codigo: string }> => {
+		return api.post<{ codigo: string }>(endpoints.cortesias.gerar)
+	},
+	validar: async (codigo: string): Promise<{ valido: boolean; codigo: string }> => {
+		return api.post<{ valido: boolean; codigo: string }>(endpoints.cortesias.validar, { codigo })
 	},
 }
 

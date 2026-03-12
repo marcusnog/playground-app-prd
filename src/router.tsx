@@ -30,6 +30,7 @@ import CaixaFechamentoEstacionamento from './screens/estacionamento/CaixaFechame
 import ReciboEstacionamentoPagamento from './screens/recibos/ReciboEstacionamentoPagamento'
 import ReciboEstacionamentoAbertura from './screens/recibos/ReciboEstacionamentoAbertura'
 import ReciboEstacionamentoFechamento from './screens/recibos/ReciboEstacionamentoFechamento'
+import Cortesia from './screens/Cortesia'
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
 	const { isAuthenticated, loading } = useAuth()
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
 			{ path: 'caixa/sangria', element: <Sangria /> },
 			{ path: 'caixa/suprimento', element: <Suprimento /> },
 			{ path: 'lancamento', element: <Lancamento /> },
+			{ path: 'cortesia', element: <Cortesia /> },
 			{ path: 'acompanhamento', element: <Acompanhamento /> },
 			{ path: 'relatorios', element: <Relatorios /> },
 			{ path: 'pagamento/:id', element: <Pagamento /> },

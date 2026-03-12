@@ -44,6 +44,7 @@ export function usePermissions() {
 				if (!param) return false
 				return !!(param.empresa || param.formasPagamento || param.brinquedos)
 			}
+			if (modulo === 'cortesia') return !!(user.permissoes as { cortesia?: boolean }).cortesia
 			return !!user.permissoes[modulo as keyof typeof user.permissoes]
 		}
 	}

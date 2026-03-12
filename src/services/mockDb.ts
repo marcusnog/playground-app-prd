@@ -112,6 +112,7 @@ export type PermissoesModulo = {
 	}
 	clientes?: boolean
 	descontoAutorizado?: boolean
+	cortesia?: boolean
 }
 
 export type Usuario = {

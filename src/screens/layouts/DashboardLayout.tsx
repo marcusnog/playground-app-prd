@@ -39,6 +39,7 @@ export default function DashboardLayout() {
 	else if (path.startsWith('/clientes')) pageTitle = 'Clientes'
 	else if (path.startsWith('/relatorios')) pageTitle = 'Relatórios'
 	else if (path.startsWith('/pagamento')) pageTitle = 'Pagamento'
+	else if (path.startsWith('/cortesia')) pageTitle = 'Cortesia'
 	else if (path.startsWith('/recibo')) pageTitle = 'Recibo'
 
 	useEffect(() => {
@@ -72,6 +73,14 @@ export default function DashboardLayout() {
 			})
 		}
 		
+		if (hasPermission('cortesia')) {
+			items.push({
+				label: 'Cortesia',
+				path: '/cortesia',
+				icon: '🎫'
+			})
+		}
+
 		if (hasPermission('lancamento')) {
 			items.push({
 				label: 'Lançamento',

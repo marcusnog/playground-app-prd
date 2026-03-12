@@ -17,6 +17,7 @@ export default function Pagamento() {
 	const [forma, setForma] = useState<string>('')
 	const [recebido, setRecebido] = useState<string>('')
 	const [desconto, setDesconto] = useState<string>('')
+	const [codigoCortesia, setCodigoCortesia] = useState<string>('')
 	const [saving, setSaving] = useState(false)
 	const [tick, setTick] = useState(0)
 	const [mostrarModalSupervisor, setMostrarModalSupervisor] = useState(false)
@@ -69,6 +70,11 @@ export default function Pagamento() {
 		return formaSelecionada.descricao.toLowerCase().includes('dinheiro')
 	}, [formaSelecionada])
 
+	const isCortesia = useMemo(() => {
+		if (!formaSelecionada) return false
+		return formaSelecionada.descricao.toLowerCase().includes('cortesia')
+	}, [formaSelecionada])
+
 	function minutosDecorridos(iso: string) {
 		const ms = Date.now() - new Date(iso).getTime()
 		return Math.floor(ms / 60000)
@@ -99,7 +105,18 @@ export default function Pagamento() {
 		if (!lanc || !forma) return
 		try {
 			setSaving(true)
-			const opts = { valorCalculado: valorFinal, ...(descontoNum > 0 && { valorDesconto: descontoNum }) }
+			const opts: { valorCalculado?: number; valorDesconto?: number; codigoCortesia?: string } = {
+				valorCalculado: valorFinal,
+				...(descontoNum > 0 && { valorDesconto: descontoNum }),
+			}
+			if (isCortesia) {
+				const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+				if (codigo.length !== 8) {
+					setSaving(false)
+					return alert('Informe o código de cortesia de 8 dígitos')
+				}
+				opts.codigoCortesia = codigo
+			}
 			await lancamentosService.pagar(lanc.id, forma, opts)
 			alert('Pagamento concluído. Gerando recibo...')
 			navigate(`/recibo/pagamento/${lanc.id}`)
@@ -113,6 +130,12 @@ export default function Pagamento() {
 
 	async function finalizar() {
 		if (!lanc || !forma) return
+		if (isCortesia) {
+			const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+			if (codigo.length !== 8) {
+				return alert('Informe o código de cortesia de 8 dígitos')
+			}
+		}
 		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
 			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
 		}
@@ -196,14 +219,30 @@ export default function Pagamento() {
 						<span>Forma de pagamento</span>
 						<div className="row center">
 							<PaymentIcon kind={resolvePaymentKind(forma)} />
-							<select className="select" value={forma} onChange={(e) => {
+							<select className="select" value={forma} 							onChange={(e) => {
 								setForma(e.target.value)
 								setRecebido('')
+								setCodigoCortesia('')
 							}}>
 								{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
 							</select>
 						</div>
 					</label>
+					{isCortesia && (
+						<label className="field">
+							<span>Código de Cortesia *</span>
+							<input 
+								className="input" 
+								type="text"
+								value={codigoCortesia}
+								onChange={(e) => setCodigoCortesia(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+								placeholder="8 dígitos"
+								maxLength={8}
+								style={{ fontFamily: 'monospace', letterSpacing: 2 }}
+							/>
+							<span className="help">Digite o código de 8 dígitos gerado na aba Cortesia</span>
+						</label>
+					)}
 					{isDinheiro && (
 						<>
 							<label className="field">
@@ -243,7 +282,7 @@ export default function Pagamento() {
 					<button 
 						className="btn primary icon" 
 						onClick={finalizar}
-						disabled={saving || !forma}
+						disabled={saving || !forma || (isCortesia && codigoCortesia.trim().replace(/[^A-Z0-9]/g, '').length !== 8)}
 					>
 						{saving ? 'Processando...' : '✅ Finalizar'}
 					</button>
