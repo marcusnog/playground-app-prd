@@ -595,7 +595,7 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 .badge.on { background: rgba(34,197,94,.15); border-color: var(--success); color: #86efac; }
 .badge.off { background: rgba(239,68,68,.15); border-color: var(--danger); color: #fecaca; }
 
-/* Print styles - impressora térmica Tanca TCP-650 (papel 80mm) - só em páginas com #recibo */
+/* Print styles - fallback quando janela dedicada não disponível (pop-up bloqueado) - impressora Tanca TCP-650 */
 @media print {
   @page {
     size: 80mm auto;
