@@ -595,7 +595,7 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 .badge.on { background: rgba(34,197,94,.15); border-color: var(--success); color: #86efac; }
 .badge.off { background: rgba(239,68,68,.15); border-color: var(--danger); color: #fecaca; }
 
-/* Print styles - formato Tranca TP650 (80mm, área útil ~72mm) */
+/* Print styles - formato Tranca TP650 (80mm, área útil ~72mm) - impressora térmica */
 @page {
   size: 80mm auto;
   margin: 0;
@@ -608,8 +608,16 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
     width: 80mm !important;
     min-width: 80mm !important;
     max-width: 80mm !important;
+    min-height: auto !important;
     background: white !important;
-    color: black !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .app-layout {
+    display: block !important;
+    min-height: auto !important;
+    position: static !important;
   }
   .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
   .main-content {
@@ -619,6 +627,8 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
     width: 80mm !important;
     min-width: 80mm !important;
     max-width: 80mm !important;
+    position: static !important;
+    min-height: auto !important;
   }
   .receipt {
     display: block !important;
@@ -626,9 +636,24 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
     max-width: 72mm !important;
     min-width: 72mm !important;
     margin: 0 auto !important;
-    padding: 8px 4px !important;
+    margin-top: 0 !important;
+    padding: 4px !important;
     box-sizing: border-box;
     border: none !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    position: relative !important;
+  }
+  .receipt * {
+    color: #000 !important;
+  }
+  .receipt h3,
+  .receipt div,
+  .receipt small {
+    font-weight: 600 !important;
   }
   .receipt img {
     max-width: 65mm !important;
@@ -642,13 +667,14 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
   width: 72mm;
   max-width: 72mm;
   margin: 0 auto;
-  font-size: 11px;
+  font-size: 12px;
   font-family: 'Courier New', Courier, monospace;
-  color: #111;
+  color: #000;
+  font-weight: 600;
   background: white;
   padding: 12px;
   border: 1px dashed #ddd;
   box-sizing: border-box;
 }
-.receipt h3 { margin: 0 0 6px; text-align: center; font-size: 12px; }
-.receipt hr { border: none; border-top: 1px dashed #ccc; margin: 6px 0; }
+.receipt h3 { margin: 0 0 6px; text-align: center; font-size: 14px; font-weight: 700; }
+.receipt hr { border: none; border-top: 2px solid #000; margin: 6px 0; }
