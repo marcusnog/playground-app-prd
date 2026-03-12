@@ -173,8 +173,8 @@ export const formasPagamentoService = {
 
 // Serviço de Cortesias
 export const cortesiasService = {
-	gerar: async (): Promise<{ codigo: string }> => {
-		return api.post<{ codigo: string }>(endpoints.cortesias.gerar)
+	gerar: async (params: { clienteId?: string; whatsappDestino?: string; validadeDias: number }): Promise<{ codigo: string; validadeDias: number }> => {
+		return api.post<{ codigo: string; validadeDias: number }>(endpoints.cortesias.gerar, params)
 	},
 	validar: async (codigo: string): Promise<{ valido: boolean; codigo: string }> => {
 		return api.post<{ valido: boolean; codigo: string }>(endpoints.cortesias.validar, { codigo })
