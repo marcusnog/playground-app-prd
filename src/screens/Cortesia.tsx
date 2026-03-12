@@ -138,14 +138,16 @@ export default function Cortesia() {
 							disabled={loadingClientes}
 						/>
 					) : (
-						<input
-							className="input"
-							type="tel"
-							value={whatsappManual}
-							onChange={(e) => setWhatsappManual(e.target.value.replace(/\D/g, '').slice(0, 15))}
-							placeholder="Ex: 5511999999999"
-						/>
-						<span className="help">DDD + número sem espaços</span>
+						<>
+							<input
+								className="input"
+								type="tel"
+								value={whatsappManual}
+								onChange={(e) => setWhatsappManual(e.target.value.replace(/\D/g, '').slice(0, 15))}
+								placeholder="Ex: 5511999999999"
+							/>
+							<span className="help">DDD + número sem espaços</span>
+						</>
 					)}
 				</div>
 
