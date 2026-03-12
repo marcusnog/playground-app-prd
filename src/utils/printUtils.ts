@@ -23,7 +23,7 @@ html, body {
   background: white;
   color: #000;
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 body { padding: 2mm; }
@@ -34,7 +34,7 @@ body { padding: 2mm; }
   padding: 0 !important;
   position: static !important;
 }
-.receipt h3, #recibo h3 { margin: 0 0 6px; text-align: center; font-size: 14px; font-weight: 700; }
+.receipt h3, #recibo h3 { margin: 0 0 6px; text-align: center; font-size: 15px; font-weight: 700; }
 .receipt hr, #recibo hr { border: none; border-top: 2px solid #000; margin: 6px 0; }
 .receipt img, #recibo img { max-width: 6.6cm; height: auto; display: block; margin: 0 auto; }
 .receipt *, #recibo * { color: #000; }

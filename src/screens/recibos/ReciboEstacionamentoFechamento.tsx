@@ -118,9 +118,9 @@ export default function ReciboEstacionamentoFechamento() {
 
 			<div><strong>Total de Vendas:</strong> R$ {totalVendas.toFixed(2)}</div>
 			{resumo.length > 0 && (
-				<div style={{ marginLeft: 8, fontSize: '0.9em', marginTop: 4 }}>
+				<div style={{ marginLeft: 8, marginTop: 4 }}>
 					{resumo.map(([forma, total]) => (
-						<div key={forma} style={{ display: 'flex', justifyContent: 'space-between' }}>
+						<div key={forma} style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
 							<span><PaymentIcon kind={resolvePaymentKind(forma)} /> {forma}:</span>
 							<span>R$ {total.toFixed(2)}</span>
 						</div>
@@ -128,16 +128,16 @@ export default function ReciboEstacionamentoFechamento() {
 				</div>
 			)}
 
-			<div style={{ color: 'var(--danger)' }}><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
-			<div style={{ color: 'var(--success)' }}><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
+			<div><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
+			<div><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
 
 			<hr />
-			<div style={{ fontSize: '1.1em', fontWeight: 'bold', marginTop: 8 }}>
+			<div style={{ fontSize: '1.15em', fontWeight: 700, marginTop: 8 }}>
 				<strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong>
 			</div>
 
 			<hr />
-			<small>Comprovante de fechamento de caixa gerado automaticamente.</small>
+			<div style={{ fontWeight: 600 }}>Comprovante de fechamento de caixa gerado automaticamente.</div>
 		</div>
 	)
 }
