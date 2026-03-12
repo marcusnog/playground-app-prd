@@ -112,7 +112,6 @@ export const router = createBrowserRouter([
 			{ path: 'acompanhamento', element: <Acompanhamento /> },
 			{ path: 'relatorios', element: <Relatorios /> },
 			{ path: 'pagamento/:id', element: <Pagamento /> },
-			{ path: 'lancamento/:id', element: <ReciboLancamento /> },
 			{ path: 'recibo/lancamento/:id', element: <ReciboLancamento /> },
 			{ path: 'recibo/pagamento/:id', element: <ReciboPagamento /> },
 			{ path: 'recibo/abertura/:id', element: <ReciboAbertura /> },
