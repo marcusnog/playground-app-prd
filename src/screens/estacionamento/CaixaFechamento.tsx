@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { estacionamentosService, caixasService, lancamentosEstacionamentoService, formasPagamentoService } from '../../services/entitiesService'
+import { estacionamentosService, caixasService, lancamentosEstacionamentoService, formasPagamentoService, parametrosService } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -11,12 +11,16 @@ export default function CaixaFechamento() {
 	const [lancamentos, setLancamentos] = useState<Awaited<ReturnType<typeof lancamentosEstacionamentoService.list>>>([])
 	const [formasPagamento, setFormasPagamento] = useState<Awaited<ReturnType<typeof formasPagamentoService.list>>>([])
 	const [estacionamentoSelecionado, setEstacionamentoSelecionado] = useState<string>('')
+	const [params, setParams] = useState<{ empresaNome?: string; empresaCnpj?: string } | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [saving, setSaving] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const navigate = useNavigate()
 	const { hasPermission } = usePermissions()
 
+	useEffect(() => {
+		parametrosService.get().then(p => setParams(p))
+	}, [])
 	useEffect(() => {
 		async function load() {
 			try {
@@ -129,7 +133,30 @@ export default function CaixaFechamento() {
 	}
 
 	function imprimir() {
-		imprimirRecibo()
+		if (!caixaEstacionamento || !estacionamento) return
+		const p = params || {}
+		const resumoComNomes = resumo.map(([formaId, total]) => [formasMap.get(formaId) || formaId, total] as [string, number])
+		const dataAberturaStr = caixaEstacionamento.data ? new Date(caixaEstacionamento.data).toLocaleString('pt-BR') : '-'
+		const html = `
+			<h3>${p.empresaNome || 'Comprovante'}</h3>
+			${p.empresaCnpj ? `<div style="text-align:center;margin-bottom:8px">CNPJ: ${p.empresaCnpj}</div>` : ''}
+			<div>Comprovante de Fechamento de Caixa - Estacionamento</div>
+			<div>Estacionamento: ${estacionamento.nome}</div>
+			<div>Caixa: ${caixaEstacionamento.nome}</div>
+			<div>Data/Hora Abertura: ${dataAberturaStr}</div>
+			<div>Data/Hora Fechamento: -</div>
+			<div>Valor Inicial: R$ ${caixaEstacionamento.valorInicial.toFixed(2)}</div>
+			<hr />
+			<div>Total de Vendas: R$ ${totalVendas.toFixed(2)}</div>
+			${resumoComNomes.map(([forma, total]) => `<div>${forma}: R$ ${total.toFixed(2)}</div>`).join('')}
+			<div>Sangrias: - R$ ${totalSangrias.toFixed(2)}</div>
+			<div>Suprimentos: + R$ ${totalSuprimentos.toFixed(2)}</div>
+			<hr />
+			<div><strong>SALDO FINAL: R$ ${saldoFinal.toFixed(2)}</strong></div>
+			<hr />
+			<div>Comprovante de fechamento de caixa gerado automaticamente.</div>
+		`
+		imprimirRecibo(html)
 	}
 
 	if (loading) {

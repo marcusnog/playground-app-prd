@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCaixa } from '../../hooks/useCaixa'
-import { caixasService, lancamentosService, formasPagamentoService, brinquedosService } from '../../services/entitiesService'
+import { caixasService, lancamentosService, formasPagamentoService, brinquedosService, parametrosService } from '../../services/entitiesService'
 import { imprimirRecibo } from '../../utils/printUtils'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
@@ -11,6 +11,7 @@ export default function Fechamento() {
 	const navigate = useNavigate()
 	const { hasPermission, canUseCaixa, user } = usePermissions()
 	const [loading, setLoading] = useState(false)
+	const [params, setParams] = useState<{ empresaNome?: string; empresaCnpj?: string } | null>(null)
 	const [lancamentos, setLancamentos] = useState<any[]>([])
 	const [formasPagamento, setFormasPagamento] = useState<any[]>([])
 	const [brinquedos, setBrinquedos] = useState<any[]>([])
@@ -46,6 +47,9 @@ export default function Fechamento() {
 		[caixasPermitidos, selectedId]
 	)
 
+	useEffect(() => {
+		parametrosService.get().then(p => setParams(p))
+	}, [])
 	useEffect(() => {
 		async function loadData() {
 			if (!selectedCaixa) return
@@ -192,8 +196,39 @@ export default function Fechamento() {
 		}
 	}
 
+	const sangriasList = useMemo(() => {
+		if (!selectedCaixa?.movimentos) return []
+		return selectedCaixa.movimentos
+			.filter((m: { tipo: string }) => m.tipo === 'sangria')
+			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+	}, [selectedCaixa])
+
 	function imprimir() {
-		imprimirRecibo()
+		if (!selectedCaixa) return
+		const p = params || {}
+		const dataAberturaStr = selectedCaixa.data ? new Date(selectedCaixa.data).toLocaleString('pt-BR') : '-'
+		const html = `
+			<h3>${p.empresaNome || 'Comprovante'}</h3>
+			${p.empresaCnpj ? `<div style="text-align:center;margin-bottom:8px">CNPJ: ${p.empresaCnpj}</div>` : ''}
+			<div>Comprovante de Fechamento de Caixa</div>
+			<div>Caixa: ${selectedCaixa.nome}</div>
+			<div>Data/Hora Abertura: ${dataAberturaStr}</div>
+			<div>Data/Hora Fechamento: -</div>
+			<div>Valor Inicial: R$ ${selectedCaixa.valorInicial.toFixed(2)}</div>
+			<hr />
+			<div>Total de Vendas: R$ ${totalVendas.toFixed(2)}</div>
+			${resumo.map(([forma, total]) => `<div>${forma}: R$ ${total.toFixed(2)}</div>`).join('')}
+			<div>Sangrias: - R$ ${totalSangrias.toFixed(2)}</div>
+			${sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) =>
+				`<div>${new Date(m.dataHora).toLocaleString('pt-BR')} - ${m.motivo || '-'}: - R$ ${m.valor.toFixed(2)}</div>`
+			).join('')}
+			<div>Suprimentos: + R$ ${totalSuprimentos.toFixed(2)}</div>
+			<hr />
+			<div><strong>SALDO FINAL: R$ ${saldoFinal.toFixed(2)}</strong></div>
+			<hr />
+			<div>Comprovante de fechamento de caixa gerado automaticamente.</div>
+		`
+		imprimirRecibo(html)
 	}
 
 	return (

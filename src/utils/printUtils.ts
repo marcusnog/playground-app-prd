@@ -52,17 +52,20 @@ function toAbsoluteUrl(src: string): string {
 	}
 }
 
-/** Garante impressão só após renderização completa. Usa iframe (evita bloqueio de pop-up) para recibo - impressora térmica Tanca TCP-650. */
-export function imprimirRecibo() {
+/** Garante impressão só após renderização completa. Usa iframe (evita bloqueio de pop-up) para recibo - impressora térmica Tanca TCP-650.
+ * @param html Conteúdo HTML opcional do recibo. Se não informado, usa o elemento #recibo da página. */
+export function imprimirRecibo(html?: string) {
 	setTimeout(() => {
-		const recibo = document.getElementById('recibo')
-		if (!recibo) {
-			window.print()
-			return
+		let content = html
+		if (content == null) {
+			const recibo = document.getElementById('recibo')
+			if (!recibo) {
+				window.print()
+				return
+			}
+			content = recibo.innerHTML
 		}
-
-		let html = recibo.innerHTML
-		html = html.replace(/<img([^>]*)src="([^"]*)"/gi, (_m, attrs, src) => `<img${attrs}src="${toAbsoluteUrl(src)}"`)
+		content = content.replace(/<img([^>]*)src="([^"]*)"/gi, (_m, attrs, src) => `<img${attrs}src="${toAbsoluteUrl(src)}"`)
 
 		const iframe = document.createElement('iframe')
 		iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden'
@@ -76,7 +79,7 @@ export function imprimirRecibo() {
 		}
 
 		doc.open()
-		doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo</title><style>${RECEIPT_PRINT_STYLES}</style></head><body><div id="recibo" class="receipt">${html}</div></body></html>`)
+		doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo</title><style>${RECEIPT_PRINT_STYLES}</style></head><body><div id="recibo" class="receipt">${content}</div></body></html>`)
 		doc.close()
 
 		const printFrame = () => {
