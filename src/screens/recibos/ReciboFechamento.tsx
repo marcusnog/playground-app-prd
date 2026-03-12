@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { caixasService, parametrosService, lancamentosService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
-import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboFechamento() {
@@ -93,55 +92,31 @@ export default function ReciboFechamento() {
 	const p = (params ?? {}) as Parametros
 	return (
 		<div id="recibo" className="receipt">
-			{p.empresaLogoUrl ? (
-				<div style={{ textAlign: 'center' }}>
-					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
-				</div>
-			) : null}
 			<h3>{p.empresaNome || 'Comprovante'}</h3>
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
-			<div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: 12, marginBottom: 12 }}>
-				COMPROVANTE DE FECHAMENTO DE CAIXA
-			</div>
-
-			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div><strong>Data/Hora de Abertura:</strong> {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
-			<div><strong>Data/Hora de Fechamento:</strong> {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
-			<div><strong>Valor Inicial:</strong> R$ {caixa.valorInicial.toFixed(2)}</div>
+			<div>Comprovante de Fechamento de Caixa</div>
+			<div>Caixa: {caixa.nome}</div>
+			<div>Data/Hora Abertura: {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
+			<div>Data/Hora Fechamento: {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
+			<div>Valor Inicial: R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />
 
-			<div><strong>Total de Vendas:</strong> R$ {totalVendas.toFixed(2)}</div>
-			{resumo.length > 0 && (
-				<div style={{ marginLeft: 8, marginTop: 4 }}>
-					{resumo.map(([forma, total]) => (
-						<div key={forma} style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-							<span><PaymentIcon kind={resolvePaymentKind(forma)} /> {forma}:</span>
-							<span>R$ {total.toFixed(2)}</span>
-						</div>
-					))}
-				</div>
-			)}
+			<div>Total de Vendas: R$ {totalVendas.toFixed(2)}</div>
+			{resumo.map(([forma, total]) => (
+				<div key={forma}>{forma}: R$ {total.toFixed(2)}</div>
+			))}
 
-			<div><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
-			{sangriasList.length > 0 && (
-				<div style={{ marginLeft: 8, marginTop: 4, marginBottom: 8 }}>
-					{sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) => (
-						<div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontWeight: 600 }}>
-							<span>{new Date(m.dataHora).toLocaleString('pt-BR')} - {m.motivo || '-'}</span>
-							<span>- R$ {m.valor.toFixed(2)}</span>
-						</div>
-					))}
-				</div>
-			)}
-			<div><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
+			<div>Sangrias: - R$ {totalSangrias.toFixed(2)}</div>
+			{sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) => (
+				<div key={m.id}>{new Date(m.dataHora).toLocaleString('pt-BR')} - {m.motivo || '-'}: - R$ {m.valor.toFixed(2)}</div>
+			))}
+			<div>Suprimentos: + R$ {totalSuprimentos.toFixed(2)}</div>
 
 			<hr />
-			<div style={{ fontSize: '1.15em', fontWeight: 700, marginTop: 8 }}>
-				<strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong>
-			</div>
+			<div><strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong></div>
 
 			<hr />
-			<div style={{ fontWeight: 600 }}>Comprovante de fechamento de caixa gerado automaticamente.</div>
+			<div>Comprovante de fechamento de caixa gerado automaticamente.</div>
 		</div>
 	)
 }

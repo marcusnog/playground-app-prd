@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { caixasService, parametrosService, estacionamentosService, lancamentosEstacionamentoService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
-import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboEstacionamentoFechamento() {
@@ -98,46 +97,29 @@ export default function ReciboEstacionamentoFechamento() {
 	const p = (params ?? {}) as Parametros
 	return (
 		<div id="recibo" className="receipt">
-			{p.empresaLogoUrl ? (
-				<div style={{ textAlign: 'center' }}>
-					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
-				</div>
-			) : null}
 			<h3>{p.empresaNome || 'Comprovante'}</h3>
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
-			<div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: 12, marginBottom: 12 }}>
-				COMPROVANTE DE FECHAMENTO DE CAIXA - ESTACIONAMENTO
-			</div>
-
-			{estacionamento && <div><strong>Estacionamento:</strong> {estacionamento.nome}</div>}
-			<div><strong>Caixa:</strong> {caixa.nome}</div>
-			<div><strong>Data/Hora de Abertura:</strong> {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
-			<div><strong>Data/Hora de Fechamento:</strong> {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
-			<div><strong>Valor Inicial:</strong> R$ {caixa.valorInicial.toFixed(2)}</div>
+			<div>Comprovante de Fechamento de Caixa - Estacionamento</div>
+			{estacionamento && <div>Estacionamento: {estacionamento.nome}</div>}
+			<div>Caixa: {caixa.nome}</div>
+			<div>Data/Hora Abertura: {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
+			<div>Data/Hora Fechamento: {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
+			<div>Valor Inicial: R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />
 
-			<div><strong>Total de Vendas:</strong> R$ {totalVendas.toFixed(2)}</div>
-			{resumo.length > 0 && (
-				<div style={{ marginLeft: 8, marginTop: 4 }}>
-					{resumo.map(([forma, total]) => (
-						<div key={forma} style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-							<span><PaymentIcon kind={resolvePaymentKind(forma)} /> {forma}:</span>
-							<span>R$ {total.toFixed(2)}</span>
-						</div>
-					))}
-				</div>
-			)}
+			<div>Total de Vendas: R$ {totalVendas.toFixed(2)}</div>
+			{resumo.map(([forma, total]) => (
+				<div key={forma}>{forma}: R$ {total.toFixed(2)}</div>
+			))}
 
-			<div><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
-			<div><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
+			<div>Sangrias: - R$ {totalSangrias.toFixed(2)}</div>
+			<div>Suprimentos: + R$ {totalSuprimentos.toFixed(2)}</div>
 
 			<hr />
-			<div style={{ fontSize: '1.15em', fontWeight: 700, marginTop: 8 }}>
-				<strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong>
-			</div>
+			<div><strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong></div>
 
 			<hr />
-			<div style={{ fontWeight: 600 }}>Comprovante de fechamento de caixa gerado automaticamente.</div>
+			<div>Comprovante de fechamento de caixa gerado automaticamente.</div>
 		</div>
 	)
 }
