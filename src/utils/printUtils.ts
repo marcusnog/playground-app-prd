@@ -1,29 +1,38 @@
-/** Estilos para impressão térmica Tanca TCP-650 (papel 80mm) */
+/** Estilos para impressão - 8cm largura x 7cm altura */
 const RECEIPT_PRINT_STYLES = `
 @media print {
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: 8cm 7cm; margin: 0; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
-  width: 80mm;
+  width: 8cm;
   margin: 0;
   padding: 0;
+  height: auto;
+  min-height: 0;
   background: white;
   color: #000;
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
   font-weight: 600;
 }
-body { padding: 4mm; }
+body { padding: 2mm; }
 .receipt, #recibo {
-  width: 72mm;
-  max-width: 72mm;
-  margin: 0;
-  padding: 0;
+  width: 7.6cm;
+  max-width: 7.6cm;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: static !important;
 }
 .receipt h3, #recibo h3 { margin: 0 0 6px; text-align: center; font-size: 14px; font-weight: 700; }
 .receipt hr, #recibo hr { border: none; border-top: 2px solid #000; margin: 6px 0; }
-.receipt img, #recibo img { max-width: 65mm; height: auto; display: block; margin: 0 auto; }
+.receipt img, #recibo img { max-width: 7cm; height: auto; display: block; margin: 0 auto; }
 .receipt *, #recibo * { color: #000; }
 `
 
@@ -39,7 +48,7 @@ function toAbsoluteUrl(src: string): string {
 	}
 }
 
-/** Garante impressão só após renderização completa. Usa janela dedicada para recibo (impressora térmica Tanca TCP-650). */
+/** Garante impressão só após renderização completa. Usa iframe (evita bloqueio de pop-up) para recibo - impressora térmica Tanca TCP-650. */
 export function imprimirRecibo() {
 	setTimeout(() => {
 		const recibo = document.getElementById('recibo')
@@ -48,34 +57,39 @@ export function imprimirRecibo() {
 			return
 		}
 
-		const win = window.open('', '_blank', 'width=300,height=400')
-		if (!win) {
+		let html = recibo.innerHTML
+		html = html.replace(/<img([^>]*)src="([^"]*)"/gi, (_m, attrs, src) => `<img${attrs}src="${toAbsoluteUrl(src)}"`)
+
+		const iframe = document.createElement('iframe')
+		iframe.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden'
+		document.body.appendChild(iframe)
+
+		const doc = iframe.contentDocument || iframe.contentWindow?.document
+		if (!doc) {
+			document.body.removeChild(iframe)
 			window.print()
 			return
 		}
 
-		let html = recibo.innerHTML
-		html = html.replace(/<img([^>]*)src="([^"]*)"/gi, (_m, attrs, src) => `<img${attrs}src="${toAbsoluteUrl(src)}"`)
+		doc.open()
+		doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo</title><style>${RECEIPT_PRINT_STYLES}</style></head><body><div id="recibo" class="receipt">${html}</div></body></html>`)
+		doc.close()
 
-		const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo</title><style>${RECEIPT_PRINT_STYLES}</style></head><body><div id="recibo" class="receipt">${html}</div></body></html>`
-		win.document.open()
-		win.document.write(doc)
-		win.document.close()
-
-		const doPrint = () => {
-			win.focus()
-			win.print()
-			const closeAfterPrint = () => {
-				win.close()
+		const printFrame = () => {
+			try {
+				iframe.contentWindow?.focus()
+				iframe.contentWindow?.print()
+			} finally {
+				setTimeout(() => {
+					document.body.removeChild(iframe)
+				}, 500)
 			}
-			win.onafterprint = closeAfterPrint
-			setTimeout(closeAfterPrint, 1000)
 		}
 
-		if (win.document.readyState === 'complete') {
-			setTimeout(doPrint, 100)
+		if (iframe.contentDocument?.readyState === 'complete') {
+			setTimeout(printFrame, 400)
 		} else {
-			win.onload = () => setTimeout(doPrint, 100)
+			iframe.onload = () => setTimeout(printFrame, 400)
 		}
 	}, 300)
 }
