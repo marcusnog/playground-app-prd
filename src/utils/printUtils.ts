@@ -1,5 +1,9 @@
-/** Estilos para impressão - 7cm largura x 8cm altura (retrato) */
+/** Estilos para impressão - 7cm largura x 8cm altura (retrato) - cores escuras para boa visibilidade em impressora térmica */
 const RECEIPT_PRINT_STYLES = `
+:root {
+  --danger: #000;
+  --success: #000;
+}
 @media print {
   @page { size: 7cm 8cm; margin: 0; }
   html, body {
