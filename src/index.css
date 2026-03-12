@@ -595,75 +595,80 @@ tbody tr:hover { background: rgba(255,255,255,.04); }
 .badge.on { background: rgba(34,197,94,.15); border-color: var(--success); color: #86efac; }
 .badge.off { background: rgba(239,68,68,.15); border-color: var(--danger); color: #fecaca; }
 
-/* Print styles - impressora térmica 80mm (altura auto = 1 página, evita excesso de papel) */
-@page {
-  size: 80mm auto;
-  margin: 0;
-}
-
+/* Print styles - impressora térmica Tanca TCP-650 (papel 80mm) - só em páginas com #recibo */
 @media print {
-  /* 1. Reset total: sem height/min-height que criem espaço em branco */
-  html, body, #root, #root > * {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  /* Aplicar layout 80mm apenas quando há recibo na página */
+  body:has(#recibo) {
+    width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 80mm !important;
-    min-width: 80mm !important;
-    max-width: 80mm !important;
+    background: white !important;
     height: auto !important;
     min-height: 0 !important;
-    background: white !important;
-    color: #000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  /* 2. Esconder todo o layout: sidebar, header, etc */
-  .mobile-header, .sidebar, .sidebar-overlay, .btn, nav, .page { display: none !important; }
-  /* 3. app-layout e main-content: sem altura mínima, conteúdo no topo */
-  .app-layout {
-    display: block !important;
-    min-height: 0 !important;
-    height: auto !important;
-  }
-  .main-content {
-    display: block !important;
+  html:has(#recibo) {
+    width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 80mm !important;
-    min-width: 80mm !important;
-    max-width: 80mm !important;
-    min-height: 0 !important;
-    height: auto !important;
   }
-  /* 4. Recibo no topo, fluxo normal */
+
+  /* Esconde tudo exceto o recibo (apenas páginas de recibo) */
+  body:has(#recibo) * {
+    visibility: hidden !important;
+  }
+  body:has(#recibo) #recibo,
+  body:has(#recibo) #recibo * {
+    visibility: visible !important;
+  }
+
+  /* Sobrescreve propriedades que empurram conteúdo para baixo */
+  #recibo,
+  #recibo *,
+  #recibo .receipt {
+    height: auto !important;
+    min-height: unset !important;
+    max-height: none !important;
+  }
+  #recibo,
   .receipt {
+    position: static !important;
+    top: unset !important;
+    bottom: unset !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    padding: 4mm !important;
+    padding-top: 4mm !important;
     display: block !important;
-    width: 72mm !important;
-    max-width: 72mm !important;
-    min-width: 72mm !important;
-    margin: 0 auto !important;
-    padding: 4px !important;
-    box-sizing: border-box;
+    align-items: unset !important;
+    justify-content: unset !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  #recibo {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    box-sizing: border-box !important;
     border: none !important;
     color: #000 !important;
     font-weight: 600 !important;
     font-size: 12px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
   }
-  .receipt * {
+  #recibo * {
     color: #000 !important;
   }
-  .receipt h3,
-  .receipt div,
-  .receipt small {
-    font-weight: 600 !important;
-  }
-  .receipt img {
+  #recibo img {
     max-width: 65mm !important;
     height: auto !important;
   }
   .no-print { display: none !important; }
-  .card { break-inside: avoid; page-break-inside: avoid; }
 }
 
 .receipt {

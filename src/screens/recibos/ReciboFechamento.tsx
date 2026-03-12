@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { caixasService, parametrosService, lancamentosService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
+import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboFechamento() {
 	const { id } = useParams()
@@ -41,7 +42,7 @@ export default function ReciboFechamento() {
 	}, [id])
 
 	useEffect(() => {
-		if (!loading && caixa) setTimeout(() => window.print(), 300)
+		if (!loading && caixa) imprimirRecibo()
 	}, [loading, caixa])
 
 	const resumo = useMemo(() => {
@@ -86,12 +87,12 @@ export default function ReciboFechamento() {
 	const dataAberturaStr = caixa && (typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data)
 	const dataFechamentoStr = caixa && (caixa as { updatedAt?: string }).updatedAt
 
-	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
-	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
+	if (loading) return <div id="recibo" className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
+	if (!caixa) return <div id="recibo" className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
 	return (
-		<div className="receipt">
+		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
 					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />

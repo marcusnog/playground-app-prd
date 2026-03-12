@@ -3,6 +3,7 @@ import { estacionamentosService, caixasService, lancamentosEstacionamentoService
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
+import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function CaixaFechamento() {
 	const [estacionamentos, setEstacionamentos] = useState<Awaited<ReturnType<typeof estacionamentosService.list>>>([])
@@ -128,7 +129,7 @@ export default function CaixaFechamento() {
 	}
 
 	function imprimir() {
-		window.print()
+		imprimirRecibo()
 	}
 
 	if (loading) {

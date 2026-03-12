@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosService, parametrosService } from '../../services/entitiesService'
+import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboLancamento() {
 	const { id } = useParams()
@@ -34,18 +35,18 @@ export default function ReciboLancamento() {
 	}, [id as string])
 
 	useEffect(() => {
-		if (!loading && lanc) setTimeout(() => window.print(), 300)
+		if (!loading && lanc) imprimirRecibo()
 	}, [loading, lanc])
 
-	if (loading) return <div className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
-	if (!lanc) return <div className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
+	if (loading) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
+	if (!lanc) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
 	type ParametrosReceipt = { empresaLogoUrl?: string; empresaNome?: string; empresaCnpj?: string }
 	const p: ParametrosReceipt = params || {}
 	const brinquedoNome = (lanc as { brinquedo?: { nome?: string } }).brinquedo?.nome || null
 	const contato = (lanc as { whatsappResponsavel?: string }).whatsappResponsavel
 	return (
-		<div className="receipt">
+		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
 					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />

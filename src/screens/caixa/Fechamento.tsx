@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCaixa } from '../../hooks/useCaixa'
 import { caixasService, lancamentosService, formasPagamentoService, brinquedosService } from '../../services/entitiesService'
+import { imprimirRecibo } from '../../utils/printUtils'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -192,7 +193,7 @@ export default function Fechamento() {
 	}
 
 	function imprimir() {
-		window.print()
+		imprimirRecibo()
 	}
 
 	return (

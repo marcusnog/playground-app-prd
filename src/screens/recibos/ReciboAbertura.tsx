@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { imprimirRecibo } from '../../utils/printUtils'
 import { caixasService, parametrosService, type Parametros } from '../../services/entitiesService'
 
 export default function ReciboAbertura() {
@@ -34,16 +35,16 @@ export default function ReciboAbertura() {
 	}, [id])
 
 	useEffect(() => {
-		if (!loading && caixa) setTimeout(() => window.print(), 300)
+		if (!loading && caixa) imprimirRecibo()
 	}, [loading, caixa])
 
-	if (loading) return <div className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
-	if (!caixa) return <div className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
+	if (loading) return <div id="recibo" className="receipt"><h3>Comprovante</h3><div>Carregando...</div></div>
+	if (!caixa) return <div id="recibo" className="receipt"><h3>Comprovante</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
 	const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data ?? new Date().toISOString()
 	return (
-		<div className="receipt">
+		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
 					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />

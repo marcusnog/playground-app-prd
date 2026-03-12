@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosEstacionamentoService, estacionamentosService, parametrosService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
+import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboEstacionamentoPagamento() {
 	const { id } = useParams()
@@ -43,11 +44,11 @@ export default function ReciboEstacionamentoPagamento() {
 	}, [id])
 
 	useEffect(() => {
-		if (!loading && lanc) setTimeout(() => window.print(), 300)
+		if (!loading && lanc) imprimirRecibo()
 	}, [loading, lanc])
 
-	if (loading) return <div className="receipt"><h3>Cupom</h3><div>Carregando...</div></div>
-	if (!lanc) return <div className="receipt"><h3>Cupom</h3><div>Registro não encontrado</div></div>
+	if (loading) return <div id="recibo" className="receipt"><h3>Cupom</h3><div>Carregando...</div></div>
+	if (!lanc) return <div id="recibo" className="receipt"><h3>Cupom</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
 	const forma = lanc.formaPagamentoId ? formas.find(f => f.id === lanc.formaPagamentoId) : null
@@ -57,7 +58,7 @@ export default function ReciboEstacionamentoPagamento() {
 
 	const dataHora = typeof lanc.dataHora === 'string' ? lanc.dataHora : (lanc as { dataHora?: string }).dataHora ?? new Date().toISOString()
 	return (
-		<div className="receipt">
+		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
 					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />

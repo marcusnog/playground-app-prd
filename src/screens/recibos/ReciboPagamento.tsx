@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosService, parametrosService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
+import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboPagamento() {
 	const { id } = useParams()
@@ -38,11 +39,11 @@ export default function ReciboPagamento() {
 	}, [id])
 
 	useEffect(() => {
-		if (!loading && lanc) setTimeout(() => window.print(), 300)
+		if (!loading && lanc) imprimirRecibo()
 	}, [loading, lanc])
 
-	if (loading) return <div className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
-	if (!lanc) return <div className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
+	if (loading) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Carregando...</div></div>
+	if (!lanc) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
 	const formaId = (lanc as { formaPagamentoId?: string }).formaPagamentoId
@@ -52,7 +53,7 @@ export default function ReciboPagamento() {
 		: ''
 
 	return (
-		<div className="receipt">
+		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
 				<div style={{ textAlign: 'center' }}>
 					<img alt="logo" src={p.empresaLogoUrl} style={{ height: 40, objectFit: 'contain' }} />
