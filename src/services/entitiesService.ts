@@ -89,7 +89,16 @@ export const lancamentosService = {
 		return api.put<Lancamento>(endpoints.lancamentos.update(id), data)
 	},
 
-	pagar: async (id: string, formaPagamentoId: string, opts?: { valorCalculado?: number; valorDesconto?: number; codigoCortesia?: string }): Promise<Lancamento> => {
+	pagar: async (
+		id: string,
+		formaPagamentoId: string,
+		opts?: {
+			valorCalculado?: number
+			valorDesconto?: number
+			codigoCortesia?: string
+			pagamentos?: Array<{ formaPagamentoId: string; valor: number }>
+		}
+	): Promise<Lancamento> => {
 		return api.post<Lancamento>(endpoints.lancamentos.pagar(id), { formaPagamentoId, ...opts })
 	},
 

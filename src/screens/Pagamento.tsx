@@ -148,7 +148,6 @@ export default function Pagamento() {
 					...(descontoNum > 0 && { valorDesconto: descontoNum }),
 					pagamentos: linhas.map(l => ({ formaPagamentoId: l.formaId, valor: l.valorNum })),
 				}
-				// @ts-expect-error backend accepts pagamentos in body; service forwards it
 				await lancamentosService.pagar(lanc.id, linhas[0].formaId, opts)
 			}
 			alert('Pagamento concluído. Gerando recibo...')
