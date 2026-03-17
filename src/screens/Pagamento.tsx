@@ -6,6 +6,8 @@ import { calcularValor, temCiclosCobranca } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
 import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
 
+type PagamentoLinha = { id: string; formaId: string; valor: string }
+
 export default function Pagamento() {
 	const { id } = useParams()
 	const navigate = useNavigate()
@@ -14,7 +16,8 @@ export default function Pagamento() {
 	const [parametros, setParametros] = useState<ParametrosType | null>(null)
 	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
 	const [loading, setLoading] = useState(true)
-	const [forma, setForma] = useState<string>('')
+	const [forma, setForma] = useState<string>('') // compat: forma única (cortesia)
+	const [pagamentos, setPagamentos] = useState<PagamentoLinha[]>([])
 	const [recebido, setRecebido] = useState<string>('')
 	const [desconto, setDesconto] = useState<string>('')
 	const [codigoCortesia, setCodigoCortesia] = useState<string>('')
@@ -47,6 +50,7 @@ export default function Pagamento() {
 				setFormas(formasAtivas)
 				if (formasAtivas.length > 0) {
 					setForma(formasAtivas[0].id)
+					setPagamentos([{ id: crypto.randomUUID(), formaId: formasAtivas[0].id, valor: '' }])
 				}
 			} catch (error) {
 				console.error('Erro ao carregar dados:', error)
@@ -64,6 +68,13 @@ export default function Pagamento() {
 		formas.find(f => f.id === forma),
 		[forma, formas]
 	)
+
+	const pagamentosNum = useMemo(() => pagamentos.map(p => ({
+		...p,
+		valorNum: parseFloat(String(p.valor || '').replace(',', '.')) || 0,
+	})), [pagamentos])
+
+	const somaPagamentos = useMemo(() => pagamentosNum.reduce((s, p) => s + p.valorNum, 0), [pagamentosNum])
 
 	const isDinheiro = useMemo(() => {
 		if (!formaSelecionada) return false
@@ -105,22 +116,41 @@ export default function Pagamento() {
 	}, [isDinheiro, recebido, lanc, valorFinal])
 
 	async function executarPagamento() {
-		if (!lanc || !forma) return
+		if (!lanc) return
 		try {
 			setSaving(true)
-			const opts: { valorCalculado?: number; valorDesconto?: number; codigoCortesia?: string } = {
-				valorCalculado: valorFinal,
-				...(descontoNum > 0 && { valorDesconto: descontoNum }),
-			}
+			// Cortesia segue fluxo antigo (forma única + código)
 			if (isCortesia) {
+				if (!forma) return
 				const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 				if (codigo.length !== 8) {
 					setSaving(false)
 					return alert('Informe o código de cortesia de 8 dígitos')
 				}
-				opts.codigoCortesia = codigo
+				const opts: { valorCalculado?: number; valorDesconto?: number; codigoCortesia?: string } = {
+					valorCalculado: 0,
+					codigoCortesia: codigo,
+				}
+				await lancamentosService.pagar(lanc.id, forma, opts)
+			} else {
+				// Split payment
+				const linhas = pagamentosNum.filter(p => p.formaId && p.valorNum > 0)
+				if (linhas.length === 0) {
+					setSaving(false)
+					return alert('Adicione ao menos uma forma de pagamento com valor')
+				}
+				if (Math.abs(somaPagamentos - valorFinal) > 0.01) {
+					setSaving(false)
+					return alert(`A soma das formas (R$ ${somaPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorFinal.toFixed(2)})`)
+				}
+				const opts: { valorCalculado?: number; valorDesconto?: number; pagamentos?: Array<{ formaPagamentoId: string; valor: number }> } = {
+					valorCalculado: valorFinal,
+					...(descontoNum > 0 && { valorDesconto: descontoNum }),
+					pagamentos: linhas.map(l => ({ formaPagamentoId: l.formaId, valor: l.valorNum })),
+				}
+				// @ts-expect-error backend accepts pagamentos in body; service forwards it
+				await lancamentosService.pagar(lanc.id, linhas[0].formaId, opts)
 			}
-			await lancamentosService.pagar(lanc.id, forma, opts)
 			alert('Pagamento concluído. Gerando recibo...')
 			navigate(`/recibo/pagamento/${lanc.id}`)
 		} catch (error) {
@@ -132,8 +162,9 @@ export default function Pagamento() {
 	}
 
 	async function finalizar() {
-		if (!lanc || !forma) return
+		if (!lanc) return
 		if (isCortesia) {
+			if (!forma) return
 			const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 			if (codigo.length !== 8) {
 				return alert('Informe o código de cortesia de 8 dígitos')
@@ -141,7 +172,9 @@ export default function Pagamento() {
 			await executarPagamento()
 			return
 		}
-		if (isDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
+		// Validação de dinheiro (se existir alguma linha com "dinheiro", usamos o campo recebido como total recebido em dinheiro)
+		const temDinheiro = pagamentos.some(p => (formas.find(f => f.id === p.formaId)?.descricao || '').toLowerCase().includes('dinheiro'))
+		if (temDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
 			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
 		}
 		if (descontoNum > valorAtual) {
@@ -224,18 +257,74 @@ export default function Pagamento() {
 					)}
 					<label className="field">
 						<span>Forma de pagamento</span>
-						<div className="row center">
-							<PaymentIcon kind={resolvePaymentKind(forma)} />
-							<select className="select" value={forma} 							onChange={(e) => {
-								setForma(e.target.value)
-								setRecebido('')
-								setCodigoCortesia('')
-								const novaForma = formas.find(f => f.id === e.target.value)
-								if (novaForma?.descricao.toLowerCase().includes('cortesia')) setDesconto('')
-							}}>
-								{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
-							</select>
-						</div>
+						{isCortesia ? (
+							<div className="row center">
+								<PaymentIcon kind={resolvePaymentKind(forma)} />
+								<select className="select" value={forma} onChange={(e) => {
+									setForma(e.target.value)
+									setRecebido('')
+									setCodigoCortesia('')
+									const novaForma = formas.find(f => f.id === e.target.value)
+									if (novaForma?.descricao.toLowerCase().includes('cortesia')) setDesconto('')
+								}}>
+									{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
+								</select>
+							</div>
+						) : (
+							<div className="stack">
+								{pagamentos.map((p, idx) => (
+									<div key={p.id} className="row center" style={{ justifyContent: 'space-between' }}>
+										<div className="row center" style={{ flex: 1, gap: 8 }}>
+											<PaymentIcon kind={resolvePaymentKind(p.formaId)} />
+											<select
+												className="select"
+												value={p.formaId}
+												onChange={(e) => {
+													const v = e.target.value
+													setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, formaId: v } : x))
+												}}
+											>
+												{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
+											</select>
+										</div>
+										<input
+											className="input"
+											style={{ width: 120 }}
+											type="text"
+											placeholder="0,00"
+											value={p.valor}
+											onFocus={(e) => e.target.select()}
+											onChange={(e) => {
+												const v = e.target.value.replace(/[^\d,]/g, '')
+												setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, valor: v } : x))
+											}}
+										/>
+										{pagamentos.length > 1 && (
+											<button
+												className="btn"
+												type="button"
+												onClick={() => setPagamentos(prev => prev.filter(x => x.id !== p.id))}
+											>
+												-
+											</button>
+										)}
+										{idx === pagamentos.length - 1 && (
+											<button
+												className="btn"
+												type="button"
+												onClick={() => {
+													const first = formas[0]?.id || ''
+													setPagamentos(prev => [...prev, { id: crypto.randomUUID(), formaId: first, valor: '' }])
+												}}
+											>
+												Mais
+											</button>
+										)}
+									</div>
+								))}
+								<div className="help">Soma das formas: R$ {somaPagamentos.toFixed(2)} / Total: R$ {valorFinal.toFixed(2)}</div>
+							</div>
+						)}
 					</label>
 					{isCortesia && (
 						<label className="field">
