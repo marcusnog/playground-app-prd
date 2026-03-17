@@ -162,6 +162,13 @@ export default function Fechamento() {
 			.reduce((sum, m) => sum + m.valor, 0)
 	}, [selectedCaixa])
 
+	const sangriasList = useMemo(() => {
+		if (!selectedCaixa?.movimentos) return []
+		return selectedCaixa.movimentos
+			.filter((m: { tipo: string }) => m.tipo === 'sangria')
+			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+	}, [selectedCaixa])
+
 	// Calcular totais
 	const totalVendas = useMemo(() => {
 		return resumo.reduce((sum, [, total]) => sum + total, 0)
@@ -224,13 +231,6 @@ export default function Fechamento() {
 			setLoading(false)
 		}
 	}
-
-	const sangriasList = useMemo(() => {
-		if (!selectedCaixa?.movimentos) return []
-		return selectedCaixa.movimentos
-			.filter((m: { tipo: string }) => m.tipo === 'sangria')
-			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
-	}, [selectedCaixa])
 
 	function imprimir() {
 		if (!selectedCaixa) return

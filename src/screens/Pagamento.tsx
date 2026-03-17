@@ -28,6 +28,12 @@ export default function Pagamento() {
 	const [supervisorSenha, setSupervisorSenha] = useState('')
 	const [erroSupervisor, setErroSupervisor] = useState('')
 
+	const compactControlStyle: React.CSSProperties = {
+		height: 36,
+		padding: '8px 10px',
+		fontSize: '0.95rem',
+	}
+
 	useEffect(() => {
 		const t = setInterval(() => setTick(x => x + 1), 10000)
 		return () => clearInterval(t)
@@ -49,8 +55,8 @@ export default function Pagamento() {
 				const formasAtivas = formasData.filter(f => f.status === 'ativo')
 				setFormas(formasAtivas)
 				if (formasAtivas.length > 0) {
-					setForma(formasAtivas[0].id)
-					setPagamentos([{ id: crypto.randomUUID(), formaId: formasAtivas[0].id, valor: '' }])
+					// Não selecionar forma automaticamente; criar linha vazia
+					setPagamentos([{ id: crypto.randomUUID(), formaId: '', valor: '' }])
 				}
 			} catch (error) {
 				console.error('Erro ao carregar dados:', error)
@@ -109,11 +115,22 @@ export default function Pagamento() {
 		return Math.max(0, valorAtual - descontoNum)
 	}, [valorAtual, descontoNum, isCortesia])
 
+	const totalDinheiro = useMemo(() => {
+		// Soma apenas das linhas marcadas como "dinheiro" (em pagamentos múltiplos)
+		return pagamentosNum.reduce((s, p) => {
+			const forma = formas.find(f => f.id === p.formaId)
+			if (!forma) return s
+			return forma.descricao.toLowerCase().includes('dinheiro') ? s + p.valorNum : s
+		}, 0)
+	}, [pagamentosNum, formas])
+
 	const troco = useMemo(() => {
-		if (!isDinheiro || !recebido || !lanc) return 0
+		// Troco calculado apenas sobre o total recebido em dinheiro
+		if ((!isDinheiro && totalDinheiro <= 0) || !recebido || !lanc) return 0
 		const recebidoNum = parseFloat(recebido.replace(',', '.')) || 0
-		return Math.max(0, recebidoNum - valorFinal)
-	}, [isDinheiro, recebido, lanc, valorFinal])
+		const base = totalDinheiro > 0 ? totalDinheiro : valorFinal
+		return Math.max(0, recebidoNum - base)
+	}, [isDinheiro, totalDinheiro, recebido, lanc, valorFinal])
 
 	async function executarPagamento() {
 		if (!lanc) return
@@ -171,11 +188,6 @@ export default function Pagamento() {
 			await executarPagamento()
 			return
 		}
-		// Validação de dinheiro (se existir alguma linha com "dinheiro", usamos o campo recebido como total recebido em dinheiro)
-		const temDinheiro = pagamentos.some(p => (formas.find(f => f.id === p.formaId)?.descricao || '').toLowerCase().includes('dinheiro'))
-		if (temDinheiro && (!recebido || parseFloat(recebido.replace(',', '.')) < valorFinal)) {
-			return alert('O valor recebido deve ser maior ou igual ao valor do pagamento')
-		}
 		if (descontoNum > valorAtual) {
 			return alert('O desconto não pode ser maior que o valor do lançamento')
 		}
@@ -205,7 +217,7 @@ export default function Pagamento() {
 
 	if (loading) {
 		return (
-			<div className="container" style={{ maxWidth: 560 }}>
+			<div className="container" style={{ maxWidth: 800 }}>
 				<h2>Pagamento</h2>
 				<div className="card">
 					<div>Carregando...</div>
@@ -216,7 +228,7 @@ export default function Pagamento() {
 
 	if (!lanc) {
 		return (
-			<div className="container" style={{ maxWidth: 560 }}>
+			<div className="container" style={{ maxWidth: 800 }}>
 				<h2>Pagamento</h2>
 				<div className="card">
 					<div>Registro não encontrado</div>
@@ -226,23 +238,26 @@ export default function Pagamento() {
 	}
 
 	return (
-		<div className="container" style={{ maxWidth: 560 }}>
+		<div className="container" style={{ maxWidth: 480, margin: '0 auto' }}>
 			<h2>Pagamento</h2>
-			<div className="card form two">
-				<div>
+			<div className="card stack">
+				<div className="stack">
 					<div><strong>Criança:</strong> {lanc.nomeCrianca}</div>
 					<div><strong>Responsável:</strong> {lanc.nomeResponsavel}</div>
-				</div>
-				<div>
+					<div><strong>Status:</strong> {lanc.status.toUpperCase()}</div>
 					<label className="field">
 						<span>Valor total</span>
-						<input className="input" readOnly value={`R$ ${valorFinal.toFixed(2)}`} />
+						<input className="input" style={compactControlStyle} readOnly value={`R$ ${valorFinal.toFixed(2)}`} />
 					</label>
+				</div>
+
+				<div className="stack" style={{ marginTop: 16 }}>
 					{!isCortesia && (
 						<label className="field">
 							<span>Desconto</span>
 							<input 
 								className="input" 
+								style={compactControlStyle}
 								type="text"
 								value={desconto}
 								onFocus={(e) => e.target.select()}
@@ -254,98 +269,111 @@ export default function Pagamento() {
 							/>
 						</label>
 					)}
+
 					<label className="field">
 						<span>Forma de pagamento</span>
 						{isCortesia ? (
 							<div className="row center">
 								<PaymentIcon kind={resolvePaymentKind(forma)} />
-								<select className="select" value={forma} onChange={(e) => {
+								<select className="select" style={compactControlStyle} value={forma} onChange={(e) => {
 									setForma(e.target.value)
 									setRecebido('')
 									setCodigoCortesia('')
 									const novaForma = formas.find(f => f.id === e.target.value)
 									if (novaForma?.descricao.toLowerCase().includes('cortesia')) setDesconto('')
 								}}>
+									<option value="">Selecione...</option>
 									{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
 								</select>
 							</div>
 						) : (
-							<div className="stack">
+							<div className="stack" style={{ gap: 8 }}>
 								{pagamentos.map((p, idx) => (
-									<div key={p.id} className="row center" style={{ justifyContent: 'space-between' }}>
-										<div className="row center" style={{ flex: 1, gap: 8 }}>
-											<PaymentIcon kind={resolvePaymentKind(p.formaId)} />
+									<div key={p.id} className="stack" style={{ gap: 4 }}>
+										<label className="field">
+											<span>Forma</span>
 											<select
 												className="select"
+												style={compactControlStyle}
 												value={p.formaId}
 												onChange={(e) => {
 													const v = e.target.value
 													setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, formaId: v } : x))
 												}}
 											>
+												<option value="">Selecione...</option>
 												{formas.map((f) => <option key={f.id} value={f.id}>{f.descricao}</option>)}
 											</select>
-										</div>
-										<input
-											className="input"
-											style={{ width: 120 }}
-											type="text"
-											placeholder="0,00"
-											value={p.valor}
-											onFocus={(e) => e.target.select()}
-											onChange={(e) => {
-												const v = e.target.value.replace(/[^\d,]/g, '')
-												setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, valor: v } : x))
-											}}
-										/>
-										{pagamentos.length > 1 && (
-											<button
-												className="btn"
-												type="button"
-												onClick={() => setPagamentos(prev => prev.filter(x => x.id !== p.id))}
-											>
-												-
-											</button>
-										)}
-										{idx === pagamentos.length - 1 && (
-											<button
-												className="btn"
-												type="button"
-												onClick={() => {
-													const first = formas[0]?.id || ''
-													setPagamentos(prev => [...prev, { id: crypto.randomUUID(), formaId: first, valor: '' }])
+										</label>
+										<label className="field">
+											<span>Valor</span>
+											<input
+												className="input"
+												style={compactControlStyle}
+												type="text"
+												placeholder="0,00"
+												value={p.valor}
+												onFocus={(e) => e.target.select()}
+												onChange={(e) => {
+													const v = e.target.value.replace(/[^\d,]/g, '')
+													setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, valor: v } : x))
 												}}
-											>
-												Mais
-											</button>
-										)}
+											/>
+										</label>
+										<div className="row" style={{ gap: 8 }}>
+											{pagamentos.length > 1 && (
+												<button
+													className="btn"
+													type="button"
+													onClick={() => setPagamentos(prev => prev.filter(x => x.id !== p.id))}
+													title="Remover forma"
+												>
+													-
+												</button>
+											)}
+											{idx === pagamentos.length - 1 && (
+												<button
+													className="btn"
+													type="button"
+													onClick={() => {
+														setPagamentos(prev => [...prev, { id: crypto.randomUUID(), formaId: '', valor: '' }])
+													}}
+													title="Adicionar forma"
+												>
+													+
+												</button>
+											)}
+										</div>
 									</div>
 								))}
 								<div className="help">Soma das formas: R$ {somaPagamentos.toFixed(2)} / Total: R$ {valorFinal.toFixed(2)}</div>
 							</div>
 						)}
 					</label>
+
 					{isCortesia && (
 						<label className="field">
 							<span>Código de Cortesia *</span>
 							<input 
 								className="input" 
+								style={{ ...compactControlStyle, fontFamily: 'monospace', letterSpacing: 2 }}
 								type="text"
 								value={codigoCortesia}
 								onChange={(e) => setCodigoCortesia(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
 								placeholder="8 dígitos"
 								maxLength={8}
-								style={{ fontFamily: 'monospace', letterSpacing: 2 }}
 							/>
 							<span className="help">Digite o código de 8 dígitos gerado na aba Cortesia</span>
 						</label>
 					)}
+
 					{isDinheiro && (
 						<>
 							<label className="field">
 								<span>Valor Recebido *</span>
 								<input 
 									className="input" 
+									style={compactControlStyle}
 									type="text"
 									value={recebido}
 									onFocus={(e) => e.target.select()}
@@ -361,9 +389,9 @@ export default function Pagamento() {
 									<span>Troco</span>
 									<input 
 										className="input" 
+										style={{ ...compactControlStyle, background: 'rgba(34, 197, 94, 0.1)', borderColor: 'var(--success)', fontWeight: 'bold' }}
 										readOnly 
 										value={`R$ ${troco.toFixed(2)}`}
-										style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'var(--success)', fontWeight: 'bold' }}
 									/>
 								</label>
 							)}
@@ -375,11 +403,12 @@ export default function Pagamento() {
 						</>
 					)}
 				</div>
-				<div className="actions" style={{ gridColumn: '1 / -1' }}>
+
+				<div className="actions" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
 					<button 
 						className="btn primary icon" 
 						onClick={finalizar}
-						disabled={saving || !forma || (isCortesia && codigoCortesia.trim().replace(/[^A-Z0-9]/g, '').length !== 8)}
+						disabled={saving || (isCortesia && (!forma || codigoCortesia.trim().replace(/[^A-Z0-9]/g, '').length !== 8))}
 					>
 						{saving ? 'Processando...' : '✅ Finalizar'}
 					</button>
