@@ -95,6 +95,35 @@ export default function Fechamento() {
 		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
 	}, [selectedCaixa, lancamentos, formasPagamento])
 
+	// Cortesias do dia (lançamentos pagos cuja forma de pagamento contém "cortesia")
+	const cortesiasDia = useMemo(() => {
+		if (!selectedCaixa) return []
+		const dataCaixa = new Date(selectedCaixa.data).toDateString()
+		const isCortesia = (formaPagamentoId?: string) => {
+			if (!formaPagamentoId) return false
+			const forma = formasPagamento.find((f) => f.id === formaPagamentoId)
+			return String(forma?.descricao || '').toLowerCase().includes('cortesia')
+		}
+
+		const pagosCortesia = lancamentos.filter((l) => {
+			if (l.status !== 'pago') return false
+			const dataLancamento = new Date(l.dataHora).toDateString()
+			if (dataLancamento !== dataCaixa) return false
+			return isCortesia(l.formaPagamentoId)
+		})
+
+		return pagosCortesia
+			.map((l) => {
+				const brinqId = l.brinquedoId as string | undefined
+				const brinq = brinquedos.find((b) => b.id === brinqId)
+				const brinquedoNome = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
+				const quantidade = (l.quantidade as number | undefined) ?? 1
+				const dataHoraUtilizada = (l.updatedAt as string | undefined) || l.dataHora
+				return { id: l.id as string, brinquedoNome, quantidade, dataHoraUtilizada }
+			})
+			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
+	}, [selectedCaixa, lancamentos, formasPagamento, brinquedos])
+
 	// Resumo por brinquedo usando lancamentos pagos do dia
 	const resumoBrinquedos = useMemo(() => {
 		if (!selectedCaixa) return []
@@ -329,6 +358,38 @@ export default function Fechamento() {
 							</div>
 						) : (
 							<div className="empty">Nenhuma venda registrada hoje</div>
+						)}
+					</div>
+
+					{/* Cortesias */}
+					<div className="card" style={{ marginBottom: 16 }}>
+						<h3>Cortesia</h3>
+						<div className="subtitle" style={{ marginBottom: 8 }}>
+							Caixa: {selectedCaixa.nome}
+						</div>
+						{cortesiasDia.length > 0 ? (
+							<div className="table-wrap">
+								<table className="table">
+									<thead>
+										<tr>
+											<th>Brinquedo</th>
+											<th>Quantidade</th>
+											<th>Data/Hora utilizada</th>
+										</tr>
+									</thead>
+									<tbody>
+										{cortesiasDia.map((c) => (
+											<tr key={c.id}>
+												<td>{c.brinquedoNome}</td>
+												<td>{c.quantidade}</td>
+												<td>{new Date(c.dataHoraUtilizada).toLocaleString('pt-BR')}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						) : (
+							<div className="empty">Nenhuma cortesia utilizada hoje</div>
 						)}
 					</div>
 

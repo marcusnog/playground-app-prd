@@ -173,6 +173,19 @@ export const formasPagamentoService = {
 
 // Serviço de Cortesias
 export const cortesiasService = {
+	list: async (): Promise<Array<{
+		id: string
+		codigo: string
+		usado: boolean
+		lancamentoId?: string | null
+		clienteId?: string | null
+		whatsappDestino: string
+		validadeDias: number
+		createdAt: string
+		cliente?: { id: string; nomeCompleto: string; telefoneWhatsapp: string } | null
+	}>> => {
+		return api.get(endpoints.cortesias.list)
+	},
 	gerar: async (params: { clienteId?: string; whatsappDestino?: string; validadeDias: number }): Promise<{ codigo: string; validadeDias: number }> => {
 		return api.post<{ codigo: string; validadeDias: number }>(endpoints.cortesias.gerar, params)
 	},

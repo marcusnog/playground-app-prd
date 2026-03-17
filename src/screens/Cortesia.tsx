@@ -18,20 +18,58 @@ export default function Cortesia() {
 	const navigate = useNavigate()
 	const { hasPermission } = usePermissions()
 	const [clientes, setClientes] = useState<Cliente[]>([])
+	const [cortesias, setCortesias] = useState<Array<{
+		id: string
+		codigo: string
+		usado: boolean
+		validadeDias: number
+		createdAt: string
+		cliente?: { id: string; nomeCompleto: string; telefoneWhatsapp: string } | null
+	}>>([])
 	const [modoCliente, setModoCliente] = useState<ModoCliente>('cadastrado')
 	const [clienteId, setClienteId] = useState('')
 	const [whatsappManual, setWhatsappManual] = useState('')
 	const [validadeDias, setValidadeDias] = useState(7)
 	const [codigo, setCodigo] = useState<string | null>(null)
 	const [validadeGerada, setValidadeGerada] = useState<number | null>(null)
+	const [geradaEm, setGeradaEm] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [loadingClientes, setLoadingClientes] = useState(true)
+	const [loadingCortesias, setLoadingCortesias] = useState(true)
+	const [errorCortesias, setErrorCortesias] = useState<string | null>(null)
 	const [copiado, setCopiado] = useState(false)
 
 	useEffect(() => {
 		clientesService.list().then((data) => {
 			setClientes(Array.isArray(data) ? data : [])
 		}).catch(() => setClientes([])).finally(() => setLoadingClientes(false))
+	}, [])
+
+	async function loadCortesias() {
+		try {
+			setLoadingCortesias(true)
+			setErrorCortesias(null)
+			const list = await cortesiasService.list()
+			setCortesias(Array.isArray(list) ? list : [])
+		} catch (e) {
+			console.error('Erro ao carregar cortesias:', e)
+			const msg =
+				e && typeof e === 'object' && 'message' in e
+					? String((e as { message?: unknown }).message || 'Erro ao carregar cortesias')
+					: 'Erro ao carregar cortesias'
+			const status =
+				e && typeof e === 'object' && 'status' in e
+					? String((e as { status?: unknown }).status || '')
+					: ''
+			setErrorCortesias(status ? `${msg} (HTTP ${status})` : msg)
+			setCortesias([])
+		} finally {
+			setLoadingCortesias(false)
+		}
+	}
+
+	useEffect(() => {
+		loadCortesias()
 	}, [])
 
 	const whatsappDestino = (() => {
@@ -62,6 +100,7 @@ export default function Cortesia() {
 			setLoading(true)
 			setCodigo(null)
 			setValidadeGerada(null)
+			setGeradaEm(null)
 			const params: { clienteId?: string; whatsappDestino?: string; validadeDias: number } = {
 				validadeDias,
 			}
@@ -73,13 +112,15 @@ export default function Cortesia() {
 			const { codigo: novoCodigo, validadeDias: vd } = await cortesiasService.gerar(params)
 			setCodigo(novoCodigo)
 			setValidadeGerada(vd)
+			setGeradaEm(new Date().toLocaleString('pt-BR'))
+			loadCortesias()
 
 			// Abrir WhatsApp com a mensagem
 			const numero = modoCliente === 'cadastrado'
 				? (clientes.find((c) => c.id === clienteId)?.telefoneWhatsapp || '')
 				: whatsappManual
 			const waNum = formatarWhatsappParaWaMe(numero)
-			const msg = `Segue sua cortesia - código ${novoCodigo}. Prazo de ${vd} dias de validade.`
+			const msg = `Segue sua cortesia - código ${novoCodigo}. Gerado em ${new Date().toLocaleString('pt-BR')}. Prazo de ${vd} dias de validade.`
 			const url = `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`
 			window.open(url, '_blank')
 		} catch (error) {
@@ -193,6 +234,11 @@ export default function Cortesia() {
 								Validade: {validadeGerada} dias
 							</div>
 						)}
+						{geradaEm && (
+							<div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: 12 }}>
+								Gerado em: {geradaEm}
+							</div>
+						)}
 						<p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 12 }}>
 							O WhatsApp foi aberto com a mensagem. Se não enviou, copie o código abaixo.
 						</p>
@@ -206,6 +252,56 @@ export default function Cortesia() {
 						</div>
 					</div>
 				)}
+
+				<hr style={{ margin: '16px 0' }} />
+				<div className="title" style={{ marginBottom: 8 }}>
+					<h3 style={{ margin: 0 }}>Cortesias</h3>
+					<button className="btn" onClick={loadCortesias} disabled={loadingCortesias}>Atualizar</button>
+				</div>
+				<div className="help" style={{ marginBottom: 8 }}>Lista as cortesias geradas, o status e quanto falta para vencer.</div>
+				{errorCortesias && (
+					<div className="card" style={{ marginBottom: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+						<div style={{ color: 'var(--danger)', fontWeight: 600 }}>Não foi possível carregar a listagem.</div>
+						<div style={{ color: 'var(--danger)' }}>{errorCortesias}</div>
+					</div>
+				)}
+
+				<div className="table-wrap">
+					<table className="table">
+						<thead>
+							<tr>
+								<th>Código</th>
+								<th>Status</th>
+								<th>Vence em</th>
+							</tr>
+						</thead>
+						<tbody>
+							{loadingCortesias ? (
+								<tr><td colSpan={3}>Carregando...</td></tr>
+							) : cortesias.length === 0 ? (
+								<tr><td colSpan={3}>Nenhuma cortesia encontrada</td></tr>
+							) : cortesias.map((c) => {
+								const createdAt = new Date(c.createdAt)
+								const expiresAt = new Date(createdAt.getTime() + c.validadeDias * 24 * 60 * 60 * 1000)
+								const now = new Date()
+								const ms = expiresAt.getTime() - now.getTime()
+								const days = Math.ceil(ms / (24 * 60 * 60 * 1000))
+								const vencida = ms < 0
+								const status = c.usado ? 'Usada' : (vencida ? 'Vencida' : 'Ativa')
+								const falta = c.usado
+									? '-'
+									: (vencida ? `Vencida há ${Math.abs(days)} dia(s)` : (days === 0 ? 'Vence hoje' : `Em ${days} dia(s)`))
+								return (
+									<tr key={c.id}>
+										<td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{c.codigo}</td>
+										<td>{status}</td>
+										<td>{falta}</td>
+									</tr>
+								)
+							})}
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	)

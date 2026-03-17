@@ -100,6 +100,7 @@ const endpoints = {
 
 	// Cortesias
 	cortesias: {
+		list: '/api/cortesias',
 		gerar: '/api/cortesias/gerar',
 		validar: '/api/cortesias/validar',
 	},
