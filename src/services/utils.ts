@@ -38,11 +38,12 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	if (tempoMin == null) return 0
 
 	// Se o brinquedo tem regras específicas, usa elas (API retorna campos diretos; mock pode ter regrasCobranca)
+	// IMPORTANTE: usar !== undefined (não ??) para preservar null, que significa "taxa única sem limite de tempo"
 	const regras = brinquedo?.regrasCobranca
-	const inicialMinutos = brinquedo?.inicialMinutos ?? regras?.inicialMinutos
-	const valorInicialRaw = brinquedo?.valorInicial ?? regras?.valorInicial
+	const inicialMinutos = brinquedo && brinquedo.inicialMinutos !== undefined ? brinquedo.inicialMinutos : regras?.inicialMinutos
+	const valorInicialRaw = brinquedo && brinquedo.valorInicial !== undefined ? brinquedo.valorInicial : regras?.valorInicial
 	const valorInicial = typeof valorInicialRaw === 'number' ? valorInicialRaw : Number(valorInicialRaw)
-	const cicloMinutos = brinquedo?.cicloMinutos ?? regras?.cicloMinutos
+	const cicloMinutos = brinquedo && brinquedo.cicloMinutos !== undefined ? brinquedo.cicloMinutos : regras?.cicloMinutos
 	const valorCiclo = Number(brinquedo?.valorCiclo ?? regras?.valorCiclo ?? 0)
 	const cicloToleranciaMinutos = brinquedo?.cicloToleranciaMinutos ?? regras?.cicloToleranciaMinutos ?? 0
 

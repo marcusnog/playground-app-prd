@@ -147,6 +147,7 @@ export default function Acompanhamento() {
 								<tr>
 									<th>Criança</th>
 									<th>Responsável</th>
+									<th>Brinquedo</th>
 									<th>Hora inicial</th>
 									<th>Hora final</th>
 									<th>Tempo</th>
@@ -189,6 +190,7 @@ export default function Acompanhamento() {
 										</div>
 									</td>
 									<td>{l.nomeResponsavel}</td>
+									<td>{brinquedo?.nome ?? '-'}</td>
 									<td>
 										<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
 											<input 
