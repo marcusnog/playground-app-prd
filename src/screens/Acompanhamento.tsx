@@ -166,7 +166,8 @@ export default function Acompanhamento() {
 							const minutosParaValor = l.tempoSolicitadoMin == null
 								? dec
 								: temCiclos ? dec : Math.min(dec, l.tempoSolicitadoMin)
-							const valor = l.status === 'aberto' && parametros
+							const isQuantidade = l.nomeCrianca === 'Quantidade'
+							const valor = l.status === 'aberto' && parametros && !isQuantidade
 								? calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
 								: (l.valorCalculado ?? 0)
 							const alerta = isFinite(restante) && restante <= 5
