@@ -8,6 +8,7 @@ const endpoints = {
 		logout: '/api/auth/logout',
 		me: '/api/auth/me',
 		validarDesconto: '/api/auth/validar-desconto',
+		validarAdmin: '/api/auth/validar-admin',
 	},
 
 	// Usuários

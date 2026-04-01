@@ -113,12 +113,23 @@ export default function Relatorios() {
 			}
 		})
 
+		const cancelados = lancamentosFiltrados
+			.filter(l => l.status === 'cancelado')
+			.map(l => ({
+				id: l.id,
+				nomeCrianca: l.nomeCrianca,
+				nomeResponsavel: l.nomeResponsavel,
+				brinquedo: l.brinquedoId ? (brinquedos.find(b => b.id === l.brinquedoId)?.nome ?? 'Brinquedo removido') : '-',
+				dataHora: l.dataHora,
+			}))
+
 		return {
 			totalVendas,
 			totalLancamentos,
 			totalPagos,
 			totalCancelados,
 			totalAbertos,
+			cancelados,
 			vendasPorForma: Array.from(vendasPorForma.entries()),
 			vendasPorBrinquedo: Array.from(vendasPorBrinquedo.entries())
 		}
@@ -262,6 +273,22 @@ export default function Relatorios() {
 					head: [['Brinquedo', 'Total (R$)']],
 					body: relatorioVendas.vendasPorBrinquedo.map(([b, total]) => [b, total.toFixed(2)]),
 				})
+				y = (doc as any).lastAutoTable.finalY + 10
+			}
+			if (relatorioVendas.cancelados.length > 0) {
+				doc.setFontSize(12)
+				doc.text('Lançamentos Cancelados', 14, y)
+				y += 6
+				autoTable(doc, {
+					startY: y,
+					head: [['Criança', 'Responsável', 'Brinquedo', 'Data/Hora']],
+					body: relatorioVendas.cancelados.map(c => [
+						c.nomeCrianca,
+						c.nomeResponsavel,
+						c.brinquedo,
+						new Date(c.dataHora).toLocaleString('pt-BR'),
+					]),
+				})
 			}
 		} else if (tipoRelatorio === 'caixa') {
 			doc.setFontSize(12)
@@ -311,6 +338,22 @@ export default function Relatorios() {
 			...relatorioVendas.vendasPorBrinquedo.map(([b, t]) => [b, t]),
 		])
 		XLSX.utils.book_append_sheet(wb, wsVendas, 'Vendas')
+
+		if (relatorioVendas.cancelados.length > 0) {
+			const wsCancelados = XLSX.utils.aoa_to_sheet([
+				['Lançamentos Cancelados', ''],
+				['Período', periodoLabel],
+				[],
+				['Criança', 'Responsável', 'Brinquedo', 'Data/Hora'],
+				...relatorioVendas.cancelados.map(c => [
+					c.nomeCrianca,
+					c.nomeResponsavel,
+					c.brinquedo,
+					new Date(c.dataHora).toLocaleString('pt-BR'),
+				]),
+			])
+			XLSX.utils.book_append_sheet(wb, wsCancelados, 'Cancelados')
+		}
 
 		const wsCaixa = XLSX.utils.aoa_to_sheet([
 			['Relatório de Caixa', ''],
@@ -572,6 +615,29 @@ export default function Relatorios() {
 									))}
 								</tbody>
 							</table>
+						</div>
+					)}
+
+					{relatorioVendas.cancelados.length > 0 && (
+						<div className="card">
+							<h4>Lançamentos Cancelados ({relatorioVendas.totalCancelados})</h4>
+							<div className="table-wrap">
+								<table className="table">
+									<thead>
+										<tr><th>Criança</th><th>Responsável</th><th>Brinquedo</th><th>Data/Hora</th></tr>
+									</thead>
+									<tbody>
+										{relatorioVendas.cancelados.map(c => (
+											<tr key={c.id}>
+												<td>{c.nomeCrianca}</td>
+												<td>{c.nomeResponsavel}</td>
+												<td>{c.brinquedo}</td>
+												<td>{new Date(c.dataHora).toLocaleString('pt-BR')}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
 						</div>
 					)}
 				</div>

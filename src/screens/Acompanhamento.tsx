@@ -90,6 +90,18 @@ export default function Acompanhamento() {
 		setNumeroWhatsapp('')
 	}
 
+	async function cancelarLancamento(lancamentoId: string, nomeCrianca: string) {
+		if (!confirm(`Cancelar o lançamento de "${nomeCrianca}" sem pagamento?`)) return
+		try {
+			await lancamentosService.cancelar(lancamentoId)
+			const lancamentosData = await lancamentosService.list()
+			setLancamentos(lancamentosData)
+		} catch (error) {
+			console.error('Erro ao cancelar lançamento:', error)
+			alert('Erro ao cancelar. Tente novamente.')
+		}
+	}
+
 	async function atualizarHoraMinuto(lancamentoId: string, novaDataHora: Date) {
 		try {
 			await lancamentosService.update(lancamentoId, {

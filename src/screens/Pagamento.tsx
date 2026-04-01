@@ -26,6 +26,10 @@ export default function Pagamento() {
 	const [supervisorApelido, setSupervisorApelido] = useState('')
 	const [supervisorSenha, setSupervisorSenha] = useState('')
 	const [erroSupervisor, setErroSupervisor] = useState('')
+	const [mostrarModalCancelamento, setMostrarModalCancelamento] = useState(false)
+	const [adminApelidoCancelamento, setAdminApelidoCancelamento] = useState('')
+	const [adminSenhaCancelamento, setAdminSenhaCancelamento] = useState('')
+	const [erroAdminCancelamento, setErroAdminCancelamento] = useState('')
 
 	const compactControlStyle: React.CSSProperties = {
 		height: 36,
@@ -186,6 +190,37 @@ export default function Pagamento() {
 		} catch (error) {
 			console.error('Erro ao processar pagamento:', error)
 			alert('Erro ao processar pagamento. Tente novamente.')
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	function cancelar() {
+		if (!lanc) return
+		setAdminApelidoCancelamento('')
+		setAdminSenhaCancelamento('')
+		setErroAdminCancelamento('')
+		setMostrarModalCancelamento(true)
+	}
+
+	async function confirmarCancelamento() {
+		if (!adminApelidoCancelamento.trim() || !adminSenhaCancelamento) {
+			setErroAdminCancelamento('Apelido e senha são obrigatórios')
+			return
+		}
+		const ok = await authService.validarAdmin(adminApelidoCancelamento.trim(), adminSenhaCancelamento)
+		if (!ok) {
+			setErroAdminCancelamento('Credenciais inválidas ou usuário sem permissão de administrador')
+			return
+		}
+		setMostrarModalCancelamento(false)
+		try {
+			setSaving(true)
+			await lancamentosService.cancelar(lanc!.id)
+			navigate('/acompanhamento')
+		} catch (error) {
+			console.error('Erro ao cancelar:', error)
+			alert('Erro ao cancelar. Tente novamente.')
 		} finally {
 			setSaving(false)
 		}
@@ -399,9 +434,17 @@ export default function Pagamento() {
 
 				</div>
 
-				<div className="actions" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
-					<button 
-						className="btn primary icon" 
+				<div className="actions" style={{ justifyContent: 'space-between', marginTop: 16 }}>
+					<button
+						className="btn danger icon"
+						onClick={cancelar}
+						disabled={saving}
+						title="Cancela o lançamento sem gerar cobrança"
+					>
+						❌ Cancelar sem cobrança
+					</button>
+					<button
+						className="btn primary icon"
 						onClick={finalizar}
 						disabled={saving || (isCortesia && (!forma || codigoCortesia.trim().replace(/[^A-Z0-9]/g, '').length !== 8))}
 					>
@@ -409,6 +452,34 @@ export default function Pagamento() {
 					</button>
 				</div>
 			</div>
+
+			{/* Modal de autorização de cancelamento */}
+			{mostrarModalCancelamento && (
+				<div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+					onClick={() => !saving && setMostrarModalCancelamento(false)}>
+					<div className="card" style={{ maxWidth: 360, margin: 16 }} onClick={e => e.stopPropagation()}>
+						<h3>Autorização de Cancelamento</h3>
+						<p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
+							Digite o apelido e senha do administrador para cancelar "{lanc?.nomeCrianca}" sem cobrança.
+						</p>
+						<label className="field">
+							<span>Apelido do administrador *</span>
+							<input className="input" value={adminApelidoCancelamento} onChange={e => setAdminApelidoCancelamento(e.target.value)} placeholder="apelido" autoFocus />
+						</label>
+						<label className="field">
+							<span>Senha *</span>
+							<input className="input" type="password" value={adminSenhaCancelamento} onChange={e => setAdminSenhaCancelamento(e.target.value)} placeholder="senha" />
+						</label>
+						{erroAdminCancelamento && <div style={{ color: 'var(--danger)', fontSize: '0.9rem', marginBottom: 12 }}>{erroAdminCancelamento}</div>}
+						<div className="row" style={{ gap: 8, marginTop: 16 }}>
+							<button className="btn" onClick={() => setMostrarModalCancelamento(false)} disabled={saving}>Voltar</button>
+							<button className="btn danger" onClick={confirmarCancelamento} disabled={saving}>
+								{saving ? 'Cancelando...' : '❌ Confirmar Cancelamento'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Modal de autorização de desconto */}
 			{mostrarModalSupervisor && (

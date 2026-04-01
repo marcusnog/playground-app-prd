@@ -55,6 +55,19 @@ export const authService = {
 		}
 	},
 
+	async validarAdmin(apelido: string, password: string): Promise<boolean> {
+		try {
+			const res = await fetch(`${config.apiBaseUrl}${endpoints.auth.validarAdmin}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ apelido, password }),
+			})
+			return res.ok
+		} catch {
+			return false
+		}
+	},
+
 	async validarDesconto(apelido: string, password: string): Promise<boolean> {
 		try {
 			// Usar fetch direto para evitar que 401 deslogue o operador (o 401 é das credenciais do supervisor)
