@@ -232,9 +232,6 @@ export default function Lancamento() {
 			const novoLancamento = await lancamentosService.create(payload as Parameters<typeof lancamentosService.create>[0])
 			
 			if (isModoQuantidade) {
-				// Inflável/trenzinho: gerar cupom em nova aba e redirecionar para pagamento
-				window.open(appUrl(`/recibo/lancamento/${novoLancamento.id}`), '_blank', 'noopener')
-				alert('Lançamento salvo. Redirecionando para pagamento...')
 				navigate(`/pagamento/${novoLancamento.id}`)
 			} else {
 				alert('Lançamento salvo. Gerando cupom...')

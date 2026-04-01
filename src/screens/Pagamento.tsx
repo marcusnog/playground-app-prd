@@ -368,12 +368,12 @@ export default function Pagamento() {
 						</label>
 					)}
 
-					{isDinheiro && (
+					{(isDinheiro || totalDinheiro > 0) && (
 						<>
 							<label className="field">
-								<span>Valor Recebido *</span>
-								<input 
-									className="input" 
+								<span>Valor Recebido em Dinheiro *</span>
+								<input
+									className="input"
 									style={compactControlStyle}
 									type="text"
 									value={recebido}
@@ -388,10 +388,10 @@ export default function Pagamento() {
 							{troco > 0 && (
 								<label className="field">
 									<span>Troco</span>
-									<input 
-										className="input" 
+									<input
+										className="input"
 										style={{ ...compactControlStyle, background: 'rgba(34, 197, 94, 0.1)', borderColor: 'var(--success)', fontWeight: 'bold' }}
-										readOnly 
+										readOnly
 										value={`R$ ${troco.toFixed(2)}`}
 									/>
 								</label>
