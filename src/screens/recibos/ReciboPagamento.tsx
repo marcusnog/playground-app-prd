@@ -46,9 +46,25 @@ export default function ReciboPagamento() {
 	if (!lanc) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
-	const formaId = (lanc as { formaPagamentoId?: string }).formaPagamentoId
+
+	// Pagamento dividido: ler do pagamentosJson; pagamento único: usar formaPagamentoId
+	type SplitItem = { formaPagamentoId: string; descricao: string; valor: number }
+	const splits: SplitItem[] = (() => {
+		if (lanc.pagamentosJson) {
+			try { return JSON.parse(lanc.pagamentosJson) as SplitItem[] } catch { /* fallback */ }
+		}
+		return []
+	})()
+	const isSplit = splits.length > 0
+
+	const formaId = lanc.formaPagamentoId
 	const forma = formaId ? formas.find(f => f.id === formaId) : null
-	const pixPayload = formaId === 'pix' && p.pixChave
+
+	// Verifica se alguma forma de pagamento é PIX (split ou único)
+	const temPix = isSplit
+		? splits.some(s => s.descricao?.toLowerCase().includes('pix'))
+		: forma?.descricao.toLowerCase().includes('pix')
+	const pixPayload = temPix && p.pixChave
 		? `PIX|Key=${encodeURIComponent(p.pixChave)}|Nome=${encodeURIComponent(p.empresaNome || 'Loja')}|Cidade=${encodeURIComponent(p.pixCidade || '')}|Valor=${lanc.valorCalculado.toFixed(2)}|Txid=${encodeURIComponent('TX' + lanc.id)}`
 		: ''
 
@@ -78,8 +94,16 @@ export default function ReciboPagamento() {
 					<div>Troco: R$ {(lanc.valorRecebido - lanc.valorCalculado).toFixed(2)}</div>
 				</>
 			)}
-			{forma && <div>Forma: <PaymentIcon kind={resolvePaymentKind(forma.id)} /> {forma.descricao.toUpperCase()}</div>}
-			{formaId === 'pix' && pixPayload && (
+			{isSplit ? (
+				splits.map((s, i) => (
+					<div key={i}>
+						Forma: <PaymentIcon kind={resolvePaymentKind(s.descricao)} /> {s.descricao.toUpperCase()} — R$ {s.valor.toFixed(2)}
+					</div>
+				))
+			) : (
+				forma && <div>Forma: <PaymentIcon kind={resolvePaymentKind(forma.descricao)} /> {forma.descricao.toUpperCase()}</div>
+			)}
+			{pixPayload && (
 				<div style={{ textAlign: 'center', marginTop: 8 }}>
 					<img alt="PIX QR" src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`} />
 					<div style={{ fontSize: 10 }}>Aponte a câmera para pagar</div>

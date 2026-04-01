@@ -84,6 +84,7 @@ export type Lancamento = {
 	valorDesconto?: number // valor do desconto aplicado (dos acréscimos)
 	valorRecebido?: number // valor recebido em dinheiro (para cálculo do troco)
 	formaPagamentoId?: string // ID da forma de pagamento (quando pago)
+	pagamentosJson?: string // JSON com múltiplas formas [{formaPagamentoId, descricao, valor}]
 	updatedAt?: string // ISO string - hora da última atualização (ex.: pagamento)
 }
 
