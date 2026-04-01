@@ -81,9 +81,9 @@ export default function Brinquedos() {
 		setEditNome(item.nome)
 		const r = item.regrasCobranca
 		if (r) {
-			setInicialMinutos(r.inicialMinutos ?? 30)
+			setInicialMinutos(r.inicialMinutos !== undefined ? r.inicialMinutos : 30)
 			setValorInicial(r.valorInicial)
-			setCicloMinutos(r.cicloMinutos ?? 15)
+			setCicloMinutos(r.cicloMinutos !== undefined ? r.cicloMinutos : 15)
 			setValorCiclo(r.valorCiclo)
 			setCicloToleranciaMinutos(r.cicloToleranciaMinutos ?? 3)
 			setTaxaUnica(r.inicialMinutos === null)
@@ -93,9 +93,9 @@ export default function Brinquedos() {
 			const vi = (item as { valorInicial?: number }).valorInicial ?? 20
 			const vc = (item as { valorCiclo?: number }).valorCiclo ?? 10
 			const tol = (item as { cicloToleranciaMinutos?: number }).cicloToleranciaMinutos ?? 3
-			setInicialMinutos(ini ?? 30)
+			setInicialMinutos(ini !== undefined ? ini : 30)
 			setValorInicial(vi)
-			setCicloMinutos(cic ?? 15)
+			setCicloMinutos(cic !== undefined ? cic : 15)
 			setValorCiclo(vc)
 			setCicloToleranciaMinutos(tol)
 			setTaxaUnica(ini === null)

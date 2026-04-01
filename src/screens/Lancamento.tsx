@@ -101,13 +101,14 @@ export default function Lancamento() {
 	const brinquedoParaCalculo = useMemo((): BrinquedoType | undefined => {
 		if (!brinquedoSelecionado) return undefined
 		const r = brinquedoSelecionado.regrasCobranca
-		const valorIni = brinquedoSelecionado.valorInicial ?? r?.valorInicial
-		const iniMin = brinquedoSelecionado.inicialMinutos ?? r?.inicialMinutos
+		const valorIni = brinquedoSelecionado.valorInicial !== undefined ? brinquedoSelecionado.valorInicial : r?.valorInicial
+		const iniMin = brinquedoSelecionado.inicialMinutos !== undefined ? brinquedoSelecionado.inicialMinutos : r?.inicialMinutos
+		const cicMin = brinquedoSelecionado.cicloMinutos !== undefined ? brinquedoSelecionado.cicloMinutos : r?.cicloMinutos
 		return {
 			...brinquedoSelecionado,
 			valorInicial: valorIni != null ? valorIni : parametros?.valorInicialReais,
 			inicialMinutos: iniMin !== undefined ? iniMin : (parametros?.valorInicialMinutos ?? 30),
-			cicloMinutos: brinquedoSelecionado.cicloMinutos ?? r?.cicloMinutos,
+			cicloMinutos: cicMin,
 			valorCiclo: brinquedoSelecionado.valorCiclo ?? r?.valorCiclo ?? 0,
 		}
 	}, [brinquedoSelecionado, parametros?.valorInicialReais, parametros?.valorInicialMinutos])
