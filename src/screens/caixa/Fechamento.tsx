@@ -72,19 +72,37 @@ export default function Fechamento() {
 		loadData()
 	}, [selectedCaixa])
 
+	// Retorna "YYYY-MM-DD" da data do caixa interpretada como horário local
+	function dataCaixaLocal(dataCaixa: string): string {
+		// "2026-04-01" sem hora é parseado como UTC pelo JS — forçar local adicionando T00:00:00
+		const d = new Date(dataCaixa.length === 10 ? dataCaixa + 'T00:00:00' : dataCaixa)
+		return d.toLocaleDateString('sv') // 'sv' retorna YYYY-MM-DD no horário local
+	}
+
 	// Resumo por forma de pagamento usando lancamentos pagos do dia
 	const resumo = useMemo(() => {
 		if (!selectedCaixa) return []
-		
-		const dataCaixa = new Date(selectedCaixa.data).toDateString()
+
+		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			const dataLancamento = new Date(l.dataHora).toDateString()
-			return dataLancamento === dataCaixa
+			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
 		})
-		
+
 		const map = new Map<string, { nome: string, total: number }>()
 		for (const l of pagos) {
+			// Pagamento dividido: distribuir cada forma pelo valor real do pagamentosJson
+			if (l.pagamentosJson) {
+				try {
+					const splits = JSON.parse(l.pagamentosJson) as Array<{ formaPagamentoId: string; descricao: string; valor: number }>
+					for (const s of splits) {
+						const nome = s.descricao || formasPagamento.find(f => f.id === s.formaPagamentoId)?.descricao || 'Desconhecido'
+						const atual = map.get(s.formaPagamentoId) || { nome, total: 0 }
+						map.set(s.formaPagamentoId, { nome: atual.nome, total: atual.total + s.valor })
+					}
+					continue
+				} catch { /* fallback abaixo */ }
+			}
 			const formaId = l.formaPagamentoId as string | undefined
 			if (!formaId) continue
 			const forma = formasPagamento.find(f => f.id === formaId)
@@ -98,7 +116,7 @@ export default function Fechamento() {
 	// Cortesias do dia (lançamentos pagos cuja forma de pagamento contém "cortesia")
 	const cortesiasDia = useMemo(() => {
 		if (!selectedCaixa) return []
-		const dataCaixa = new Date(selectedCaixa.data).toDateString()
+		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const isCortesia = (formaPagamentoId?: string) => {
 			if (!formaPagamentoId) return false
 			const forma = formasPagamento.find((f) => f.id === formaPagamentoId)
@@ -107,8 +125,7 @@ export default function Fechamento() {
 
 		const pagosCortesia = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			const dataLancamento = new Date(l.dataHora).toDateString()
-			if (dataLancamento !== dataCaixa) return false
+			if (new Date(l.dataHora).toLocaleDateString('sv') !== dataCaixa) return false
 			return isCortesia(l.formaPagamentoId)
 		})
 
@@ -127,11 +144,10 @@ export default function Fechamento() {
 	// Resumo por brinquedo usando lancamentos pagos do dia
 	const resumoBrinquedos = useMemo(() => {
 		if (!selectedCaixa) return []
-		const dataCaixa = new Date(selectedCaixa.data).toDateString()
+		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			const dataLancamento = new Date(l.dataHora).toDateString()
-			return dataLancamento === dataCaixa
+			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
 		})
 		const map = new Map<string, { nome: string; total: number }>()
 		for (const l of pagos) {
