@@ -95,6 +95,8 @@ export default function Pagamento() {
 	const valorAtual = useMemo(() => {
 		if (!lanc || !parametros) return lanc?.valorCalculado ?? 0
 		if (lanc.status !== 'aberto') return lanc.valorCalculado
+		// Modo quantidade (trenzinho/inflável): valor fixo, não recalcula por tempo
+		if (lanc.quantidade != null) return lanc.valorCalculado
 		const dec = minutosDecorridos(lanc.dataHora)
 		const brinquedo = lanc.brinquedoId ? brinquedos.find(b => b.id === lanc.brinquedoId) : undefined
 		const temCiclos = temCiclosCobranca(brinquedo, parametros)
