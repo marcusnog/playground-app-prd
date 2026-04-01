@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { appUrl } from '../utils/urlUtils'
 import { calcularValor } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
