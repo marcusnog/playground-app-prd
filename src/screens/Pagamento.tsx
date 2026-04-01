@@ -18,7 +18,6 @@ export default function Pagamento() {
 	const [loading, setLoading] = useState(true)
 	const [forma, setForma] = useState<string>('') // compat: forma única (cortesia)
 	const [pagamentos, setPagamentos] = useState<PagamentoLinha[]>([])
-	const [recebido, setRecebido] = useState<string>('')
 	const [desconto, setDesconto] = useState<string>('')
 	const [codigoCortesia, setCodigoCortesia] = useState<string>('')
 	const [saving, setSaving] = useState(false)
@@ -82,10 +81,6 @@ export default function Pagamento() {
 
 	const somaPagamentos = useMemo(() => pagamentosNum.reduce((s, p) => s + p.valorNum, 0), [pagamentosNum])
 
-	const isDinheiro = useMemo(() => {
-		if (!formaSelecionada) return false
-		return formaSelecionada.descricao.toLowerCase().includes('dinheiro')
-	}, [formaSelecionada])
 
 	const isCortesia = useMemo(() => {
 		if (!formaSelecionada) return false
@@ -100,7 +95,6 @@ export default function Pagamento() {
 	const valorAtual = useMemo(() => {
 		if (!lanc || !parametros) return lanc?.valorCalculado ?? 0
 		if (lanc.status !== 'aberto') return lanc.valorCalculado
-		if (lanc.nomeCrianca === 'Quantidade') return lanc.valorCalculado ?? 0
 		const dec = minutosDecorridos(lanc.dataHora)
 		const brinquedo = lanc.brinquedoId ? brinquedos.find(b => b.id === lanc.brinquedoId) : undefined
 		const temCiclos = temCiclosCobranca(brinquedo, parametros)
@@ -126,12 +120,11 @@ export default function Pagamento() {
 	}, [pagamentosNum, formas])
 
 	const troco = useMemo(() => {
-		// Troco calculado apenas sobre o total recebido em dinheiro
-		if ((!isDinheiro && totalDinheiro <= 0) || !recebido || !lanc) return 0
-		const recebidoNum = parseFloat(recebido.replace(',', '.')) || 0
-		const base = totalDinheiro > 0 ? totalDinheiro : valorFinal
-		return Math.max(0, recebidoNum - base)
-	}, [isDinheiro, totalDinheiro, recebido, lanc, valorFinal])
+		if (totalDinheiro <= 0 || !lanc) return 0
+		const nonCash = somaPagamentos - totalDinheiro
+		const cashRequired = Math.max(0, valorFinal - nonCash)
+		return Math.max(0, totalDinheiro - cashRequired)
+	}, [totalDinheiro, somaPagamentos, valorFinal, lanc])
 
 	async function executarPagamento() {
 		if (!lanc) return
@@ -157,14 +150,31 @@ export default function Pagamento() {
 					setSaving(false)
 					return alert('Adicione ao menos uma forma de pagamento com valor')
 				}
-				if (Math.abs(somaPagamentos - valorFinal) > 0.01) {
+				if (totalDinheiro > 0) {
+					if (somaPagamentos < valorFinal) {
+						setSaving(false)
+						return alert(`Valor insuficiente. Faltam R$ ${(valorFinal - somaPagamentos).toFixed(2)}`)
+					}
+				} else if (Math.abs(somaPagamentos - valorFinal) > 0.01) {
 					setSaving(false)
 					return alert(`A soma das formas (R$ ${somaPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorFinal.toFixed(2)})`)
 				}
+				// Desconta o troco das linhas de dinheiro antes de enviar ao backend
+				let trocoRestante = troco
+				const pagamentosAjustados = linhas.map(p => {
+					if (trocoRestante <= 0) return { formaPagamentoId: p.formaId, valor: p.valorNum }
+					const f = formas.find(f => f.id === p.formaId)
+					if (f?.descricao.toLowerCase().includes('dinheiro')) {
+						const ajuste = Math.min(trocoRestante, p.valorNum)
+						trocoRestante -= ajuste
+						return { formaPagamentoId: p.formaId, valor: Math.round((p.valorNum - ajuste) * 100) / 100 }
+					}
+					return { formaPagamentoId: p.formaId, valor: p.valorNum }
+				})
 				const opts: { valorCalculado?: number; valorDesconto?: number; pagamentos?: Array<{ formaPagamentoId: string; valor: number }> } = {
 					valorCalculado: valorFinal,
 					...(descontoNum > 0 && { valorDesconto: descontoNum }),
-					pagamentos: linhas.map(l => ({ formaPagamentoId: l.formaId, valor: l.valorNum })),
+					pagamentos: pagamentosAjustados,
 				}
 				await lancamentosService.pagar(lanc.id, linhas[0].formaId, opts)
 			}
@@ -278,7 +288,6 @@ export default function Pagamento() {
 								<PaymentIcon kind={resolvePaymentKind(forma)} />
 								<select className="select" style={compactControlStyle} value={forma} onChange={(e) => {
 									setForma(e.target.value)
-									setRecebido('')
 									setCodigoCortesia('')
 									const novaForma = formas.find(f => f.id === e.target.value)
 									if (novaForma?.descricao.toLowerCase().includes('cortesia')) setDesconto('')
@@ -299,7 +308,14 @@ export default function Pagamento() {
 												value={p.formaId}
 												onChange={(e) => {
 													const v = e.target.value
-													setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, formaId: v } : x))
+													const f = formas.find(f => f.id === v)
+													if (f?.descricao.toLowerCase().includes('cortesia')) {
+														setForma(v)
+														setCodigoCortesia('')
+														setPagamentos([{ id: crypto.randomUUID(), formaId: '', valor: '' }])
+													} else {
+														setPagamentos((prev) => prev.map(x => x.id === p.id ? { ...x, formaId: v } : x))
+													}
 												}}
 											>
 												<option value="">Selecione...</option>
@@ -347,8 +363,18 @@ export default function Pagamento() {
 										</div>
 									</div>
 								))}
-								<div className="help">Soma das formas: R$ {somaPagamentos.toFixed(2)} / Total: R$ {valorFinal.toFixed(2)}</div>
-							</div>
+								<div className="help">Soma: R$ {somaPagamentos.toFixed(2)} / Total: R$ {valorFinal.toFixed(2)}</div>
+							{troco > 0 && (
+								<div style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '1rem' }}>
+									Troco: R$ {troco.toFixed(2)}
+								</div>
+							)}
+							{totalDinheiro > 0 && somaPagamentos > 0 && somaPagamentos < valorFinal && (
+								<div style={{ color: 'var(--danger)', fontSize: '0.9rem' }}>
+									Valor insuficiente. Faltam R$ {(valorFinal - somaPagamentos).toFixed(2)}
+								</div>
+							)}
+						</div>
 						)}
 					</label>
 
@@ -368,41 +394,6 @@ export default function Pagamento() {
 						</label>
 					)}
 
-					{(isDinheiro || totalDinheiro > 0) && (
-						<>
-							<label className="field">
-								<span>Valor Recebido em Dinheiro *</span>
-								<input
-									className="input"
-									style={compactControlStyle}
-									type="text"
-									value={recebido}
-									onFocus={(e) => e.target.select()}
-									onChange={(e) => {
-										const valor = e.target.value.replace(/[^\d,]/g, '')
-										setRecebido(valor)
-									}}
-									placeholder="0,00"
-								/>
-							</label>
-							{troco > 0 && (
-								<label className="field">
-									<span>Troco</span>
-									<input
-										className="input"
-										style={{ ...compactControlStyle, background: 'rgba(34, 197, 94, 0.1)', borderColor: 'var(--success)', fontWeight: 'bold' }}
-										readOnly
-										value={`R$ ${troco.toFixed(2)}`}
-									/>
-								</label>
-							)}
-							{troco < 0 && (
-								<div style={{ color: 'var(--danger)', fontSize: '0.9rem', marginTop: -8 }}>
-									Valor insuficiente. Faltam R$ {Math.abs(troco).toFixed(2)}
-								</div>
-							)}
-						</>
-					)}
 				</div>
 
 				<div className="actions" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
