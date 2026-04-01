@@ -72,6 +72,12 @@ export default function ReciboPagamento() {
 				<div>Desconto: R$ {(lanc as { valorDesconto: number }).valorDesconto.toFixed(2)}</div>
 			)}
 			<div>Valor pago: R$ {lanc.valorCalculado.toFixed(2)}</div>
+			{(lanc as { valorRecebido?: number }).valorRecebido != null && (lanc as { valorRecebido: number }).valorRecebido > 0 && (
+				<>
+					<div>Recebido: R$ {(lanc as { valorRecebido: number }).valorRecebido.toFixed(2)}</div>
+					<div>Troco: R$ {((lanc as { valorRecebido: number }).valorRecebido - lanc.valorCalculado).toFixed(2)}</div>
+				</>
+			)}
 			{forma && <div>Forma: <PaymentIcon kind={resolvePaymentKind(forma.id)} /> {forma.descricao.toUpperCase()}</div>}
 			{formaId === 'pix' && pixPayload && (
 				<div style={{ textAlign: 'center', marginTop: 8 }}>

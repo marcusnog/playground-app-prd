@@ -171,9 +171,10 @@ export default function Pagamento() {
 					}
 					return { formaPagamentoId: p.formaId, valor: p.valorNum }
 				})
-				const opts: { valorCalculado?: number; valorDesconto?: number; pagamentos?: Array<{ formaPagamentoId: string; valor: number }> } = {
+				const opts: { valorCalculado?: number; valorDesconto?: number; valorRecebido?: number; pagamentos?: Array<{ formaPagamentoId: string; valor: number }> } = {
 					valorCalculado: valorFinal,
 					...(descontoNum > 0 && { valorDesconto: descontoNum }),
+					...(troco > 0 && { valorRecebido: somaPagamentos }),
 					pagamentos: pagamentosAjustados,
 				}
 				await lancamentosService.pagar(lanc.id, linhas[0].formaId, opts)
