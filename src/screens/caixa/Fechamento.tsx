@@ -149,18 +149,19 @@ export default function Fechamento() {
 			if (l.status !== 'pago') return false
 			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
 		})
-		const map = new Map<string, { nome: string; total: number }>()
+		const map = new Map<string, { nome: string; quantidade: number; total: number }>()
 		for (const l of pagos) {
 			const brinqId = l.brinquedoId as string | undefined
 			const brinq = brinquedos.find((b) => b.id === brinqId)
 			const nomeBrinq = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
 			const key = brinqId || '__sem_brinquedo__'
-			const atual = map.get(key) || { nome: nomeBrinq, total: 0 }
-			map.set(key, { nome: atual.nome, total: atual.total + (l.valorCalculado || 0) })
+			const qtd = (l as { quantidade?: number }).quantidade ?? 1
+			const atual = map.get(key) || { nome: nomeBrinq, quantidade: 0, total: 0 }
+			map.set(key, { nome: atual.nome, quantidade: atual.quantidade + qtd, total: atual.total + (l.valorCalculado || 0) })
 		}
 		return Array.from(map.values())
 			.sort((a, b) => b.total - a.total)
-			.map((v) => [v.nome, v.total] as [string, number])
+			.map((v) => [v.nome, v.quantidade, v.total] as [string, number, number])
 	}, [selectedCaixa, lancamentos, brinquedos])
 
 	// Calcular totais de sangrias e suprimentos
@@ -416,12 +417,13 @@ export default function Fechamento() {
 							<div className="table-wrap">
 								<table className="table">
 									<thead>
-										<tr><th>Brinquedo</th><th>Total (R$)</th></tr>
+										<tr><th>Brinquedo</th><th>Qtd</th><th>Total (R$)</th></tr>
 									</thead>
 									<tbody>
-										{resumoBrinquedos.map(([nome, total], i) => (
+										{resumoBrinquedos.map(([nome, quantidade, total], i) => (
 											<tr key={`${nome}-${i}`}>
 												<td>{nome}</td>
+												<td>{quantidade}</td>
 												<td>R$ {total.toFixed(2)}</td>
 											</tr>
 										))}
