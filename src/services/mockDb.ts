@@ -82,6 +82,7 @@ export type Lancamento = {
 	status: 'aberto' | 'pago' | 'cancelado'
 	valorCalculado: number
 	valorDesconto?: number // valor do desconto aplicado (dos acréscimos)
+	valorRecebido?: number // valor recebido em dinheiro (para cálculo do troco)
 	formaPagamentoId?: string // ID da forma de pagamento (quando pago)
 	updatedAt?: string // ISO string - hora da última atualização (ex.: pagamento)
 }
