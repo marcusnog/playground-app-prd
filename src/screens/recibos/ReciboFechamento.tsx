@@ -48,15 +48,26 @@ export default function ReciboFechamento() {
 		if (!caixa) return []
 		const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data
 		if (!dataStr) return []
-		const dataCaixa = new Date(dataStr).toDateString()
+		// Forçar parse como horário local para evitar deslocamento de fuso UTC-3
+		const dataCaixa = new Date(dataStr.length === 10 ? dataStr + 'T00:00:00' : dataStr).toLocaleDateString('sv')
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			const dataLancamento = new Date(l.dataHora).toDateString()
-			return dataLancamento === dataCaixa
+			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
 		})
 		const map = new Map<string, number>()
 		for (const l of pagos) {
-			const fid = (l as { formaPagamentoId?: string }).formaPagamentoId
+			// Split payment: distribuir cada forma pelo valor real do pagamentosJson
+			if (l.pagamentosJson) {
+				try {
+					const splits = JSON.parse(l.pagamentosJson) as Array<{ formaPagamentoId: string; descricao: string; valor: number }>
+					for (const s of splits) {
+						const desc = s.descricao || formas.find(f => f.id === s.formaPagamentoId)?.descricao || 'Desconhecido'
+						map.set(desc, (map.get(desc) || 0) + s.valor)
+					}
+					continue
+				} catch { /* fallback abaixo */ }
+			}
+			const fid = l.formaPagamentoId
 			if (!fid) continue
 			const desc = formas.find(f => f.id === fid)?.descricao || fid
 			map.set(desc, (map.get(desc) || 0) + l.valorCalculado)
