@@ -14,7 +14,7 @@ export type RegrasCobranca = {
 	valorCiclo: number
 	cicloToleranciaMinutos?: number // min de tolerância no início de cada ciclo (0 = cobra imediatamente)
 }
-export type Brinquedo = { 
+export type Brinquedo = {
 	id: string
 	nome: string
 	inicialMinutos?: number | null // null = taxa única sem limite
@@ -22,6 +22,8 @@ export type Brinquedo = {
 	cicloMinutos?: number | null // null = não usa ciclos
 	valorCiclo?: number
 	cicloToleranciaMinutos?: number // min de tolerância no início de cada ciclo
+	valorCiclo2?: number | null // valor por ciclo na 2ª faixa (após cicloTier2Minutos)
+	cicloTier2Minutos?: number | null // minutos totais a partir dos quais entra na 2ª faixa
 	regrasCobranca?: RegrasCobranca // Se não tiver, usa regras globais (compatibilidade)
 }
 export type Parametros = {

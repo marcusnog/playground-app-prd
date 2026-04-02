@@ -14,6 +14,9 @@ export default function Acompanhamento() {
 	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
 	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
 	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
+	const hoje = new Date().toLocaleDateString('sv')
+	const [filtroDataInicio, setFiltroDataInicio] = useState(hoje)
+	const [filtroDataFim, setFiltroDataFim] = useState(hoje)
 
 	const lancamentosFiltrados = useMemo(() => {
 		let lista: Lancamento[]
@@ -32,9 +35,16 @@ export default function Acompanhamento() {
 			})
 		} else {
 			lista = lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
+			if (filtroDataInicio) {
+				lista = lista.filter((l) => new Date(l.dataHora).toLocaleDateString('sv') >= filtroDataInicio)
+			}
+			if (filtroDataFim) {
+				lista = lista.filter((l) => new Date(l.dataHora).toLocaleDateString('sv') <= filtroDataFim)
+			}
+			lista = [...lista].sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
 		}
 		return lista
-	}, [tick, filtroStatus, lancamentos])
+	}, [tick, filtroStatus, lancamentos, filtroDataInicio, filtroDataFim])
 
 	useEffect(() => {
 		async function loadData() {
@@ -141,6 +151,36 @@ export default function Acompanhamento() {
 						</button>
 					</div>
 				</div>
+				{filtroStatus === 'encerrados' && (
+					<div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 8 }}>
+						<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+							De:
+							<input
+								type="date"
+								className="input"
+								style={{ padding: '4px 8px' }}
+								value={filtroDataInicio}
+								onChange={(e) => setFiltroDataInicio(e.target.value)}
+							/>
+						</label>
+						<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+							Até:
+							<input
+								type="date"
+								className="input"
+								style={{ padding: '4px 8px' }}
+								value={filtroDataFim}
+								onChange={(e) => setFiltroDataFim(e.target.value)}
+							/>
+						</label>
+						<button
+							className="btn"
+							onClick={() => { setFiltroDataInicio(hoje); setFiltroDataFim(hoje) }}
+						>
+							Hoje
+						</button>
+					</div>
+				)}
 			</div>
 			<div className="card table-wrap">
 				<table className="table">

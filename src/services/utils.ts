@@ -34,6 +34,27 @@ function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, toler
 }
 
 
+/** Retorna descrição detalhada do cálculo de faixas para uso em recibos */
+export function detalharValorCiclos(tempoMin: number, brinquedo: Brinquedo): string | null {
+	const inicialMinutos = brinquedo.inicialMinutos !== undefined ? brinquedo.inicialMinutos : brinquedo.regrasCobranca?.inicialMinutos
+	const cicloMinutos = brinquedo.cicloMinutos !== undefined ? brinquedo.cicloMinutos : brinquedo.regrasCobranca?.cicloMinutos
+	const valorCiclo = Number(brinquedo.valorCiclo ?? brinquedo.regrasCobranca?.valorCiclo ?? 0)
+	const valorCiclo2: number | undefined = typeof brinquedo.valorCiclo2 === 'number' ? brinquedo.valorCiclo2 : undefined
+	const cicloTier2Minutos: number | undefined = typeof brinquedo.cicloTier2Minutos === 'number' ? brinquedo.cicloTier2Minutos : undefined
+	if (inicialMinutos == null || cicloMinutos == null || !cicloTier2Minutos || valorCiclo2 === undefined) return null
+	const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
+	const ciclo = Math.max(1, Number(cicloMinutos))
+	const tier1MaxExcedente = Math.max(0, cicloTier2Minutos - Number(inicialMinutos))
+	const tol = brinquedo.cicloToleranciaMinutos ?? 0
+	const ciclosTier1 = ciclosPagosComTolerancia(Math.min(excedente, tier1MaxExcedente), ciclo, tol)
+	const excedenteTier2 = Math.max(0, excedente - tier1MaxExcedente)
+	const ciclosTier2 = excedenteTier2 > 0 ? ciclosPagosComTolerancia(excedenteTier2, ciclo, tol) : 0
+	const partes: string[] = []
+	if (ciclosTier1 > 0) partes.push(`${ciclosTier1}x R$${valorCiclo.toFixed(2)} (até ${cicloTier2Minutos}min)`)
+	if (ciclosTier2 > 0) partes.push(`${ciclosTier2}x R$${valorCiclo2.toFixed(2)} (após ${cicloTier2Minutos}min)`)
+	return partes.length > 0 ? partes.join(' + ') : null
+}
+
 export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
 
@@ -64,6 +85,19 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 
 		const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
 		const ciclo = Math.max(1, Number(cicloMinutos))
+
+		// 2ª faixa de preço: ciclos após cicloTier2Minutos (total) custam valorCiclo2
+		const valorCiclo2: number | undefined = typeof brinquedo?.valorCiclo2 === 'number' ? brinquedo.valorCiclo2 : undefined
+		const cicloTier2Minutos: number | undefined = typeof brinquedo?.cicloTier2Minutos === 'number' ? brinquedo.cicloTier2Minutos : undefined
+		if (cicloTier2Minutos !== undefined && valorCiclo2 !== undefined) {
+			const tier1MaxExcedente = Math.max(0, cicloTier2Minutos - Number(inicialMinutos))
+			const excedenteTier1 = Math.min(excedente, tier1MaxExcedente)
+			const excedenteTier2 = Math.max(0, excedente - tier1MaxExcedente)
+			const ciclosTier1 = ciclosPagosComTolerancia(excedenteTier1, ciclo, cicloToleranciaMinutos)
+			const ciclosTier2 = excedenteTier2 > 0 ? ciclosPagosComTolerancia(excedenteTier2, ciclo, cicloToleranciaMinutos) : 0
+			return Math.round((valorInicial + ciclosTier1 * valorCiclo + ciclosTier2 * valorCiclo2) * 100) / 100
+		}
+
 		const ciclos = ciclosPagosComTolerancia(excedente, ciclo, cicloToleranciaMinutos)
 		const valorExcedente = ciclos * valorCiclo
 		return Math.round((valorInicial + valorExcedente) * 100) / 100

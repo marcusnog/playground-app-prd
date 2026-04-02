@@ -16,6 +16,8 @@ export default function Brinquedos() {
 	const [valorCiclo, setValorCiclo] = useState(10)
 	const [cicloToleranciaMinutos, setCicloToleranciaMinutos] = useState(3)
 	const [taxaUnica, setTaxaUnica] = useState(false)
+	const [valorCiclo2, setValorCiclo2] = useState<number | null>(null)
+	const [cicloTier2Minutos, setCicloTier2Minutos] = useState<number | null>(null)
 
 	const load = useCallback(async () => {
 		setLoading(true)
@@ -35,16 +37,18 @@ export default function Brinquedos() {
 		load()
 	}, [load])
 
-	function getPayload(): { nome: string; valorInicial: number; inicialMinutos: number | null; cicloMinutos: number | null; valorCiclo: number; cicloToleranciaMinutos?: number } {
-		return taxaUnica
-			? { nome: nome.trim(), valorInicial, inicialMinutos: null, cicloMinutos: null, valorCiclo: 0 }
-			: { nome: nome.trim(), valorInicial, inicialMinutos, cicloMinutos, valorCiclo, cicloToleranciaMinutos: cicloMinutos != null ? cicloToleranciaMinutos : undefined }
+	type BrinquedoPayload = { nome: string; valorInicial: number; inicialMinutos: number | null; cicloMinutos: number | null; valorCiclo: number; cicloToleranciaMinutos?: number; valorCiclo2?: number | null; cicloTier2Minutos?: number | null }
+
+	function getPayload(): BrinquedoPayload {
+		if (taxaUnica) return { nome: nome.trim(), valorInicial, inicialMinutos: null, cicloMinutos: null, valorCiclo: 0, valorCiclo2: null, cicloTier2Minutos: null }
+		const hasTier2 = cicloMinutos != null && cicloTier2Minutos != null && valorCiclo2 != null
+		return { nome: nome.trim(), valorInicial, inicialMinutos, cicloMinutos, valorCiclo, cicloToleranciaMinutos: cicloMinutos != null ? cicloToleranciaMinutos : undefined, valorCiclo2: hasTier2 ? valorCiclo2 : null, cicloTier2Minutos: hasTier2 ? cicloTier2Minutos : null }
 	}
 
-	function getEditPayload(): { nome: string; valorInicial: number; inicialMinutos: number | null; cicloMinutos: number | null; valorCiclo: number; cicloToleranciaMinutos?: number } {
-		return taxaUnica
-			? { nome: editNome.trim(), valorInicial, inicialMinutos: null, cicloMinutos: null, valorCiclo: 0 }
-			: { nome: editNome.trim(), valorInicial, inicialMinutos, cicloMinutos, valorCiclo, cicloToleranciaMinutos: cicloMinutos != null ? cicloToleranciaMinutos : undefined }
+	function getEditPayload(): BrinquedoPayload {
+		if (taxaUnica) return { nome: editNome.trim(), valorInicial, inicialMinutos: null, cicloMinutos: null, valorCiclo: 0, valorCiclo2: null, cicloTier2Minutos: null }
+		const hasTier2 = cicloMinutos != null && cicloTier2Minutos != null && valorCiclo2 != null
+		return { nome: editNome.trim(), valorInicial, inicialMinutos, cicloMinutos, valorCiclo, cicloToleranciaMinutos: cicloMinutos != null ? cicloToleranciaMinutos : undefined, valorCiclo2: hasTier2 ? valorCiclo2 : null, cicloTier2Minutos: hasTier2 ? cicloTier2Minutos : null }
 	}
 
 	async function add() {
@@ -67,6 +71,8 @@ export default function Brinquedos() {
 			setValorCiclo(10)
 			setCicloToleranciaMinutos(3)
 			setTaxaUnica(false)
+			setValorCiclo2(null)
+			setCicloTier2Minutos(null)
 			load()
 		} catch (e: unknown) {
 			const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : 'Erro ao adicionar'
@@ -87,18 +93,24 @@ export default function Brinquedos() {
 			setValorCiclo(r.valorCiclo)
 			setCicloToleranciaMinutos(r.cicloToleranciaMinutos ?? 3)
 			setTaxaUnica(r.inicialMinutos === null)
+			setValorCiclo2(null)
+			setCicloTier2Minutos(null)
 		} else {
 			const ini = (item as { inicialMinutos?: number | null }).inicialMinutos
 			const cic = (item as { cicloMinutos?: number | null }).cicloMinutos
 			const vi = (item as { valorInicial?: number }).valorInicial ?? 20
 			const vc = (item as { valorCiclo?: number }).valorCiclo ?? 10
 			const tol = (item as { cicloToleranciaMinutos?: number }).cicloToleranciaMinutos ?? 3
+			const vc2 = (item as { valorCiclo2?: number | null }).valorCiclo2
+			const ct2 = (item as { cicloTier2Minutos?: number | null }).cicloTier2Minutos
 			setInicialMinutos(ini !== undefined ? ini : 30)
 			setValorInicial(vi)
 			setCicloMinutos(cic !== undefined ? cic : 15)
 			setValorCiclo(vc)
 			setCicloToleranciaMinutos(tol)
 			setTaxaUnica(ini === null)
+			setValorCiclo2(vc2 !== undefined ? vc2 : null)
+			setCicloTier2Minutos(ct2 !== undefined ? ct2 : null)
 		}
 		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
@@ -112,6 +124,8 @@ export default function Brinquedos() {
 		setValorCiclo(10)
 		setCicloToleranciaMinutos(3)
 		setTaxaUnica(false)
+		setValorCiclo2(null)
+		setCicloTier2Minutos(null)
 	}
 
 	async function salvarEdicao(id: string) {
@@ -127,6 +141,8 @@ export default function Brinquedos() {
 				cicloMinutos: payload.cicloMinutos ?? undefined,
 				valorCiclo: payload.valorCiclo,
 				cicloToleranciaMinutos: payload.cicloToleranciaMinutos,
+				valorCiclo2: payload.valorCiclo2,
+				cicloTier2Minutos: payload.cicloTier2Minutos,
 			} as Parameters<typeof brinquedosService.update>[1])
 			cancelarEdicao()
 			load()
@@ -166,10 +182,13 @@ export default function Brinquedos() {
 		const cic = (b as { cicloMinutos?: number | null }).cicloMinutos
 		const vc = (b as { valorCiclo?: number }).valorCiclo ?? 0
 		const tol = (b as { cicloToleranciaMinutos?: number }).cicloToleranciaMinutos
+		const vc2 = (b as { valorCiclo2?: number | null }).valorCiclo2
+		const ct2 = (b as { cicloTier2Minutos?: number | null }).cicloTier2Minutos
 		if (ini === null || ini === undefined) return `Taxa única: R$ ${vi.toFixed(2)}`
 		if (cic === null || cic === undefined) return `Inicial: ${ini}min - R$ ${vi.toFixed(2)}`
 		const tolStr = tol ? `, tol. ${tol}min` : ''
-		return `Inicial: ${ini}min (R$ ${vi.toFixed(2)}) + Ciclo: ${cic}min (R$ ${vc.toFixed(2)})${tolStr}`
+		const tier2Str = ct2 != null && vc2 != null ? ` | após ${ct2}min: R$ ${Number(vc2).toFixed(2)}/ciclo` : ''
+		return `Inicial: ${ini}min (R$ ${vi.toFixed(2)}) + Ciclo: ${cic}min (R$ ${vc.toFixed(2)})${tolStr}${tier2Str}`
 	}
 
 	return (
@@ -277,6 +296,54 @@ export default function Brinquedos() {
 									/>
 									<span className="help">Ex: 3 = não cobra nos primeiros 3 min de cada ciclo</span>
 								</label>
+								<label className="field" style={{ gridColumn: '1 / -1' }}>
+									<div className="row">
+										<input
+											type="checkbox"
+											checked={cicloTier2Minutos != null}
+											onChange={(e) => {
+												if (e.target.checked) {
+													setCicloTier2Minutos(60)
+													setValorCiclo2(10)
+												} else {
+													setCicloTier2Minutos(null)
+													setValorCiclo2(null)
+												}
+											}}
+											disabled={cicloMinutos === null}
+										/>
+										<span><strong>2ª faixa de preço após X minutos</strong></span>
+									</div>
+									<span className="help">Ex: ciclos até 60 min custam R$7,50; após 60 min custam R$10,00</span>
+								</label>
+								{cicloTier2Minutos != null && (
+									<>
+										<label className="field">
+											<span>Após quantos minutos (total)</span>
+											<input
+												type="number"
+												className="input"
+												value={cicloTier2Minutos}
+												onFocus={(e) => e.target.select()}
+												onChange={(e) => setCicloTier2Minutos(e.target.value ? Number(e.target.value) : null)}
+												min="1"
+											/>
+											<span className="help">Ex: 60 = muda de faixa após 1 hora</span>
+										</label>
+										<label className="field">
+											<span>Valor ciclo 2ª faixa (R$)</span>
+											<input
+												type="number"
+												className="input"
+												value={valorCiclo2 ?? ''}
+												onFocus={(e) => e.target.select()}
+												onChange={(e) => setValorCiclo2(e.target.value ? Number(e.target.value) : null)}
+												step="0.01"
+												min="0"
+											/>
+										</label>
+									</>
+								)}
 							</div>
 						)}
 

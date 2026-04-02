@@ -110,6 +110,8 @@ export default function Lancamento() {
 			inicialMinutos: iniMin !== undefined ? iniMin : (parametros?.valorInicialMinutos ?? 30),
 			cicloMinutos: cicMin,
 			valorCiclo: brinquedoSelecionado.valorCiclo ?? r?.valorCiclo ?? 0,
+			valorCiclo2: brinquedoSelecionado.valorCiclo2 !== undefined ? brinquedoSelecionado.valorCiclo2 : null,
+			cicloTier2Minutos: brinquedoSelecionado.cicloTier2Minutos !== undefined ? brinquedoSelecionado.cicloTier2Minutos : null,
 		}
 	}, [brinquedoSelecionado, parametros?.valorInicialReais, parametros?.valorInicialMinutos])
 
