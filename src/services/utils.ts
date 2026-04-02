@@ -1,7 +1,7 @@
-// Utilitários compartilhados
+// Shared utilities
 import type { Parametros, Brinquedo, Lancamento } from './mockDb'
 
-/** Formata CNPJ para o padrão 00.000.000/0000-00. Aceita string com ou sem máscara. */
+/** Formats CNPJ to 00.000.000/0000-00. Accepts masked or unmasked text. */
 export function formatarCnpj(valor: string | undefined | null): string {
 	if (!valor) return ''
 	const digitos = valor.replace(/\D/g, '').slice(0, 14)
@@ -13,7 +13,7 @@ export function formatarCnpj(valor: string | undefined | null): string {
 	return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-${digitos.slice(12)}`
 }
 
-/** Retorna true se a cobrança usa ciclos adicionais (ex.: 15min + R$10) */
+/** Returns true when the charge uses extra cycles. */
 export function temCiclosCobranca(brinquedo?: Brinquedo | null, param?: Parametros | null): boolean {
 	if (brinquedo) {
 		const regras = brinquedo.regrasCobranca
@@ -33,33 +33,112 @@ function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, toler
 	return ciclosCompletos + 1
 }
 
+const MARCO_CICLO_FIXO_MINUTOS = 60
+const VALOR_CICLO_FIXO_REAIS = 10
 
-/** Retorna descrição detalhada do cálculo de faixas para uso em recibos */
+type DetalheCiclo = {
+	quantidade: number
+	valor: number
+	descricao?: string
+}
+
+function calcularDetalhesCiclos(
+	excedente: number,
+	cicloMinutos: number,
+	tolerancia: number,
+	valorCiclo: number,
+	opts?: {
+		valorCiclo2?: number
+		cicloTier2Minutos?: number
+		inicialMinutos?: number
+	}
+): DetalheCiclo[] {
+	if (excedente <= 0) return []
+
+	const ciclo = Math.max(1, Number(cicloMinutos))
+	const ciclosPagos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
+	const valorBase = Number(valorCiclo)
+	const valorTier2 = typeof opts?.valorCiclo2 === 'number' ? Number(opts.valorCiclo2) : undefined
+	const tier1MaxExcedente = typeof opts?.cicloTier2Minutos === 'number' && typeof opts?.inicialMinutos === 'number'
+		? Math.max(0, Number(opts.cicloTier2Minutos) - Number(opts.inicialMinutos))
+		: undefined
+	const detalhes: DetalheCiclo[] = []
+
+	for (let cicloIndex = 1; cicloIndex <= ciclosPagos; cicloIndex += 1) {
+		const inicioCicloExcedente = (cicloIndex - 1) * ciclo
+		const fimCicloExcedente = cicloIndex * ciclo
+		const fechaMarcoFixo = fimCicloExcedente > 0 && fimCicloExcedente % MARCO_CICLO_FIXO_MINUTOS === 0
+		const valorAtual = fechaMarcoFixo
+			? VALOR_CICLO_FIXO_REAIS
+			: valorTier2 !== undefined && tier1MaxExcedente !== undefined && inicioCicloExcedente >= tier1MaxExcedente
+				? valorTier2
+				: valorBase
+		const descricao = fechaMarcoFixo ? `fechamento ${fimCicloExcedente}min` : undefined
+		const ultimoDetalhe = detalhes[detalhes.length - 1]
+
+		if (ultimoDetalhe && ultimoDetalhe.valor === valorAtual && ultimoDetalhe.descricao === descricao) {
+			ultimoDetalhe.quantidade += 1
+			continue
+		}
+
+		detalhes.push({
+			quantidade: 1,
+			valor: valorAtual,
+			descricao,
+		})
+	}
+
+	return detalhes
+}
+
+function calcularValorExcedentePorCiclos(
+	excedente: number,
+	cicloMinutos: number,
+	tolerancia: number,
+	valorCiclo: number,
+	opts?: {
+		valorCiclo2?: number
+		cicloTier2Minutos?: number
+		inicialMinutos?: number
+	}
+): number {
+	const detalhes = calcularDetalhesCiclos(excedente, cicloMinutos, tolerancia, valorCiclo, opts)
+	const total = detalhes.reduce((acc, detalhe) => acc + detalhe.quantidade * detalhe.valor, 0)
+	return Math.round(total * 100) / 100
+}
+
+/** Returns a breakdown string for receipts when tier 2 or the 60-minute override is active. */
 export function detalharValorCiclos(tempoMin: number, brinquedo: Brinquedo): string | null {
 	const inicialMinutos = brinquedo.inicialMinutos !== undefined ? brinquedo.inicialMinutos : brinquedo.regrasCobranca?.inicialMinutos
 	const cicloMinutos = brinquedo.cicloMinutos !== undefined ? brinquedo.cicloMinutos : brinquedo.regrasCobranca?.cicloMinutos
 	const valorCiclo = Number(brinquedo.valorCiclo ?? brinquedo.regrasCobranca?.valorCiclo ?? 0)
 	const valorCiclo2: number | undefined = typeof brinquedo.valorCiclo2 === 'number' ? brinquedo.valorCiclo2 : undefined
 	const cicloTier2Minutos: number | undefined = typeof brinquedo.cicloTier2Minutos === 'number' ? brinquedo.cicloTier2Minutos : undefined
-	if (inicialMinutos == null || cicloMinutos == null || !cicloTier2Minutos || valorCiclo2 === undefined) return null
+	if (inicialMinutos == null || cicloMinutos == null) return null
+
 	const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
-	const ciclo = Math.max(1, Number(cicloMinutos))
-	const tier1MaxExcedente = Math.max(0, cicloTier2Minutos - Number(inicialMinutos))
+	const tier1MaxExcedente = cicloTier2Minutos !== undefined
+		? Math.max(0, cicloTier2Minutos - Number(inicialMinutos))
+		: undefined
 	const tol = brinquedo.cicloToleranciaMinutos ?? 0
-	const ciclosTier1 = ciclosPagosComTolerancia(Math.min(excedente, tier1MaxExcedente), ciclo, tol)
-	const excedenteTier2 = Math.max(0, excedente - tier1MaxExcedente)
-	const ciclosTier2 = excedenteTier2 > 0 ? ciclosPagosComTolerancia(excedenteTier2, ciclo, tol) : 0
-	const partes: string[] = []
-	if (ciclosTier1 > 0) partes.push(`${ciclosTier1}x R$${valorCiclo.toFixed(2)} (até ${cicloTier2Minutos}min)`)
-	if (ciclosTier2 > 0) partes.push(`${ciclosTier2}x R$${valorCiclo2.toFixed(2)} (após ${cicloTier2Minutos}min)`)
-	return partes.length > 0 ? partes.join(' + ') : null
+	const detalhes = calcularDetalhesCiclos(excedente, Number(cicloMinutos), tol, valorCiclo, {
+		inicialMinutos: Number(inicialMinutos),
+		cicloTier2Minutos: cicloTier2Minutos ?? undefined,
+		valorCiclo2,
+	})
+	const temMarcoFixo = detalhes.some((detalhe) => detalhe.descricao !== undefined)
+	const temFaixa2 = tier1MaxExcedente !== undefined && valorCiclo2 !== undefined && excedente > tier1MaxExcedente
+	if (!temMarcoFixo && !temFaixa2) return null
+
+	return detalhes
+		.map((detalhe) => `${detalhe.quantidade}x R$${detalhe.valor.toFixed(2)}${detalhe.descricao ? ` (${detalhe.descricao})` : ''}`)
+		.join(' + ')
 }
 
 export function calcularValor(param: Parametros, tempoMin: number | null, brinquedo?: Brinquedo): number {
 	if (tempoMin == null) return 0
 
-	// Se o brinquedo tem regras específicas, usa elas (API retorna campos diretos; mock pode ter regrasCobranca)
-	// IMPORTANTE: usar !== undefined (não ??) para preservar null, que significa "taxa única sem limite de tempo"
+	// Preserve null because it means a fixed fee without time limit.
 	const regras = brinquedo?.regrasCobranca
 	const inicialMinutos = brinquedo && brinquedo.inicialMinutos !== undefined ? brinquedo.inicialMinutos : regras?.inicialMinutos
 	const valorInicialRaw = brinquedo && brinquedo.valorInicial !== undefined ? brinquedo.valorInicial : regras?.valorInicial
@@ -68,49 +147,33 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	const valorCiclo = Number(brinquedo?.valorCiclo ?? regras?.valorCiclo ?? 0)
 	const cicloToleranciaMinutos = brinquedo?.cicloToleranciaMinutos ?? regras?.cicloToleranciaMinutos ?? 0
 
-	// Brinquedo com valor fixo (taxa única) ou com regras próprias
 	if (inicialMinutos !== undefined && !Number.isNaN(valorInicial)) {
-		// Taxa única sem limite de tempo
 		if (inicialMinutos === null) {
 			return valorInicial
 		}
 
-		// Calcula por tempo e ciclos (inclui tempo 0 = valor inicial do brinquedo)
 		if (tempoMin <= inicialMinutos) return valorInicial
 
-		// Se não usa ciclos, retorna apenas o valor inicial
 		if (cicloMinutos === null || cicloMinutos === undefined) {
 			return valorInicial
 		}
 
 		const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
-		const ciclo = Math.max(1, Number(cicloMinutos))
-
-		// 2ª faixa de preço: ciclos após cicloTier2Minutos (total) custam valorCiclo2
 		const valorCiclo2: number | undefined = typeof brinquedo?.valorCiclo2 === 'number' ? brinquedo.valorCiclo2 : undefined
 		const cicloTier2Minutos: number | undefined = typeof brinquedo?.cicloTier2Minutos === 'number' ? brinquedo.cicloTier2Minutos : undefined
-		if (cicloTier2Minutos !== undefined && valorCiclo2 !== undefined) {
-			const tier1MaxExcedente = Math.max(0, cicloTier2Minutos - Number(inicialMinutos))
-			const excedenteTier1 = Math.min(excedente, tier1MaxExcedente)
-			const excedenteTier2 = Math.max(0, excedente - tier1MaxExcedente)
-			const ciclosTier1 = ciclosPagosComTolerancia(excedenteTier1, ciclo, cicloToleranciaMinutos)
-			const ciclosTier2 = excedenteTier2 > 0 ? ciclosPagosComTolerancia(excedenteTier2, ciclo, cicloToleranciaMinutos) : 0
-			return Math.round((valorInicial + ciclosTier1 * valorCiclo + ciclosTier2 * valorCiclo2) * 100) / 100
-		}
-
-		const ciclos = ciclosPagosComTolerancia(excedente, ciclo, cicloToleranciaMinutos)
-		const valorExcedente = ciclos * valorCiclo
+		const valorExcedente = calcularValorExcedentePorCiclos(excedente, Number(cicloMinutos), cicloToleranciaMinutos, valorCiclo, {
+			inicialMinutos: Number(inicialMinutos),
+			cicloTier2Minutos,
+			valorCiclo2,
+		})
 		return Math.round((valorInicial + valorExcedente) * 100) / 100
 	}
-	
-	// Usa regras globais do parâmetro
+
 	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais, cicloToleranciaMinutos: tolParam } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
 	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
-	const ciclo = Math.max(1, valorCicloMinutos)
 	const tolerancia = tolParam ?? 0
-	const ciclos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
-	const valorExcedente = ciclos * valorCicloReais
+	const valorExcedente = calcularValorExcedentePorCiclos(excedente, valorCicloMinutos, tolerancia, valorCicloReais)
 	return Math.round((valorInicialReais + valorExcedente) * 100) / 100
 }
 
@@ -137,4 +200,3 @@ export function calcularValorExibidoLancamento(
 
 	return calcularValor(parametros, minutosParaValor, brinquedo ?? undefined)
 }
-
