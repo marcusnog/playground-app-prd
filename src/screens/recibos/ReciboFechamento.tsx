@@ -90,6 +90,37 @@ export default function ReciboFechamento() {
 		return Array.from(map.values()).sort((a, b) => b.total - a.total)
 	}, [pagos, brinquedos])
 
+	const cortesiasDia = useMemo(() => {
+		const isCortesia = (lancamento: (typeof pagos)[number]) => {
+			if (lancamento.pagamentosJson) {
+				try {
+					const splits = JSON.parse(lancamento.pagamentosJson) as Array<{ formaPagamentoId?: string; descricao?: string }>
+					return splits.some((s) => {
+						const descricao = s.descricao || formas.find((f) => f.id === s.formaPagamentoId)?.descricao || ''
+						return descricao.toLowerCase().includes('cortesia')
+					})
+				} catch {
+					return false
+				}
+			}
+			if (!lancamento.formaPagamentoId) return false
+			const forma = formas.find((f) => f.id === lancamento.formaPagamentoId)
+			return String(forma?.descricao || '').toLowerCase().includes('cortesia')
+		}
+
+		return pagos
+			.filter((l) => isCortesia(l))
+			.map((l) => {
+				const brinqId = l.brinquedoId
+				const brinq = brinquedos.find((b) => b.id === brinqId)
+				const brinquedoNome = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
+				const quantidade = l.quantidade ?? 1
+				const dataHoraUtilizada = l.updatedAt || l.dataHora
+				return { id: l.id, brinquedoNome, quantidade, dataHoraUtilizada }
+			})
+			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
+	}, [pagos, formas, brinquedos])
+
 	const sangriasList = useMemo(() => {
 		const movs = caixa?.movimentos
 		if (!movs || !Array.isArray(movs)) return []
@@ -140,6 +171,21 @@ export default function ReciboFechamento() {
 						<div key={b.nome}>{b.nome}: {b.quantidade}x R$ {b.total.toFixed(2)}</div>
 					))}
 				</>
+			)}
+
+			<hr />
+			<div><strong>Cortesias Usadas:</strong></div>
+			{cortesiasDia.length > 0 ? (
+				<>
+					<div>Total: {cortesiasDia.length}</div>
+					{cortesiasDia.map((c) => (
+						<div key={c.id}>
+							{c.brinquedoNome}: {c.quantidade}x em {new Date(c.dataHoraUtilizada).toLocaleString('pt-BR')}
+						</div>
+					))}
+				</>
+			) : (
+				<div>Nenhuma cortesia utilizada</div>
 			)}
 
 			<hr />

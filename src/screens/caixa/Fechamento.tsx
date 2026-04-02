@@ -117,16 +117,30 @@ export default function Fechamento() {
 	const cortesiasDia = useMemo(() => {
 		if (!selectedCaixa) return []
 		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
-		const isCortesia = (formaPagamentoId?: string) => {
-			if (!formaPagamentoId) return false
-			const forma = formasPagamento.find((f) => f.id === formaPagamentoId)
+		const isCortesia = (lancamento: {
+			formaPagamentoId?: string
+			pagamentosJson?: string
+		}) => {
+			if (lancamento.pagamentosJson) {
+				try {
+					const splits = JSON.parse(lancamento.pagamentosJson) as Array<{ formaPagamentoId?: string; descricao?: string }>
+					return splits.some((s) => {
+						const descricao = s.descricao || formasPagamento.find((f) => f.id === s.formaPagamentoId)?.descricao || ''
+						return descricao.toLowerCase().includes('cortesia')
+					})
+				} catch {
+					return false
+				}
+			}
+			if (!lancamento.formaPagamentoId) return false
+			const forma = formasPagamento.find((f) => f.id === lancamento.formaPagamentoId)
 			return String(forma?.descricao || '').toLowerCase().includes('cortesia')
 		}
 
 		const pagosCortesia = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
 			if (new Date(l.dataHora).toLocaleDateString('sv') !== dataCaixa) return false
-			return isCortesia(l.formaPagamentoId)
+			return isCortesia(l)
 		})
 
 		return pagosCortesia
@@ -264,6 +278,16 @@ export default function Fechamento() {
 			<hr />
 			<div>Total de Vendas: R$ ${totalVendas.toFixed(2)}</div>
 			${resumo.map(([forma, total]) => `<div>${forma}: R$ ${total.toFixed(2)}</div>`).join('')}
+			<hr />
+			<div><strong>Brinquedos</strong></div>
+			${resumoBrinquedos.length > 0
+				? resumoBrinquedos.map(([nome, quantidade, total]) => `<div>${nome}: ${quantidade}x R$ ${total.toFixed(2)}</div>`).join('')
+				: '<div>Nenhuma venda por brinquedo hoje</div>'}
+			<hr />
+			<div><strong>Cortesias Usadas</strong></div>
+			${cortesiasDia.length > 0
+				? `<div>Total: ${cortesiasDia.length}</div>${cortesiasDia.map((c) => `<div>${c.brinquedoNome}: ${c.quantidade}x em ${new Date(c.dataHoraUtilizada).toLocaleString('pt-BR')}</div>`).join('')}`
+				: '<div>Nenhuma cortesia utilizada hoje</div>'}
 			<div>Sangrias: - R$ ${totalSangrias.toFixed(2)}</div>
 			${sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) =>
 				`<div>${new Date(m.dataHora).toLocaleString('pt-BR')} - ${m.motivo || '-'}: - R$ ${m.valor.toFixed(2)}</div>`

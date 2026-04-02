@@ -33,9 +33,6 @@ function ciclosPagosComTolerancia(excedente: number, cicloMinutos: number, toler
 	return ciclosCompletos + 1
 }
 
-const MARCO_CICLO_FIXO_MINUTOS = 60
-const VALOR_CICLO_FIXO_REAIS = 10
-
 type DetalheCiclo = {
 	quantidade: number
 	valor: number
@@ -66,14 +63,10 @@ function calcularDetalhesCiclos(
 
 	for (let cicloIndex = 1; cicloIndex <= ciclosPagos; cicloIndex += 1) {
 		const inicioCicloExcedente = (cicloIndex - 1) * ciclo
-		const fimCicloExcedente = cicloIndex * ciclo
-		const fechaMarcoFixo = fimCicloExcedente > 0 && fimCicloExcedente % MARCO_CICLO_FIXO_MINUTOS === 0
-		const valorAtual = fechaMarcoFixo
-			? VALOR_CICLO_FIXO_REAIS
-			: valorTier2 !== undefined && tier1MaxExcedente !== undefined && inicioCicloExcedente >= tier1MaxExcedente
-				? valorTier2
-				: valorBase
-		const descricao = fechaMarcoFixo ? `fechamento ${fimCicloExcedente}min` : undefined
+		const valorAtual = valorTier2 !== undefined && tier1MaxExcedente !== undefined && inicioCicloExcedente >= tier1MaxExcedente
+			? valorTier2
+			: valorBase
+		const descricao = undefined
 		const ultimoDetalhe = detalhes[detalhes.length - 1]
 
 		if (ultimoDetalhe && ultimoDetalhe.valor === valorAtual && ultimoDetalhe.descricao === descricao) {
@@ -107,7 +100,7 @@ function calcularValorExcedentePorCiclos(
 	return Math.round(total * 100) / 100
 }
 
-/** Returns a breakdown string for receipts when tier 2 or the 60-minute override is active. */
+/** Returns a breakdown string for receipts when tier 2 pricing is active. */
 export function detalharValorCiclos(tempoMin: number, brinquedo: Brinquedo): string | null {
 	const inicialMinutos = brinquedo.inicialMinutos !== undefined ? brinquedo.inicialMinutos : brinquedo.regrasCobranca?.inicialMinutos
 	const cicloMinutos = brinquedo.cicloMinutos !== undefined ? brinquedo.cicloMinutos : brinquedo.regrasCobranca?.cicloMinutos
@@ -126,9 +119,8 @@ export function detalharValorCiclos(tempoMin: number, brinquedo: Brinquedo): str
 		cicloTier2Minutos: cicloTier2Minutos ?? undefined,
 		valorCiclo2,
 	})
-	const temMarcoFixo = detalhes.some((detalhe) => detalhe.descricao !== undefined)
 	const temFaixa2 = tier1MaxExcedente !== undefined && valorCiclo2 !== undefined && excedente > tier1MaxExcedente
-	if (!temMarcoFixo && !temFaixa2) return null
+	if (!temFaixa2) return null
 
 	return detalhes
 		.map((detalhe) => `${detalhe.quantidade}x R$${detalhe.valor.toFixed(2)}${detalhe.descricao ? ` (${detalhe.descricao})` : ''}`)
