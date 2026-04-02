@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcularValor, temCiclosCobranca } from '../services/utils'
-import { lancamentosService, brinquedosService, parametrosService } from '../services/entitiesService'
 import { Link } from 'react-router-dom'
-import type { Lancamento, Brinquedo as BrinquedoType, Parametros as ParametrosType } from '../services/entitiesService'
+import { calcularValorExibidoLancamento } from '../services/utils'
+import { brinquedosService, lancamentosService, parametrosService } from '../services/entitiesService'
+import type { Brinquedo as BrinquedoType, Lancamento, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Acompanhamento() {
 	const [tick, setTick] = useState(0)
@@ -22,7 +22,6 @@ export default function Acompanhamento() {
 		let lista: Lancamento[]
 		if (filtroStatus === 'abertos') {
 			lista = lancamentos.filter((l) => l.status === 'aberto')
-			// Ordenar: criança mais perto de acabar o tempo primeiro (menor tempo restante)
 			const now = Date.now()
 			lista = [...lista].sort((a, b) => {
 				const decA = Math.floor((now - new Date(a.dataHora).getTime()) / 60000)
@@ -46,6 +45,17 @@ export default function Acompanhamento() {
 		return lista
 	}, [tick, filtroStatus, lancamentos, filtroDataInicio, filtroDataFim])
 
+	const resumoEncerrados = useMemo(() => {
+		const pagos = lancamentosFiltrados.filter((l) => l.status === 'pago')
+		const cancelados = lancamentosFiltrados.filter((l) => l.status === 'cancelado')
+		return {
+			total: lancamentosFiltrados.length,
+			pagos: pagos.length,
+			cancelados: cancelados.length,
+			totalPago: pagos.reduce((acc, l) => acc + (l.valorCalculado || 0), 0),
+		}
+	}, [lancamentosFiltrados])
+
 	useEffect(() => {
 		async function loadData() {
 			try {
@@ -64,11 +74,11 @@ export default function Acompanhamento() {
 				setLoading(false)
 			}
 		}
-		
+
 		loadData()
 
 		const tRefresh = setInterval(loadData, 1000 * 30)
-		const tTick = setInterval(() => setTick((x) => x + 1), 1000 * 10) // Atualizar valor a pagar a cada 10s
+		const tTick = setInterval(() => setTick((x) => x + 1), 1000 * 10)
 		return () => {
 			clearInterval(tRefresh)
 			clearInterval(tTick)
@@ -77,7 +87,18 @@ export default function Acompanhamento() {
 
 	function minutosDecorridos(iso: string) {
 		const ms = Date.now() - new Date(iso).getTime()
-		return Math.floor(ms / 60000)
+		return Math.max(0, Math.floor(ms / 60000))
+	}
+
+	function formatarHora(iso: string) {
+		return new Date(iso).toLocaleTimeString('pt-BR', {
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+	}
+
+	function formatarData(iso: string) {
+		return new Date(iso).toLocaleDateString('pt-BR')
 	}
 
 	function abrirWhatsapp(numero: string, texto: string) {
@@ -93,20 +114,18 @@ export default function Acompanhamento() {
 
 	function enviarMensagemPersonalizada() {
 		if (!numeroWhatsapp) return
-		const mensagem = mensagemPersonalizada.trim() || 'Olá!'
+		const mensagem = mensagemPersonalizada.trim() || 'Ola!'
 		abrirWhatsapp(numeroWhatsapp, mensagem)
 		setMostrarMensagemPersonalizada(false)
 		setMensagemPersonalizada('')
 		setNumeroWhatsapp('')
 	}
 
-
 	async function atualizarHoraMinuto(lancamentoId: string, novaDataHora: Date) {
 		try {
 			await lancamentosService.update(lancamentoId, {
-				dataHora: novaDataHora.toISOString()
+				dataHora: novaDataHora.toISOString(),
 			} as any)
-			// Recarregar dados
 			const lancamentosData = await lancamentosService.list()
 			setLancamentos(lancamentosData)
 		} catch (error) {
@@ -128,209 +147,268 @@ export default function Acompanhamento() {
 
 	return (
 		<div className="container wide">
-			<div className="title">
-				<h2>Acompanhamento</h2>
-				<div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-					<span className="subtitle">
+			<div className="acompanhamento-topbar">
+				<div>
+					<h2 style={{ marginBottom: 6 }}>Acompanhamento</h2>
+					<div className="subtitle">
 						{filtroStatus === 'abertos'
 							? `${lancamentosFiltrados.length} em andamento`
-							: `${lancamentosFiltrados.length} encerrados`}
-					</span>
-					<div className="row" style={{ gap: 8, alignItems: 'center' }}>
-						<button
-							className={`btn ${filtroStatus === 'abertos' ? 'primary' : ''}`}
-							onClick={() => setFiltroStatus('abertos')}
-						>
-							📊 Em Andamento
-						</button>
-						<button
-							className={`btn ${filtroStatus === 'encerrados' ? 'primary' : ''}`}
-							onClick={() => setFiltroStatus('encerrados')}
-						>
-							📋 Encerrados
-						</button>
+							: `${lancamentosFiltrados.length} encerrados no periodo selecionado`}
 					</div>
-					{filtroStatus === 'encerrados' && (
-						<div className="row" style={{ gap: 8, alignItems: 'center' }}>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-								De:
-								<input
-									type="date"
-									className="input"
-									style={{ padding: '4px 8px', fontSize: 14 }}
-									value={filtroDataInicio}
-									onChange={(e) => setFiltroDataInicio(e.target.value)}
-								/>
-							</label>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-								Até:
-								<input
-									type="date"
-									className="input"
-									style={{ padding: '4px 8px', fontSize: 14 }}
-									value={filtroDataFim}
-									onChange={(e) => setFiltroDataFim(e.target.value)}
-								/>
-							</label>
+				</div>
+
+				<div className="acompanhamento-toggle">
+					<button
+						className={`btn icon ${filtroStatus === 'abertos' ? 'primary' : ''}`}
+						onClick={() => setFiltroStatus('abertos')}
+					>
+						Em Andamento
+					</button>
+					<button
+						className={`btn icon ${filtroStatus === 'encerrados' ? 'primary' : ''}`}
+						onClick={() => setFiltroStatus('encerrados')}
+					>
+						Encerrados
+					</button>
+				</div>
+			</div>
+
+			{filtroStatus === 'encerrados' && (
+				<>
+					<div className="card acompanhamento-filtros-card">
+						<div className="acompanhamento-filtros-head">
+							<div>
+								<div className="acompanhamento-eyebrow">Consulta de encerramentos</div>
+								<div className="subtitle">Filtre pagamentos e cancelamentos por data para localizar atendimentos com mais rapidez.</div>
+							</div>
 							<button
 								className="btn"
-								style={{ whiteSpace: 'nowrap' }}
-								onClick={() => { setFiltroDataInicio(hoje); setFiltroDataFim(hoje) }}
+								type="button"
+								onClick={() => {
+									setFiltroDataInicio(hoje)
+									setFiltroDataFim(hoje)
+								}}
 							>
 								Hoje
 							</button>
 						</div>
-					)}
-				</div>
-			</div>
-			<div className="card table-wrap">
-				<table className="table">
-					<thead>
-								<tr>
-									<th>Criança</th>
-									<th>Responsável</th>
-									<th>Brinquedo</th>
-									<th>Hora inicial</th>
-									<th>Hora final</th>
-									<th>Tempo</th>
-									<th>Valor</th>
-									<th>Status</th>
-									<th style={{ width: 400 }}>Ações</th>
-								</tr>
-					</thead>
-							<tbody>
-								{lancamentosFiltrados.map((l) => {
-							const dec = minutosDecorridos(l.dataHora)
-							const alvo = l.tempoSolicitadoMin ?? Infinity
-							const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
-							const brinquedo = l.brinquedoId ? brinquedos.find(b => b.id === l.brinquedoId) : undefined
-							// Valor a pagar: tempo livre = dec; com ciclos = dec (cobra extras); sem ciclos = cap no tempo solicitado
-							const temCiclos = temCiclosCobranca(brinquedo, parametros)
-							const minutosParaValor = l.tempoSolicitadoMin == null
-								? dec
-								: temCiclos ? dec : Math.min(dec, l.tempoSolicitadoMin)
-							const isQuantidade = l.nomeCrianca === 'Quantidade'
-							const valor = l.status === 'aberto' && parametros && !isQuantidade
-								? calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
-								: (l.valorCalculado ?? 0)
-							const alerta = isFinite(restante) && restante <= 5
-							const dataHora = new Date(l.dataHora)
-							const hora = dataHora.getHours().toString().padStart(2, '0')
-							const minuto = dataHora.getMinutes().toString().padStart(2, '0')
-							
-							const horaFinal = l.status === 'pago' && (l as { updatedAt?: string }).updatedAt
-								? new Date((l as { updatedAt: string }).updatedAt).toLocaleString('pt-BR')
-								: '-'
-							return (
-								<tr key={l.id} className={alerta ? 'highlight' : undefined}>
-									<td>
-										<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-											{alerta && (
-												<span title="Tempo acabando - requer atenção" style={{ color: '#e74c3c', fontSize: '1.2em' }}>⚠️</span>
-											)}
-											{l.nomeCrianca}
-										</div>
-									</td>
-									<td>{l.nomeResponsavel}</td>
-									<td>{brinquedo?.nome ?? '-'}</td>
-									<td>
-										<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-											<input 
-												type="number" 
-												min="0" 
-												max="23" 
-												value={hora} 
-												onChange={(e) => {
-													const novaHora = parseInt(e.target.value) || 0
-													const novaDataHora = new Date(l.dataHora)
-													novaDataHora.setHours(Math.max(0, Math.min(23, novaHora)))
-													atualizarHoraMinuto(l.id, novaDataHora)
-												}}
-												style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
-											/>
-											<span>:</span>
-											<input 
-												type="number" 
-												min="0" 
-												max="59" 
-												value={minuto} 
-												onChange={(e) => {
-													const novoMinuto = parseInt(e.target.value) || 0
-													const novaDataHora = new Date(l.dataHora)
-													novaDataHora.setMinutes(Math.max(0, Math.min(59, novoMinuto)))
-													atualizarHoraMinuto(l.id, novaDataHora)
-												}}
-												style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
-											/>
-										</div>
-									</td>
-									<td>{horaFinal}</td>
-									<td
-										title={
-											(l as { tempoInicialMin?: number | null; tempoAdicionalMin?: number | null }).tempoInicialMin != null &&
-											(l as { tempoAdicionalMin?: number | null }).tempoAdicionalMin != null &&
-											(l as { tempoAdicionalMin: number }).tempoAdicionalMin > 0
-												? `${(l as { tempoInicialMin: number }).tempoInicialMin} min + ${(l as { tempoAdicionalMin: number }).tempoAdicionalMin} min adicional`
-												: undefined
-										}
-									>
-										{filtroStatus === 'abertos' 
-											? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)
-											: `${dec} min`}
-									</td>
-									<td>R$ {valor.toFixed(2)}</td>
-									<td>
-										<span className={`badge ${l.status === 'pago' ? 'on' : l.status === 'cancelado' ? 'off' : ''}`}>
-											{l.status === 'pago' ? 'Pago' : l.status === 'cancelado' ? 'Cancelado' : 'Aberto'}
-										</span>
-									</td>
-									<td className="row">
-										{filtroStatus === 'abertos' ? (
-											<>
-												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Por favor, compareça ao local.')} disabled={!l.whatsappResponsavel}>📞 Chamar</button>
-												{alerta && l.whatsappResponsavel && <button className="btn warning icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'O tempo solicitado está acabando.')}>📣 Avisar</button>}
-												<Link to={`/recibo/lancamento/${l.id}`}>
-													<button className="btn icon">🖨️ Cupom</button>
-												</Link>
-												<Link to={`/pagamento/${l.id}`}><button className="btn primary icon">💳 Pagamento</button></Link>
-											</>
-										) : (
-											<>
-												<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Olá! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
-													📱 Contato
-												</button>
-												<Link to={`/recibo/lancamento/${l.id}`}>
-													<button className="btn icon">🖨️ Reimprimir Cupom</button>
-												</Link>
-												{l.status === 'pago' && (
-													<Link to={`/recibo/pagamento/${l.id}`}>
-														<button className="btn icon">🖨️ Reimprimir Recibo</button>
-													</Link>
-												)}
-											</>
-										)}
-									</td>
-								</tr>
-							)
-						})}
-					</tbody>
-				</table>
-			</div>
 
-			{/* Modal de Mensagem Personalizada */}
+						<div className="acompanhamento-filtros-grid">
+							<label className="field">
+								<span>Data inicial</span>
+								<input
+									type="date"
+									className="input"
+									value={filtroDataInicio}
+									onChange={(e) => setFiltroDataInicio(e.target.value)}
+								/>
+							</label>
+							<label className="field">
+								<span>Data final</span>
+								<input
+									type="date"
+									className="input"
+									value={filtroDataFim}
+									onChange={(e) => setFiltroDataFim(e.target.value)}
+								/>
+							</label>
+						</div>
+					</div>
+
+					<div className="acompanhamento-metricas">
+						<div className="card acompanhamento-metrica">
+							<span className="acompanhamento-metrica-label">Encerrados</span>
+							<strong>{resumoEncerrados.total}</strong>
+						</div>
+						<div className="card acompanhamento-metrica">
+							<span className="acompanhamento-metrica-label">Pagos</span>
+							<strong>{resumoEncerrados.pagos}</strong>
+						</div>
+						<div className="card acompanhamento-metrica">
+							<span className="acompanhamento-metrica-label">Cancelados</span>
+							<strong>{resumoEncerrados.cancelados}</strong>
+						</div>
+						<div className="card acompanhamento-metrica">
+							<span className="acompanhamento-metrica-label">Valor recebido</span>
+							<strong>R$ {resumoEncerrados.totalPago.toFixed(2)}</strong>
+						</div>
+					</div>
+				</>
+			)}
+
+			{filtroStatus === 'encerrados' && lancamentosFiltrados.length === 0 ? (
+				<div className="card acompanhamento-empty-state">
+					<div className="acompanhamento-empty-icon">[ ]</div>
+					<h3>Nenhum encerramento encontrado</h3>
+					<p>
+						Nao ha registros pagos ou cancelados entre {formatarData(`${filtroDataInicio}T00:00:00`)} e {formatarData(`${filtroDataFim}T00:00:00`)}.
+					</p>
+					<p className="subtitle">Ajuste o periodo ou use o filtro de hoje para consultar outro intervalo.</p>
+				</div>
+			) : (
+				<div className={`card table-wrap ${filtroStatus === 'encerrados' ? 'acompanhamento-table-card' : ''}`}>
+					<table className="table">
+						<thead>
+							<tr>
+								<th>Crianca</th>
+								<th>Responsavel</th>
+								<th>Brinquedo</th>
+								<th>Hora inicial</th>
+								<th>Hora final</th>
+								<th>Tempo</th>
+								<th>Valor</th>
+								<th>Status</th>
+								<th style={{ width: 400 }}>Acoes</th>
+							</tr>
+						</thead>
+						<tbody>
+							{lancamentosFiltrados.map((l) => {
+								const dec = minutosDecorridos(l.dataHora)
+								const alvo = l.tempoSolicitadoMin ?? Infinity
+								const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
+								const brinquedo = l.brinquedoId ? brinquedos.find((b) => b.id === l.brinquedoId) : undefined
+								const valor = calcularValorExibidoLancamento(
+									l,
+									parametros as ParametrosType | null,
+									brinquedo as BrinquedoType | undefined
+								)
+								const alerta = isFinite(restante) && restante <= 5
+								const dataHora = new Date(l.dataHora)
+								const hora = dataHora.getHours().toString().padStart(2, '0')
+								const minuto = dataHora.getMinutes().toString().padStart(2, '0')
+								const updatedAt = (l as { updatedAt?: string }).updatedAt
+
+								return (
+									<tr key={l.id} className={alerta ? 'highlight' : undefined}>
+										<td>
+											<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+												{alerta && (
+													<span title="Tempo acabando - requer atencao" style={{ color: '#e74c3c', fontSize: '1.2em' }}>!</span>
+												)}
+												{l.nomeCrianca}
+											</div>
+										</td>
+										<td>{l.nomeResponsavel}</td>
+										<td>{brinquedo?.nome ?? '-'}</td>
+										<td>
+											{filtroStatus === 'abertos' ? (
+												<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+													<input
+														type="number"
+														min="0"
+														max="23"
+														value={hora}
+														onChange={(e) => {
+															const novaHora = parseInt(e.target.value) || 0
+															const novaDataHora = new Date(l.dataHora)
+															novaDataHora.setHours(Math.max(0, Math.min(23, novaHora)))
+															atualizarHoraMinuto(l.id, novaDataHora)
+														}}
+														style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
+													/>
+													<span>:</span>
+													<input
+														type="number"
+														min="0"
+														max="59"
+														value={minuto}
+														onChange={(e) => {
+															const novoMinuto = parseInt(e.target.value) || 0
+															const novaDataHora = new Date(l.dataHora)
+															novaDataHora.setMinutes(Math.max(0, Math.min(59, novoMinuto)))
+															atualizarHoraMinuto(l.id, novaDataHora)
+														}}
+														style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
+													/>
+												</div>
+											) : (
+												<div className="acompanhamento-hora">
+													<strong>{formatarHora(l.dataHora)}</strong>
+													<span>{formatarData(l.dataHora)}</span>
+												</div>
+											)}
+										</td>
+										<td>
+											{updatedAt ? (
+												<div className="acompanhamento-hora">
+													<strong>{formatarHora(updatedAt)}</strong>
+													<span>{formatarData(updatedAt)}</span>
+												</div>
+											) : '-'}
+										</td>
+										<td
+											title={
+												(l as { tempoInicialMin?: number | null; tempoAdicionalMin?: number | null }).tempoInicialMin != null &&
+												(l as { tempoAdicionalMin?: number | null }).tempoAdicionalMin != null &&
+												(l as { tempoAdicionalMin: number }).tempoAdicionalMin > 0
+													? `${(l as { tempoInicialMin: number }).tempoInicialMin} min + ${(l as { tempoAdicionalMin: number }).tempoAdicionalMin} min adicional`
+													: undefined
+											}
+										>
+											{filtroStatus === 'abertos'
+												? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)
+												: `${dec} min`}
+										</td>
+										<td>R$ {valor.toFixed(2)}</td>
+										<td>
+											<span className={`badge ${l.status === 'pago' ? 'on' : l.status === 'cancelado' ? 'off' : ''}`}>
+												{l.status === 'pago' ? 'Pago' : l.status === 'cancelado' ? 'Cancelado' : 'Aberto'}
+											</span>
+										</td>
+										<td className="row acompanhamento-acoes">
+											{filtroStatus === 'abertos' ? (
+												<>
+													<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Por favor, compareca ao local.')} disabled={!l.whatsappResponsavel}>Chamar</button>
+													{alerta && l.whatsappResponsavel && (
+														<button className="btn warning icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'O tempo solicitado esta acabando.')}>Avisar</button>
+													)}
+													<Link to={`/recibo/lancamento/${l.id}`}>
+														<button className="btn icon">Cupom</button>
+													</Link>
+													<Link to={`/pagamento/${l.id}`}>
+														<button className="btn primary icon">Pagamento</button>
+													</Link>
+												</>
+											) : (
+												<>
+													<button className="btn icon" onClick={() => abrirWhatsappComPersonalizacao(l.whatsappResponsavel, 'Ola! Mensagem sobre seu atendimento no Parque Infantil.')} disabled={!l.whatsappResponsavel}>
+														Contato
+													</button>
+													<Link to={`/recibo/lancamento/${l.id}`}>
+														<button className="btn icon">Reimprimir Cupom</button>
+													</Link>
+													{l.status === 'pago' && (
+														<Link to={`/recibo/pagamento/${l.id}`}>
+															<button className="btn icon">Reimprimir Recibo</button>
+														</Link>
+													)}
+												</>
+											)}
+										</td>
+									</tr>
+								)
+							})}
+						</tbody>
+					</table>
+				</div>
+			)}
+
 			{mostrarMensagemPersonalizada && (
-				<div style={{
-					position: 'fixed',
-					top: 0,
-					left: 0,
-					right: 0,
-					bottom: 0,
-					background: 'rgba(0, 0, 0, 0.5)',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					zIndex: 1000
-				}} onClick={() => setMostrarMensagemPersonalizada(false)}>
+				<div
+					style={{
+						position: 'fixed',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						background: 'rgba(0, 0, 0, 0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 1000,
+					}}
+					onClick={() => setMostrarMensagemPersonalizada(false)}
+				>
 					<div className="card" style={{ maxWidth: 500, width: '90%', margin: 20 }} onClick={(e) => e.stopPropagation()}>
 						<h3>Personalizar Mensagem WhatsApp</h3>
 						<div className="form">
@@ -352,7 +430,7 @@ export default function Acompanhamento() {
 									Cancelar
 								</button>
 								<button className="btn primary" onClick={enviarMensagemPersonalizada} disabled={!mensagemPersonalizada.trim()}>
-									📱 Enviar WhatsApp
+									Enviar WhatsApp
 								</button>
 							</div>
 						</div>
@@ -362,5 +440,3 @@ export default function Acompanhamento() {
 		</div>
 	)
 }
-
-

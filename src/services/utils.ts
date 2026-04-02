@@ -1,5 +1,5 @@
 // Utilitários compartilhados
-import type { Parametros, Brinquedo } from './mockDb'
+import type { Parametros, Brinquedo, Lancamento } from './mockDb'
 
 /** Formata CNPJ para o padrão 00.000.000/0000-00. Aceita string com ou sem máscara. */
 export function formatarCnpj(valor: string | undefined | null): string {
@@ -112,5 +112,29 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 	const ciclos = ciclosPagosComTolerancia(excedente, ciclo, tolerancia)
 	const valorExcedente = ciclos * valorCicloReais
 	return Math.round((valorInicialReais + valorExcedente) * 100) / 100
+}
+
+export function calcularValorExibidoLancamento(
+	lancamento: Lancamento,
+	parametros?: Parametros | null,
+	brinquedo?: Brinquedo | null,
+	agora: Date = new Date()
+): number {
+	if (lancamento.status !== 'aberto') return lancamento.valorCalculado ?? 0
+	if (!parametros) return lancamento.valorCalculado ?? 0
+
+	const isQuantidade = lancamento.quantidade != null || lancamento.nomeCrianca === 'Quantidade'
+	if (isQuantidade) return lancamento.valorCalculado ?? 0
+
+	const decorridoMin = Math.max(
+		0,
+		Math.floor((agora.getTime() - new Date(lancamento.dataHora).getTime()) / 60000)
+	)
+	const temCiclos = temCiclosCobranca(brinquedo, parametros)
+	const minutosParaValor = lancamento.tempoSolicitadoMin == null
+		? decorridoMin
+		: temCiclos ? decorridoMin : Math.min(decorridoMin, lancamento.tempoSolicitadoMin)
+
+	return calcularValor(parametros, minutosParaValor, brinquedo ?? undefined)
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosService, parametrosService } from '../../services/entitiesService'
-import { detalharValorCiclos } from '../../services/utils'
+import { calcularValorExibidoLancamento, detalharValorCiclos } from '../../services/utils'
 import { imprimirRecibo } from '../../utils/printUtils'
 import type { Brinquedo } from '../../services/mockDb'
 
@@ -46,7 +46,9 @@ export default function ReciboLancamento() {
 	type ParametrosReceipt = { empresaLogoUrl?: string; empresaNome?: string; empresaCnpj?: string }
 	const p: ParametrosReceipt = params || {}
 	const brinquedoNome = (lanc as { brinquedo?: { nome?: string } }).brinquedo?.nome || null
+	const brinquedo = (lanc as { brinquedo?: Brinquedo }).brinquedo
 	const contato = (lanc as { whatsappResponsavel?: string }).whatsappResponsavel
+	const valorExibido = calcularValorExibidoLancamento(lanc, params, brinquedo)
 	return (
 		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
@@ -77,9 +79,9 @@ export default function ReciboLancamento() {
 					)
 				})()
 			}
-			<div>Valor: R$ {lanc.valorCalculado.toFixed(2)}</div>
+			<div>Valor: R$ {valorExibido.toFixed(2)}</div>
 			{(() => {
-				const brinq = (lanc as { brinquedo?: Brinquedo }).brinquedo
+				const brinq = brinquedo
 				const tempo = (lanc as { tempoSolicitadoMin?: number | null }).tempoSolicitadoMin
 				if (!brinq || tempo == null) return null
 				const detalhe = detalharValorCiclos(tempo, brinq)

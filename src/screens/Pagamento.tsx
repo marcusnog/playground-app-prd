@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { lancamentosService, formasPagamentoService, parametrosService, brinquedosService } from '../services/entitiesService'
 import { authService } from '../services/authService'
-import { calcularValor, temCiclosCobranca } from '../services/utils'
+import { calcularValorExibidoLancamento, calcularValor, temCiclosCobranca } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
 import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
 
@@ -93,10 +93,19 @@ export default function Pagamento() {
 
 	function minutosDecorridos(iso: string) {
 		const ms = Date.now() - new Date(iso).getTime()
-		return Math.floor(ms / 60000)
+		return Math.max(0, Math.floor(ms / 60000))
 	}
 
 	const valorAtual = useMemo(() => {
+		const lancAtual = lanc
+		if (lancAtual && parametros) {
+			const brinquedoAtual = lancAtual.brinquedoId ? brinquedos.find(b => b.id === lancAtual.brinquedoId) : undefined
+			return calcularValorExibidoLancamento(
+				lancAtual,
+				parametros,
+				brinquedoAtual as BrinquedoType | undefined
+			)
+		}
 		if (!lanc || !parametros) return lanc?.valorCalculado ?? 0
 		if (lanc.status !== 'aberto') return lanc.valorCalculado
 		// Modo quantidade (trenzinho/inflável): valor fixo, não recalcula por tempo
