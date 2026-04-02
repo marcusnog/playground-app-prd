@@ -130,57 +130,58 @@ export default function Acompanhamento() {
 		<div className="container wide">
 			<div className="title">
 				<h2>Acompanhamento</h2>
-				<div className="row" style={{ gap: 12, alignItems: 'center' }}>
+				<div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
 					<span className="subtitle">
-						{filtroStatus === 'abertos' 
-							? `${lancamentosFiltrados.length} em andamento` 
+						{filtroStatus === 'abertos'
+							? `${lancamentosFiltrados.length} em andamento`
 							: `${lancamentosFiltrados.length} encerrados`}
 					</span>
-					<div className="row" style={{ gap: 8 }}>
-						<button 
+					<div className="row" style={{ gap: 8, alignItems: 'center' }}>
+						<button
 							className={`btn ${filtroStatus === 'abertos' ? 'primary' : ''}`}
 							onClick={() => setFiltroStatus('abertos')}
 						>
 							📊 Em Andamento
 						</button>
-						<button 
+						<button
 							className={`btn ${filtroStatus === 'encerrados' ? 'primary' : ''}`}
 							onClick={() => setFiltroStatus('encerrados')}
 						>
 							📋 Encerrados
 						</button>
 					</div>
+					{filtroStatus === 'encerrados' && (
+						<div className="row" style={{ gap: 8, alignItems: 'center' }}>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
+								De:
+								<input
+									type="date"
+									className="input"
+									style={{ padding: '4px 8px', fontSize: 14 }}
+									value={filtroDataInicio}
+									onChange={(e) => setFiltroDataInicio(e.target.value)}
+								/>
+							</label>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
+								Até:
+								<input
+									type="date"
+									className="input"
+									style={{ padding: '4px 8px', fontSize: 14 }}
+									value={filtroDataFim}
+									onChange={(e) => setFiltroDataFim(e.target.value)}
+								/>
+							</label>
+							<button
+								className="btn"
+								style={{ whiteSpace: 'nowrap' }}
+								onClick={() => { setFiltroDataInicio(hoje); setFiltroDataFim(hoje) }}
+							>
+								Hoje
+							</button>
+						</div>
+					)}
 				</div>
-				{filtroStatus === 'encerrados' && (
-					<div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 8 }}>
-						<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-							De:
-							<input
-								type="date"
-								className="input"
-								style={{ padding: '4px 8px' }}
-								value={filtroDataInicio}
-								onChange={(e) => setFiltroDataInicio(e.target.value)}
-							/>
-						</label>
-						<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-							Até:
-							<input
-								type="date"
-								className="input"
-								style={{ padding: '4px 8px' }}
-								value={filtroDataFim}
-								onChange={(e) => setFiltroDataFim(e.target.value)}
-							/>
-						</label>
-						<button
-							className="btn"
-							onClick={() => { setFiltroDataInicio(hoje); setFiltroDataFim(hoje) }}
-						>
-							Hoje
-						</button>
-					</div>
-				)}
 			</div>
 			<div className="card table-wrap">
 				<table className="table">
