@@ -191,6 +191,11 @@ export default function ReciboFechamento() {
 			<div>Data/Hora Abertura: {dataAberturaStr ? new Date(dataAberturaStr.length === 10 ? dataAberturaStr + 'T00:00:00' : dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
 			<div>Data/Hora Fechamento: {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
 			<div>Valor Inicial: R$ {caixa.valorInicial.toFixed(2)}</div>
+			<div>Sangrias: - R$ {totalSangrias.toFixed(2)}</div>
+			{sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) => (
+				<div key={m.id}>{new Date(m.dataHora).toLocaleString('pt-BR')} - {m.motivo || '-'}: - R$ {m.valor.toFixed(2)}</div>
+			))}
+			<div>Suprimentos: + R$ {totalSuprimentos.toFixed(2)}</div>
 			<hr />
 
 			<div>Total de Vendas: R$ {totalVendas.toFixed(2)}</div>
@@ -237,13 +242,6 @@ export default function ReciboFechamento() {
 			) : (
 				<div>Nenhuma cortesia utilizada</div>
 			)}
-
-			<hr />
-			<div>Sangrias: - R$ {totalSangrias.toFixed(2)}</div>
-			{sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) => (
-				<div key={m.id}>{new Date(m.dataHora).toLocaleString('pt-BR')} - {m.motivo || '-'}: - R$ {m.valor.toFixed(2)}</div>
-			))}
-			<div>Suprimentos: + R$ {totalSuprimentos.toFixed(2)}</div>
 
 			<hr />
 			<div><strong>SALDO FINAL: R$ {saldoFinal.toFixed(2)}</strong></div>

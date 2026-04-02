@@ -146,13 +146,13 @@ export default function Lancamento() {
 			return Math.max(0, (form.quantidade || 1)) * valorUnitario
 		}
 		
-		// Calcular valor baseado no tempo total (inicial + adicional)
-		const valorCalculado = calcularValor(
-			parametros as ParametrosType, 
-			tempoTotal,
-			brinquedoParaCalculo as BrinquedoType | undefined
-		)
-		
+		// Calcular valor baseado no tempo total (proporcional ao valor original, independente do ciclo)
+		const iniMin = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
+		const iniReais = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
+		const valorCalculado = iniMin > 0
+			? Math.ceil(tempoTotal / iniMin) * iniReais
+			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
+
 		if (form.tempoLivre) {
 			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
 		}
@@ -162,9 +162,11 @@ export default function Lancamento() {
 	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
 	useEffect(() => {
 		if (form.tempoLivre || !parametros) return
+		const iniMin2 = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
+		const iniReais2 = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
 		const v = isModoQuantidade && brinquedoSelecionado
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
-			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
+			: iniMin2 > 0 ? Math.ceil(tempoTotal / iniMin2) * iniReais2 : calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 		if (v > 0) setValorAntesTempoLivre(v)
 	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo])
 

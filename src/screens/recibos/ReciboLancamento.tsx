@@ -48,7 +48,10 @@ export default function ReciboLancamento() {
 	const brinquedoNome = (lanc as { brinquedo?: { nome?: string } }).brinquedo?.nome || null
 	const brinquedo = (lanc as { brinquedo?: Brinquedo }).brinquedo
 	const contato = (lanc as { whatsappResponsavel?: string }).whatsappResponsavel
-	const valorExibido = calcularValorExibidoLancamento(lanc, params, brinquedo)
+	const tempoSolicitado = (lanc as { tempoSolicitadoMin?: number | null }).tempoSolicitadoMin
+	const valorExibido = tempoSolicitado != null
+		? (lanc.valorCalculado ?? 0)
+		: calcularValorExibidoLancamento(lanc, params, brinquedo)
 	return (
 		<div id="recibo" className="receipt">
 			{p.empresaLogoUrl ? (
