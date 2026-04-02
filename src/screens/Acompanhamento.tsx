@@ -277,6 +277,7 @@ export default function Acompanhamento() {
 								const hora = dataHora.getHours().toString().padStart(2, '0')
 								const minuto = dataHora.getMinutes().toString().padStart(2, '0')
 								const updatedAt = (l as { updatedAt?: string }).updatedAt
+								const dataHoraFinal = l.status === 'aberto' ? undefined : updatedAt
 
 								return (
 									<tr key={l.id} className={alerta ? 'highlight' : undefined}>
@@ -329,10 +330,10 @@ export default function Acompanhamento() {
 											)}
 										</td>
 										<td>
-											{updatedAt ? (
+											{dataHoraFinal ? (
 												<div className="acompanhamento-hora">
-													<strong>{formatarHora(updatedAt)}</strong>
-													<span>{formatarData(updatedAt)}</span>
+													<strong>{formatarHora(dataHoraFinal)}</strong>
+													<span>{formatarData(dataHoraFinal)}</span>
 												</div>
 											) : '-'}
 										</td>
