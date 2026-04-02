@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCaixa } from '../../hooks/useCaixa'
 import { caixasService, lancamentosService, formasPagamentoService, brinquedosService, parametrosService } from '../../services/entitiesService'
+import { movimentosDaSessao } from '../../services/utils'
 import { imprimirRecibo } from '../../utils/printUtils'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
 import { useNavigate } from 'react-router-dom'
@@ -207,24 +208,24 @@ export default function Fechamento() {
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {
-		if (!selectedCaixa || !selectedCaixa.movimentos) return 0
-		return selectedCaixa.movimentos
+		if (!selectedCaixa) return 0
+		return movimentosDaSessao(selectedCaixa.movimentos, selectedCaixa.data)
 			.filter(m => m.tipo === 'sangria')
 			.reduce((sum, m) => sum + m.valor, 0)
 	}, [selectedCaixa])
 
 	const totalSuprimentos = useMemo(() => {
-		if (!selectedCaixa || !selectedCaixa.movimentos) return 0
-		return selectedCaixa.movimentos
+		if (!selectedCaixa) return 0
+		return movimentosDaSessao(selectedCaixa.movimentos, selectedCaixa.data)
 			.filter(m => m.tipo === 'suprimento')
 			.reduce((sum, m) => sum + m.valor, 0)
 	}, [selectedCaixa])
 
 	const sangriasList = useMemo(() => {
-		if (!selectedCaixa?.movimentos) return []
-		return selectedCaixa.movimentos
-			.filter((m: { tipo: string }) => m.tipo === 'sangria')
-			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+		if (!selectedCaixa) return []
+		return movimentosDaSessao(selectedCaixa.movimentos, selectedCaixa.data)
+			.filter((m) => m.tipo === 'sangria')
+			.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 	}, [selectedCaixa])
 
 	// Calcular totais
@@ -533,16 +534,14 @@ export default function Fechamento() {
 						{/* Sangrias */}
 						<div className="card">
 							<h3 style={{ color: 'var(--danger)' }}>Sangrias (-)</h3>
-							{selectedCaixa.movimentos && selectedCaixa.movimentos.filter(m => m.tipo === 'sangria').length > 0 ? (
+							{sangriasList.length > 0 ? (
 								<div className="table-wrap">
 									<table className="table">
 										<thead>
 											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
 										</thead>
 										<tbody>
-											{selectedCaixa.movimentos
-												.filter(m => m.tipo === 'sangria')
-												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+											{sangriasList
 												.map((mov) => (
 													<tr key={mov.id}>
 														<td>{new Date(mov.dataHora).toLocaleTimeString('pt-BR')}</td>
@@ -564,14 +563,14 @@ export default function Fechamento() {
 						{/* Suprimentos */}
 						<div className="card">
 							<h3 style={{ color: 'var(--success)' }}>Suprimentos (+)</h3>
-							{selectedCaixa.movimentos && selectedCaixa.movimentos.filter(m => m.tipo === 'suprimento').length > 0 ? (
+							{movimentosDaSessao(selectedCaixa.movimentos, selectedCaixa.data).filter(m => m.tipo === 'suprimento').length > 0 ? (
 								<div className="table-wrap">
 									<table className="table">
 										<thead>
 											<tr><th>Hora</th><th>Valor</th><th>Motivo</th></tr>
 										</thead>
 										<tbody>
-											{selectedCaixa.movimentos
+											{movimentosDaSessao(selectedCaixa.movimentos, selectedCaixa.data)
 												.filter(m => m.tipo === 'suprimento')
 												.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 												.map((mov) => (

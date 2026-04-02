@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { caixasService, parametrosService, lancamentosService, formasPagamentoService, brinquedosService, type Parametros } from '../../services/entitiesService'
 import { imprimirRecibo } from '../../utils/printUtils'
+import { movimentosDaSessao } from '../../services/utils'
 
 export default function ReciboFechamento() {
 	const { id } = useParams()
@@ -157,19 +158,19 @@ export default function ReciboFechamento() {
 	}, [lancamentos, brinquedos, dataCaixa])
 
 	const sangriasList = useMemo(() => {
-		const movs = caixa?.movimentos
-		if (!movs || !Array.isArray(movs)) return []
-		return movs
-			.filter((m: { tipo: string }) => m.tipo === 'sangria')
-			.sort((a: { dataHora: string }, b: { dataHora: string }) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
+		if (!caixa?.data) return []
+		return movimentosDaSessao(caixa.movimentos, caixa.data)
+			.filter((m) => m.tipo === 'sangria')
+			.sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime())
 	}, [caixa])
 
-	const totalSangrias = useMemo(() => sangriasList.reduce((sum: number, m: { valor: number }) => sum + m.valor, 0), [sangriasList])
+	const totalSangrias = useMemo(() => sangriasList.reduce((sum, m) => sum + m.valor, 0), [sangriasList])
 
 	const totalSuprimentos = useMemo(() => {
-		const movs = caixa?.movimentos
-		if (!movs || !Array.isArray(movs)) return 0
-		return movs.filter((m: { tipo: string }) => m.tipo === 'suprimento').reduce((sum: number, m: { valor: number }) => sum + m.valor, 0)
+		if (!caixa?.data) return 0
+		return movimentosDaSessao(caixa.movimentos, caixa.data)
+			.filter((m) => m.tipo === 'suprimento')
+			.reduce((sum, m) => sum + m.valor, 0)
 	}, [caixa])
 
 	const totalVendas = useMemo(() => resumo.reduce((sum, [, total]) => sum + total, 0), [resumo])

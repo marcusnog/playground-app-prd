@@ -3,6 +3,7 @@ import { useCaixa } from '../../hooks/useCaixa'
 import { caixasService } from '../../services/entitiesService'
 import { usePermissions } from '../../hooks/usePermissions'
 import type { MovimentoCaixa } from '../../services/entitiesService'
+import { movimentosDaSessao } from '../../services/utils'
 
 export default function Suprimento() {
 	const { caixas, refresh } = useCaixa()
@@ -41,8 +42,7 @@ export default function Suprimento() {
 	const historicoSuprimentos = useMemo(() => {
 		const items: { mov: MovimentoCaixa; caixaNome: string }[] = []
 		for (const c of caixasAbertos) {
-			if (!c.movimentos) continue
-			for (const m of c.movimentos.filter((x) => x.tipo === 'suprimento')) {
+			for (const m of movimentosDaSessao(c.movimentos, c.data).filter((x) => x.tipo === 'suprimento')) {
 				items.push({ mov: m, caixaNome: c.nome })
 			}
 		}

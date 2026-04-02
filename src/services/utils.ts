@@ -1,5 +1,12 @@
 // Shared utilities
-import type { Parametros, Brinquedo, Lancamento } from './mockDb'
+import type { Parametros, Brinquedo, Lancamento, MovimentoCaixa } from './mockDb'
+
+/** Filtra movimentos apenas da sessão atual (dataHora >= dataAbertura do caixa). */
+export function movimentosDaSessao(movimentos: MovimentoCaixa[] | undefined, dataAbertura: string): MovimentoCaixa[] {
+	if (!movimentos) return []
+	const abertura = new Date(dataAbertura).getTime()
+	return movimentos.filter((m) => new Date(m.dataHora).getTime() >= abertura)
+}
 
 /** Formats CNPJ to 00.000.000/0000-00. Accepts masked or unmasked text. */
 export function formatarCnpj(valor: string | undefined | null): string {
