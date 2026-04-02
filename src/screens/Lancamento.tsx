@@ -146,11 +146,14 @@ export default function Lancamento() {
 			return Math.max(0, (form.quantidade || 1)) * valorUnitario
 		}
 		
-		// Calcular valor baseado no tempo total (proporcional ao valor original, independente do ciclo)
+		// Calcular valor baseado no tempo total
+		// Múltiplo exato do período inicial: preço proporcional por bloco (ex: 60 min = 2×R$25 = R$50)
+		// Tempo parcial além de um bloco: usa cálculo de ciclos normal (ex: 40 min = R$25 + ciclos)
 		const iniMin = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
 		const iniReais = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
-		const valorCalculado = iniMin > 0
-			? Math.ceil(tempoTotal / iniMin) * iniReais
+		const isMultiploBlocos = iniMin > 0 && tempoTotal > 0 && tempoTotal % iniMin === 0
+		const valorCalculado = isMultiploBlocos
+			? (tempoTotal / iniMin) * iniReais
 			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 
 		if (form.tempoLivre) {
@@ -164,9 +167,10 @@ export default function Lancamento() {
 		if (form.tempoLivre || !parametros) return
 		const iniMin2 = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
 		const iniReais2 = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
+		const isMultiploBlocos2 = iniMin2 > 0 && tempoTotal > 0 && tempoTotal % iniMin2 === 0
 		const v = isModoQuantidade && brinquedoSelecionado
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
-			: iniMin2 > 0 ? Math.ceil(tempoTotal / iniMin2) * iniReais2 : calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
+			: isMultiploBlocos2 ? (tempoTotal / iniMin2) * iniReais2 : calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 		if (v > 0) setValorAntesTempoLivre(v)
 	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo])
 
