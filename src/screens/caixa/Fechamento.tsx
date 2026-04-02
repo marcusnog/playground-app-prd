@@ -155,6 +155,33 @@ export default function Fechamento() {
 			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
 	}, [selectedCaixa, lancamentos, formasPagamento, brinquedos])
 
+	const canceladosDia = useMemo(() => {
+		if (!selectedCaixa) return []
+		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
+		return lancamentos
+			.filter((l) => {
+				if (l.status !== 'cancelado') return false
+				const dataReferencia = (l.updatedAt as string | undefined) || l.dataHora
+				return new Date(dataReferencia).toLocaleDateString('sv') === dataCaixa
+			})
+			.map((l) => {
+				const brinqId = l.brinquedoId as string | undefined
+				const brinq = brinquedos.find((b) => b.id === brinqId)
+				const brinquedoNome = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
+				const quantidade = (l.quantidade as number | undefined) ?? 1
+				const dataHoraCancelamento = (l.updatedAt as string | undefined) || l.dataHora
+				return {
+					id: l.id as string,
+					nomeCrianca: l.nomeCrianca as string,
+					nomeResponsavel: l.nomeResponsavel as string,
+					brinquedoNome,
+					quantidade,
+					dataHoraCancelamento,
+				}
+			})
+			.sort((a, b) => new Date(a.dataHoraCancelamento).getTime() - new Date(b.dataHoraCancelamento).getTime())
+	}, [selectedCaixa, lancamentos, brinquedos])
+
 	// Resumo por brinquedo usando lancamentos pagos do dia
 	const resumoBrinquedos = useMemo(() => {
 		if (!selectedCaixa) return []
@@ -277,7 +304,13 @@ export default function Fechamento() {
 			<div>Valor Inicial: R$ ${selectedCaixa.valorInicial.toFixed(2)}</div>
 			<hr />
 			<div>Total de Vendas: R$ ${totalVendas.toFixed(2)}</div>
+			<div>Total de Cancelados: ${canceladosDia.length}</div>
 			${resumo.map(([forma, total]) => `<div>${forma}: R$ ${total.toFixed(2)}</div>`).join('')}
+			<hr />
+			<div><strong>Cancelados</strong></div>
+			${canceladosDia.length > 0
+				? canceladosDia.map((c) => `<div>${c.nomeCrianca} - ${c.brinquedoNome}: ${c.quantidade}x em ${new Date(c.dataHoraCancelamento).toLocaleString('pt-BR')}</div>`).join('')
+				: '<div>Nenhum cancelamento registrado hoje</div>'}
 			<hr />
 			<div><strong>Brinquedos</strong></div>
 			${resumoBrinquedos.length > 0
@@ -363,6 +396,7 @@ export default function Fechamento() {
 								<h4>Totais</h4>
 								<div className="stack">
 									<div><strong>Total de Vendas:</strong> R$ {totalVendas.toFixed(2)}</div>
+									<div><strong>Total de Cancelados:</strong> {canceladosDia.length}</div>
 									<div style={{ color: 'var(--danger)' }}><strong>Sangrias:</strong> - R$ {totalSangrias.toFixed(2)}</div>
 									<div style={{ color: 'var(--success)' }}><strong>Suprimentos:</strong> + R$ {totalSuprimentos.toFixed(2)}</div>
 									<div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginTop: 8 }}>
@@ -431,6 +465,41 @@ export default function Fechamento() {
 							</div>
 						) : (
 							<div className="empty">Nenhuma cortesia utilizada hoje</div>
+						)}
+					</div>
+
+					<div className="card" style={{ marginBottom: 16 }}>
+						<h3>Cancelados</h3>
+						<div className="subtitle" style={{ marginBottom: 8 }}>
+							Caixa: {selectedCaixa.nome}
+						</div>
+						{canceladosDia.length > 0 ? (
+							<div className="table-wrap">
+								<table className="table">
+									<thead>
+										<tr>
+											<th>Criança</th>
+											<th>Responsável</th>
+											<th>Brinquedo</th>
+											<th>Qtd</th>
+											<th>Data/Hora cancelamento</th>
+										</tr>
+									</thead>
+									<tbody>
+										{canceladosDia.map((c) => (
+											<tr key={c.id}>
+												<td>{c.nomeCrianca}</td>
+												<td>{c.nomeResponsavel}</td>
+												<td>{c.brinquedoNome}</td>
+												<td>{c.quantidade}</td>
+												<td>{new Date(c.dataHoraCancelamento).toLocaleString('pt-BR')}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						) : (
+							<div className="empty">Nenhum cancelamento registrado hoje</div>
 						)}
 					</div>
 

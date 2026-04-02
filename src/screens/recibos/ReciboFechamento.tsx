@@ -22,12 +22,11 @@ export default function ReciboFechamento() {
 				// Etapa 1: buscar caixa para obter a data
 				const c = await caixasService.get(idStr as string)
 				if (cancelled) return
-				const dataStr = typeof c?.data === 'string' ? c.data : undefined
 
-				// Etapa 2: buscar demais dados em paralelo, lancamentos filtrados pela data do caixa
+				// Etapa 2: buscar demais dados em paralelo; o filtro do dia é feito localmente
 				const [p, list, f, b] = await Promise.all([
 					parametrosService.get(),
-					dataStr ? lancamentosService.listPorData(dataStr) : lancamentosService.list(),
+					lancamentosService.list(),
 					formasPagamentoService.list(),
 					brinquedosService.list(),
 				])
@@ -53,7 +52,20 @@ export default function ReciboFechamento() {
 	}, [loading, caixa])
 
 	// Lancamentos já filtrados pela data do caixa (via backend), só precisa filtrar por status
-	const pagos = useMemo(() => lancamentos.filter((l) => l.status === 'pago'), [lancamentos])
+	function dataCaixaLocal(dataCaixa: string): string {
+		const d = new Date(dataCaixa.length === 10 ? dataCaixa + 'T00:00:00' : dataCaixa)
+		return d.toLocaleDateString('sv')
+	}
+
+	const dataCaixa = useMemo(() => {
+		if (!caixa?.data) return null
+		return dataCaixaLocal(caixa.data)
+	}, [caixa])
+
+	const pagos = useMemo(() => {
+		if (!dataCaixa) return []
+		return lancamentos.filter((l) => l.status === 'pago' && new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa)
+	}, [lancamentos, dataCaixa])
 
 	const resumo = useMemo(() => {
 		const map = new Map<string, number>()
@@ -121,6 +133,29 @@ export default function ReciboFechamento() {
 			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
 	}, [pagos, formas, brinquedos])
 
+	const canceladosDia = useMemo(() => {
+		if (!dataCaixa) return []
+		return lancamentos
+			.filter((l) => l.status === 'cancelado')
+			.filter((l) => new Date((l.updatedAt || l.dataHora)).toLocaleDateString('sv') === dataCaixa)
+			.map((l) => {
+				const brinqId = l.brinquedoId
+				const brinq = brinquedos.find((b) => b.id === brinqId)
+				const brinquedoNome = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
+				const quantidade = l.quantidade ?? 1
+				const dataHoraCancelamento = l.updatedAt || l.dataHora
+				return {
+					id: l.id,
+					nomeCrianca: l.nomeCrianca,
+					nomeResponsavel: l.nomeResponsavel,
+					brinquedoNome,
+					quantidade,
+					dataHoraCancelamento,
+				}
+			})
+			.sort((a, b) => new Date(a.dataHoraCancelamento).getTime() - new Date(b.dataHoraCancelamento).getTime())
+	}, [lancamentos, brinquedos, dataCaixa])
+
 	const sangriasList = useMemo(() => {
 		const movs = caixa?.movimentos
 		if (!movs || !Array.isArray(movs)) return []
@@ -159,9 +194,24 @@ export default function ReciboFechamento() {
 			<hr />
 
 			<div>Total de Vendas: R$ {totalVendas.toFixed(2)}</div>
+			<div>Total de Cancelados: {canceladosDia.length}</div>
 			{resumo.map(([forma, total]) => (
 				<div key={forma}>{forma}: R$ {total.toFixed(2)}</div>
 			))}
+
+			<hr />
+			<div><strong>Cancelados:</strong></div>
+			{canceladosDia.length > 0 ? (
+				<>
+					{canceladosDia.map((c) => (
+						<div key={c.id}>
+							{c.nomeCrianca} - {c.brinquedoNome}: {c.quantidade}x em {new Date(c.dataHoraCancelamento).toLocaleString('pt-BR')}
+						</div>
+					))}
+				</>
+			) : (
+				<div>Nenhum cancelamento registrado</div>
+			)}
 
 			{resumoBrinquedos.length > 0 && (
 				<>
