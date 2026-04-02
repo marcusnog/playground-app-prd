@@ -19,10 +19,15 @@ export default function ReciboFechamento() {
 		async function load() {
 			setLoading(true)
 			try {
-				const [c, p, list, f, b] = await Promise.all([
-					caixasService.get(idStr as string),
+				// Etapa 1: buscar caixa para obter a data
+				const c = await caixasService.get(idStr as string)
+				if (cancelled) return
+				const dataStr = typeof c?.data === 'string' ? c.data : undefined
+
+				// Etapa 2: buscar demais dados em paralelo, lancamentos filtrados pela data do caixa
+				const [p, list, f, b] = await Promise.all([
 					parametrosService.get(),
-					lancamentosService.list(),
+					dataStr ? lancamentosService.listPorData(dataStr) : lancamentosService.list(),
 					formasPagamentoService.list(),
 					brinquedosService.list(),
 				])
@@ -47,19 +52,12 @@ export default function ReciboFechamento() {
 		if (!loading && caixa) imprimirRecibo()
 	}, [loading, caixa])
 
+	// Lancamentos já filtrados pela data do caixa (via backend), só precisa filtrar por status
+	const pagos = useMemo(() => lancamentos.filter((l) => l.status === 'pago'), [lancamentos])
+
 	const resumo = useMemo(() => {
-		if (!caixa) return []
-		const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data
-		if (!dataStr) return []
-		// Forçar parse como horário local para evitar deslocamento de fuso UTC-3
-		const dataCaixa = new Date(dataStr.length === 10 ? dataStr + 'T00:00:00' : dataStr).toLocaleDateString('sv')
-		const pagos = lancamentos.filter((l) => {
-			if (l.status !== 'pago') return false
-			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
-		})
 		const map = new Map<string, number>()
 		for (const l of pagos) {
-			// Split payment: distribuir cada forma pelo valor real do pagamentosJson
 			if (l.pagamentosJson) {
 				try {
 					const splits = JSON.parse(l.pagamentosJson) as Array<{ formaPagamentoId: string; descricao: string; valor: number }>
@@ -76,29 +74,21 @@ export default function ReciboFechamento() {
 			map.set(desc, (map.get(desc) || 0) + l.valorCalculado)
 		}
 		return Array.from(map.entries())
-	}, [caixa, lancamentos, formas])
+	}, [pagos, formas])
 
 	const resumoBrinquedos = useMemo(() => {
-		if (!caixa) return []
-		const dataStr = typeof caixa.data === 'string' ? caixa.data : (caixa as { data?: string }).data
-		if (!dataStr) return []
-		const dataCaixa = new Date(dataStr.length === 10 ? dataStr + 'T00:00:00' : dataStr).toLocaleDateString('sv')
-		const pagos = lancamentos.filter((l) => {
-			if (l.status !== 'pago') return false
-			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
-		})
 		const map = new Map<string, { nome: string; quantidade: number; total: number }>()
 		for (const l of pagos) {
-			const brinqId = (l as { brinquedoId?: string }).brinquedoId
+			const brinqId = l.brinquedoId
 			const brinq = brinquedos.find((b) => b.id === brinqId)
 			const nome = brinq?.nome || (brinqId ? 'Brinquedo removido' : 'Sem brinquedo')
 			const key = brinqId || '__sem__'
-			const qtd = (l as { quantidade?: number }).quantidade ?? 1
+			const qtd = l.quantidade ?? 1
 			const atual = map.get(key) || { nome, quantidade: 0, total: 0 }
 			map.set(key, { nome: atual.nome, quantidade: atual.quantidade + qtd, total: atual.total + (l.valorCalculado || 0) })
 		}
 		return Array.from(map.values()).sort((a, b) => b.total - a.total)
-	}, [caixa, lancamentos, brinquedos])
+	}, [pagos, brinquedos])
 
 	const sangriasList = useMemo(() => {
 		const movs = caixa?.movimentos
@@ -132,7 +122,7 @@ export default function ReciboFechamento() {
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div>Comprovante de Fechamento de Caixa</div>
 			<div>Caixa: {caixa.nome}</div>
-			<div>Data/Hora Abertura: {dataAberturaStr ? new Date(dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
+			<div>Data/Hora Abertura: {dataAberturaStr ? new Date(dataAberturaStr.length === 10 ? dataAberturaStr + 'T00:00:00' : dataAberturaStr).toLocaleString('pt-BR') : '-'}</div>
 			<div>Data/Hora Fechamento: {dataFechamentoStr ? new Date(dataFechamentoStr).toLocaleString('pt-BR') : '-'}</div>
 			<div>Valor Inicial: R$ {caixa.valorInicial.toFixed(2)}</div>
 			<hr />

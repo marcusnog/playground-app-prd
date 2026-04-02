@@ -77,6 +77,10 @@ export const lancamentosService = {
 		return api.get<Lancamento[]>(endpoints.lancamentos.list)
 	},
 
+	listPorData: async (data: string): Promise<Lancamento[]> => {
+		return api.get<Lancamento[]>(`${endpoints.lancamentos.list}?data=${encodeURIComponent(data)}`)
+	},
+
 	get: async (id: string): Promise<Lancamento> => {
 		return api.get<Lancamento>(endpoints.lancamentos.get(id))
 	},
