@@ -79,7 +79,7 @@ export default function ClienteAutocomplete({
 			let dataStr = ''
 			try {
 				dataStr = new Date(c.dataNascimento).toLocaleDateString('pt-BR')
-			} catch {}
+			} catch { /* noop */ }
 			const dataFormatada = dataStr.replace(/\D/g, '')
 			const campos = [nome, pai, mae, dataStr.toLowerCase(), dataFormatada, telefone]
 			const termoMatch = (t: string) => {

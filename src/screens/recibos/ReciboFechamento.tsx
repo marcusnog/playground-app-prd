@@ -81,6 +81,7 @@ export default function ReciboFechamento() {
 		return dataCaixaLocal(caixa.data)
 	}, [caixa])
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function pertenceASessaoDoRecibo(lancamento: any, dataReferencia?: string | null) {
 		if (caixaSessionId) {
 			return lancamento.caixaAberturaId === caixaSessionId
@@ -91,6 +92,7 @@ export default function ReciboFechamento() {
 
 	const pagos = useMemo(() => {
 		return lancamentos.filter((l) => l.status === 'pago' && pertenceASessaoDoRecibo(l, l.dataHora))
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [lancamentos, dataCaixa, caixaSessionId])
 
 	const resumo = useMemo(() => {
@@ -179,6 +181,7 @@ export default function ReciboFechamento() {
 				}
 			})
 			.sort((a, b) => new Date(a.dataHoraCancelamento).getTime() - new Date(b.dataHoraCancelamento).getTime())
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [lancamentos, brinquedos, dataCaixa, caixaSessionId])
 
 	const sangriasList = useMemo(() => {

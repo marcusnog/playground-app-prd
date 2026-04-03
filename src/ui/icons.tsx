@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 
 export type PaymentKind = 'pix' | 'cash' | 'card'
 

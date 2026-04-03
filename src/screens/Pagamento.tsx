@@ -117,6 +117,7 @@ export default function Pagamento() {
 			? dec
 			: temCiclos ? dec : Math.min(dec, lanc.tempoSolicitadoMin)
 		return calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [lanc, parametros, brinquedos, tick])
 
 	const descontoNum = useMemo(() => parseFloat(desconto.replace(',', '.')) || 0, [desconto])

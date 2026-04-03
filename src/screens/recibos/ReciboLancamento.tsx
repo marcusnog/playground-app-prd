@@ -34,6 +34,7 @@ export default function ReciboLancamento() {
 		}
 		load()
 		return () => { cancelled = true }
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [id as string])
 
 	useEffect(() => {

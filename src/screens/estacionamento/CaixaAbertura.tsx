@@ -30,6 +30,17 @@ export default function CaixaAbertura() {
 		loadEstacionamentos()
 	}, [])
 
+	// Buscar caixa do estacionamento selecionado
+	const estacionamento = useMemo(() =>
+		estacionamentos.find(e => e.id === estacionamentoSelecionado),
+		[estacionamentos, estacionamentoSelecionado]
+	)
+
+	const caixaEstacionamento = useMemo(() => {
+		if (!estacionamento) return null
+		return caixas.find(c => c.id === estacionamento.caixaId)
+	}, [estacionamento, caixas])
+
 	// Verificar permissão
 	if (!hasPermission('estacionamento', 'caixa', 'abertura')) {
 		return (
@@ -41,17 +52,6 @@ export default function CaixaAbertura() {
 			</div>
 		)
 	}
-
-	// Buscar caixa do estacionamento selecionado
-	const estacionamento = useMemo(() => 
-		estacionamentos.find(e => e.id === estacionamentoSelecionado),
-		[estacionamentos, estacionamentoSelecionado]
-	)
-	
-	const caixaEstacionamento = useMemo(() => {
-		if (!estacionamento) return null
-		return caixas.find(c => c.id === estacionamento.caixaId)
-	}, [estacionamento, caixas])
 
 	const caixaAberto = caixaEstacionamento?.status === 'aberto'
 

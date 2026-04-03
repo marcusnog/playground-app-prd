@@ -13,4 +13,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 try {
 	const saved = localStorage.getItem('app.theme') as 'light' | 'dark' | null
 	if (saved) document.documentElement.dataset.theme = saved
-} catch {}
+} catch { /* noop */ }

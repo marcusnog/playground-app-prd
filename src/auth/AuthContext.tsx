@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authService, type LoginResponse } from '../services/authService'
 import { api } from '../services/api'
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							// Restaurar token na API
 							api.setToken(parsed.token)
 						}
-					} catch {}
+					} catch { /* noop */ }
 				}
 
 				// Tentar buscar usuário atual da API
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							if (authData) {
 								setUser(saved)
 							}
-						} catch {}
+						} catch { /* noop */ }
 					}
 				}
 			} catch (error) {
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							setUser(saved)
 						}
 					}
-				} catch {}
+				} catch { /* noop */ }
 			} finally {
 				setLoading(false)
 			}

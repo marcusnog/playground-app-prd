@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect } from 'react'
 import { createBrowserRouter, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'

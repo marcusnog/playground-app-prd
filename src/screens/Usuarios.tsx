@@ -286,7 +286,8 @@ export default function Usuarios() {
 					}
 				} else {
 					permissoes[modulo as keyof PermissoesModulo] = 
-						!permissoes[modulo as keyof PermissoesModulo] as any
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					!permissoes[modulo as keyof PermissoesModulo] as any
 				}
 			}
 

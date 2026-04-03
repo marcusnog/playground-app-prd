@@ -46,20 +46,8 @@ export default function CaixaFechamento() {
 		load()
 	}, [])
 
-	// Verificar permissão
-	if (!hasPermission('estacionamento', 'caixa', 'fechamento')) {
-		return (
-			<div className="container" style={{ maxWidth: 800 }}>
-				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
-					<p>Você não tem permissão para acessar esta funcionalidade.</p>
-				</div>
-			</div>
-		)
-	}
-
 	const estacionamento = estacionamentos.find(e => e.id === estacionamentoSelecionado)
-	
+
 	const caixaEstacionamento = estacionamento
 		? caixas.find(c => c.id === estacionamento.caixaId)
 		: null
@@ -107,6 +95,18 @@ export default function CaixaFechamento() {
 	const totalVendas = resumo.reduce((sum, [, total]) => sum + total, 0)
 
 	const saldoFinal = (caixaEstacionamento?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
+
+	// Verificar permissão
+	if (!hasPermission('estacionamento', 'caixa', 'fechamento')) {
+		return (
+			<div className="container" style={{ maxWidth: 800 }}>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
+					<p>Você não tem permissão para acessar esta funcionalidade.</p>
+				</div>
+			</div>
+		)
+	}
 
 	async function fechar() {
 		if (!estacionamentoSelecionado) {
