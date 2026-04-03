@@ -36,18 +36,6 @@ export default function AcompanhamentoEstacionamento() {
 		load()
 	}, [tick])
 
-	// Verificar permissão
-	if (!hasPermission('estacionamento', 'acompanhamento')) {
-		return (
-			<div className="container" style={{ maxWidth: 1200 }}>
-				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
-					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
-					<p>Você não tem permissão para acessar esta funcionalidade.</p>
-				</div>
-			</div>
-		)
-	}
-
 	const lancamentosFiltrados = useMemo(() => {
 		let filtrados = lancamentos
 
@@ -70,6 +58,18 @@ export default function AcompanhamentoEstacionamento() {
 		const t = setInterval(() => setTick((x) => x + 1), 1000 * 30)
 		return () => clearInterval(t)
 	}, [])
+
+	// Verificar permissão
+	if (!hasPermission('estacionamento', 'acompanhamento')) {
+		return (
+			<div className="container" style={{ maxWidth: 1200 }}>
+				<div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)' }}>
+					<h3 style={{ color: 'var(--danger)' }}>Acesso Negado</h3>
+					<p>Você não tem permissão para acessar esta funcionalidade.</p>
+				</div>
+			</div>
+		)
+	}
 
 	function abrirWhatsapp(numero: string, mensagem: string) {
 		const url = `https://wa.me/${encodeURIComponent(numero)}?text=${encodeURIComponent(mensagem)}`

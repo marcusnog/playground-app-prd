@@ -30,7 +30,7 @@ export default function Clientes() {
 			let dataStr = ''
 			try {
 				dataStr = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR')
-			} catch {}
+			} catch { /* noop */ }
 			return nomeCompleto.includes(termo) ||
 				nomePai.includes(termo) ||
 				nomeMae.includes(termo) ||
@@ -341,12 +341,12 @@ export default function Clientes() {
 												diasAniversario = Math.ceil((proximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 												proximoAniversarioStr = proximo.toLocaleDateString('pt-BR')
 											}
-										} catch {}
+										} catch { /* noop */ }
 										
 										let dataFormatada = '-'
 										try {
 											dataFormatada = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR')
-										} catch {}
+										} catch { /* noop */ }
 										
 										return (
 											<tr key={cliente.id}>

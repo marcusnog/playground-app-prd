@@ -27,7 +27,7 @@ export default function DashboardLayout() {
 		const isLight = document.documentElement.dataset.theme === 'light'
 		const next = isLight ? 'dark' : 'light'
 		document.documentElement.dataset.theme = next
-		try { localStorage.setItem('app.theme', next) } catch {}
+		try { localStorage.setItem('app.theme', next) } catch { /* noop */ }
 	}
 
 	const isLight = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light'
@@ -175,6 +175,7 @@ export default function DashboardLayout() {
 		}
 		
 		return items
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [user, algumCaixaAberto, hasPermission])
 
 	return (

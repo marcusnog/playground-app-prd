@@ -13,8 +13,11 @@ export default function Fechamento() {
 	const { hasPermission, canUseCaixa, user } = usePermissions()
 	const [loading, setLoading] = useState(false)
 	const [params, setParams] = useState<{ empresaNome?: string; empresaCnpj?: string } | null>(null)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [lancamentos, setLancamentos] = useState<any[]>([])
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [formasPagamento, setFormasPagamento] = useState<any[]>([])
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [brinquedos, setBrinquedos] = useState<any[]>([])
 
 	const caixasAbertos = useMemo(
@@ -91,6 +94,7 @@ export default function Fechamento() {
 		return d.toLocaleDateString('sv') // 'sv' retorna YYYY-MM-DD no horário local
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function pertenceASessaoAtual(lancamento: any, dataReferencia?: string | null) {
 		if (selectedCaixaSessionId) {
 			return lancamento.caixaAberturaId === selectedCaixaSessionId
@@ -130,6 +134,7 @@ export default function Fechamento() {
 			map.set(formaId, { nome: atual.nome, total: atual.total + l.valorCalculado })
 		}
 		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedCaixa, lancamentos, formasPagamento, selectedCaixaSessionId])
 
 	// Cortesias do dia (lançamentos pagos cuja forma de pagamento contém "cortesia")
@@ -171,6 +176,7 @@ export default function Fechamento() {
 				return { id: l.id as string, brinquedoNome, quantidade, dataHoraUtilizada }
 			})
 			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedCaixa, lancamentos, formasPagamento, brinquedos, selectedCaixaSessionId])
 
 	const canceladosDia = useMemo(() => {
@@ -197,6 +203,7 @@ export default function Fechamento() {
 				}
 			})
 			.sort((a, b) => new Date(a.dataHoraCancelamento).getTime() - new Date(b.dataHoraCancelamento).getTime())
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedCaixa, lancamentos, brinquedos, selectedCaixaSessionId])
 
 	// Resumo por brinquedo usando lancamentos pagos do dia
@@ -219,6 +226,7 @@ export default function Fechamento() {
 		return Array.from(map.values())
 			.sort((a, b) => b.total - a.total)
 			.map((v) => [v.nome, v.quantidade, v.total] as [string, number, number])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedCaixa, lancamentos, brinquedos, selectedCaixaSessionId])
 
 	// Calcular totais de sangrias e suprimentos

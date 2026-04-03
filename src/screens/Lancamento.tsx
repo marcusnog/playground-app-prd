@@ -160,6 +160,7 @@ export default function Lancamento() {
 			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
 		}
 		return valorCalculado
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo, valorAntesTempoLivre])
 
 	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
@@ -172,6 +173,7 @@ export default function Lancamento() {
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
 			: isMultiploBlocos2 ? (tempoTotal / iniMin2) * iniReais2 : calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 		if (v > 0) setValorAntesTempoLivre(v)
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo])
 
 	function selecionarCliente(clienteId: string) {

@@ -35,6 +35,14 @@ export default function LancamentoEstacionamento() {
 		load()
 	}, [])
 
+	const [form, setForm] = useState({
+		estacionamentoId: '',
+		placa: '',
+		modelo: '',
+		telefoneContato: '',
+		formaPagamentoId: '',
+	})
+
 	// Verificar permissão
 	if (!hasPermission('estacionamento', 'lancamento')) {
 		return (
@@ -46,14 +54,6 @@ export default function LancamentoEstacionamento() {
 			</div>
 		)
 	}
-
-	const [form, setForm] = useState({
-		estacionamentoId: '',
-		placa: '',
-		modelo: '',
-		telefoneContato: '',
-		formaPagamentoId: '',
-	})
 
 	// Buscar estacionamento selecionado e verificar caixa
 	const estacionamento = estacionamentos.find(e => e.id === form.estacionamentoId)

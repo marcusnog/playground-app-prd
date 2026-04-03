@@ -43,6 +43,7 @@ export default function Acompanhamento() {
 			lista = [...lista].sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
 		}
 		return lista
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [tick, filtroStatus, lancamentos, filtroDataInicio, filtroDataFim])
 
 	const resumoEncerrados = useMemo(() => {
@@ -125,6 +126,7 @@ export default function Acompanhamento() {
 		try {
 			await lancamentosService.update(lancamentoId, {
 				dataHora: novaDataHora.toISOString(),
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			} as any)
 			const lancamentosData = await lancamentosService.list()
 			setLancamentos(lancamentosData)

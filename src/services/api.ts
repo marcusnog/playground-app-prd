@@ -27,7 +27,7 @@ class ApiService {
 				try {
 					const parsed = JSON.parse(authData)
 					this.token = parsed.token
-				} catch {}
+				} catch { /* noop */ }
 			}
 		}
 	}
@@ -64,7 +64,7 @@ class ApiService {
 				try {
 					const parsed = JSON.parse(authData)
 					this.token = parsed.token
-				} catch {}
+				} catch { /* noop */ }
 			}
 		}
 

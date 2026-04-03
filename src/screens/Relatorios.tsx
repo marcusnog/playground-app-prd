@@ -97,6 +97,7 @@ export default function Relatorios() {
 		// Vendas por forma de pagamento
 		const vendasPorForma = new Map<string, number>()
 		vendas.forEach(l => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const forma = (l as any).formaPagamentoId as string | undefined
 			if (forma) {
 				vendasPorForma.set(forma, (vendasPorForma.get(forma) || 0) + l.valorCalculado)
@@ -265,6 +266,7 @@ export default function Relatorios() {
 					head: [['Forma de Pagamento', 'Total (R$)']],
 					body: relatorioVendas.vendasPorForma.map(([forma, total]) => [forma, total.toFixed(2)]),
 				})
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				y = (doc as any).lastAutoTable.finalY + 10
 			}
 			if (relatorioVendas.vendasPorBrinquedo.length > 0) {
@@ -273,6 +275,7 @@ export default function Relatorios() {
 					head: [['Brinquedo', 'Total (R$)']],
 					body: relatorioVendas.vendasPorBrinquedo.map(([b, total]) => [b, total.toFixed(2)]),
 				})
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				y = (doc as any).lastAutoTable.finalY + 10
 			}
 			if (relatorioVendas.cancelados.length > 0) {
@@ -439,6 +442,7 @@ export default function Relatorios() {
 						<select 
 							className="select" 
 							value={draftStatus} 
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							onChange={(e) => setDraftStatus(e.target.value as any)}
 						>
 							<option value="todos">Todos</option>
@@ -527,7 +531,8 @@ export default function Relatorios() {
 											cx="50%"
 											cy="50%"
 											labelLine={false}
-											label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+											// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
 											outerRadius={80}
 											fill="#8884d8"
 											dataKey="value"
