@@ -168,9 +168,11 @@ button:focus-visible {
 }
 
 .mobile-header .brand {
-  font-weight: 700;
-  color: var(--text);
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
 }
 
 .menu-toggle {
@@ -210,7 +212,7 @@ button:focus-visible {
 }
 
 .sidebar-header {
-  padding: 16px;
+  padding: 18px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -218,9 +220,24 @@ button:focus-visible {
 }
 
 .sidebar-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.brand-name {
   font-weight: 700;
+  font-size: 1.05rem;
   color: var(--text);
-  font-size: 1.2rem;
+  letter-spacing: -0.3px;
 }
 
 .close-sidebar {
@@ -277,8 +294,17 @@ button:focus-visible {
 }
 
 .nav-icon {
-  font-size: 1.2rem;
-  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.nav-link.active .nav-icon,
+.nav-link:hover .nav-icon {
+  color: inherit;
 }
 
 .nav-label {
