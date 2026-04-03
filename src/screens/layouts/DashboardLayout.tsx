@@ -3,6 +3,11 @@ import { useAuth } from '../../auth/AuthContext'
 import { useEffect, useState, useMemo } from 'react'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useCaixa } from '../../hooks/useCaixa'
+import {
+	IcoDashboard, IcoTicket, IcoEdit, IcoLock,
+	IcoCashRegister, IcoCar, IcoBarChart, IcoSettings,
+	IcoUsers, IcoUser,
+} from '../../ui/icons'
 
 export default function DashboardLayout() {
 	const { logout } = useAuth()
@@ -69,7 +74,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Acompanhamento',
 				path: '/acompanhamento',
-				icon: '📊'
+				icon: <IcoDashboard />,
 			})
 		}
 		
@@ -77,7 +82,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Cortesia',
 				path: '/cortesia',
-				icon: '🎫'
+				icon: <IcoTicket />,
 			})
 		}
 
@@ -85,7 +90,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Lançamento',
 				path: '/lancamento',
-				icon: algumCaixaAberto ? '📝' : '🔒',
+				icon: algumCaixaAberto ? <IcoEdit /> : <IcoLock />,
 				disabled: !algumCaixaAberto,
 				status: algumCaixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
 			})
@@ -103,7 +108,7 @@ export default function DashboardLayout() {
 				items.push({
 					label: 'Caixa',
 					path: '/caixa/abertura',
-					icon: algumCaixaAberto ? '✅' : '💰',
+					icon: <IcoCashRegister />,
 					status: algumCaixaAberto ? 'Aberto' : 'Fechado',
 					submenu
 				})
@@ -122,7 +127,7 @@ export default function DashboardLayout() {
 				items.push({
 					label: 'Estacionamento',
 					path: '/estacionamento/lancamento',
-					icon: '🚗',
+					icon: <IcoCar />,
 					submenu
 				})
 			}
@@ -132,7 +137,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Relatórios',
 				path: '/relatorios',
-				icon: '📈'
+				icon: <IcoBarChart />,
 			})
 		}
 		
@@ -146,7 +151,7 @@ export default function DashboardLayout() {
 				items.push({
 					label: 'Parâmetros',
 					path: '/parametros',
-					icon: '⚙️',
+					icon: <IcoSettings />,
 					submenu
 				})
 			}
@@ -156,7 +161,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Clientes',
 				path: '/clientes',
-				icon: '👥'
+				icon: <IcoUsers />,
 			})
 		}
 		
@@ -165,7 +170,7 @@ export default function DashboardLayout() {
 			items.push({
 				label: 'Usuários',
 				path: '/usuarios',
-				icon: '👤'
+				icon: <IcoUser />,
 			})
 		}
 		
@@ -179,7 +184,10 @@ export default function DashboardLayout() {
 				<button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
 					{sidebarOpen ? '✕' : '☰'}
 				</button>
-				<Link to="/acompanhamento" className="brand">Parque</Link>
+				<Link to="/acompanhamento" className="brand">
+						<img src="/playground_parking_icon.svg" alt="" className="brand-icon" aria-hidden="true" />
+						<span className="brand-name">Playground</span>
+					</Link>
 				<div className="mobile-actions">
 					<label className="switch">
 						<span className="icon sun">☀️</span>
@@ -193,7 +201,10 @@ export default function DashboardLayout() {
 			{/* Sidebar */}
 			<aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
 				<div className="sidebar-header">
-					<Link to="/acompanhamento" className="brand">Parque</Link>
+					<Link to="/acompanhamento" className="brand">
+						<img src="/playground_parking_icon.svg" alt="" className="brand-icon" aria-hidden="true" />
+						<span className="brand-name">Playground</span>
+					</Link>
 					<button className="close-sidebar" onClick={() => setSidebarOpen(false)}>✕</button>
 				</div>
 				

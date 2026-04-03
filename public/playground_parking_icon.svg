@@ -1,0 +1,46 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="140" y1="130" x2="860" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="green" x1="220" y1="250" x2="470" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6EE7B7"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="170" y1="720" x2="840" y2="750" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="shadow" x="70" y="70" width="884" height="884" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="30" stdDeviation="30" flood-color="#0F172A" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="112" y="112" width="800" height="800" rx="220" fill="url(#bg)" filter="url(#shadow)"/>
+  <rect x="154" y="154" width="716" height="716" rx="180" fill="white" fill-opacity="0.92"/>
+
+  <!-- monitor arc -->
+  <path d="M280 398C327 292 433 222 546 222C659 222 765 292 812 398" stroke="url(#bg)" stroke-width="38" stroke-linecap="round"/>
+  <circle cx="546" cy="246" r="20" fill="url(#bg)"/>
+
+  <!-- playground -->
+  <path d="M268 336V560" stroke="url(#green)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M448 336V560" stroke="url(#green)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M268 336H448" stroke="url(#green)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M320 386V494" stroke="#0F172A" stroke-opacity="0.82" stroke-width="22" stroke-linecap="round"/>
+  <path d="M395 386V494" stroke="#0F172A" stroke-opacity="0.82" stroke-width="22" stroke-linecap="round"/>
+  <rect x="309" y="487" width="96" height="34" rx="17" fill="#0F172A" fill-opacity="0.82"/>
+
+  <!-- separator -->
+  <path d="M530 292V700" stroke="#CBD5E1" stroke-width="16" stroke-linecap="round" stroke-dasharray="1 32"/>
+
+  <!-- parking -->
+  <rect x="608" y="368" width="170" height="268" rx="48" fill="url(#bg)" opacity="0.10"/>
+  <path d="M653 622V378H730C790 378 829 414 829 462C829 510 790 546 730 546H653" stroke="url(#bg)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M617 346L617 657" stroke="#94A3B8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M815 346L815 657" stroke="#94A3B8" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- accent -->
+  <path d="M232 713C330 778 457 812 587 808C674 805 755 785 828 753" stroke="url(#accent)" stroke-width="30" stroke-linecap="round"/>
+</svg>

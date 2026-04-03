@@ -1,0 +1,54 @@
+<svg width="1600" height="500" viewBox="0 0 1600 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="80" y1="70" x2="420" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="130" y1="120" x2="370" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="520" height="520" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <rect x="36" y="36" width="428" height="428" rx="110" fill="white" filter="url(#shadow)"/>
+  <rect x="50" y="50" width="400" height="400" rx="96" fill="#F8FAFC"/>
+
+  <!-- Monitoring arc -->
+  <path d="M135 200C164 135 229 92 298 92C367 92 432 135 461 200" stroke="url(#g1)" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="298" cy="106" r="14" fill="url(#g1)"/>
+
+  <!-- Playground swing -->
+  <path d="M146 162V290" stroke="url(#g2)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M248 162V290" stroke="url(#g2)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M146 162H248" stroke="url(#g2)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M176 190V252" stroke="#0F172A" stroke-opacity="0.82" stroke-width="14" stroke-linecap="round"/>
+  <path d="M218 190V252" stroke="#0F172A" stroke-opacity="0.82" stroke-width="14" stroke-linecap="round"/>
+  <rect x="170" y="248" width="54" height="18" rx="9" fill="#0F172A" fill-opacity="0.82"/>
+
+  <!-- Separator / path -->
+  <path d="M286 145V346" stroke="#CBD5E1" stroke-width="10" stroke-linecap="round" stroke-dasharray="1 22"/>
+
+  <!-- Parking bay -->
+  <rect x="325" y="170" width="92" height="160" rx="28" fill="url(#g1)" opacity="0.12"/>
+  <path d="M350 322V175H392C425 175 447 195 447 223C447 252 425 272 392 272H350" stroke="url(#g1)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M330 157L330 340" stroke="#94A3B8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M442 157L442 340" stroke="#94A3B8" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Accent check / motion -->
+  <path d="M120 350C174 386 247 407 322 405C373 403 421 392 464 373" stroke="url(#g3)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- text-less logo mark with title plate -->
+  <g transform="translate(530,102)">
+    <text x="0" y="110" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="96" font-weight="800" letter-spacing="-2">Monitoramento</text>
+    <text x="0" y="205" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="74" font-weight="700" letter-spacing="-1">Playground &amp; Estacionamento</text>
+    <rect x="0" y="250" width="600" height="16" rx="8" fill="url(#g1)" opacity="0.18"/>
+    <text x="0" y="330" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="500">Logo conceito para app com foco em segurança, presença e controle visual</text>
+  </g>
+</svg>
