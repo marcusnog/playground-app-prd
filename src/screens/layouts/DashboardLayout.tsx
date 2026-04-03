@@ -3,11 +3,15 @@ import { useAuth } from '../../auth/AuthContext'
 import { useEffect, useState, useMemo } from 'react'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useCaixa } from '../../hooks/useCaixa'
+import { Sun, Moon, Menu, X, LogOut } from 'lucide-react'
+import { lazy, Suspense } from 'react'
 import {
 	IcoDashboard, IcoTicket, IcoEdit, IcoLock,
 	IcoCashRegister, IcoCar, IcoBarChart, IcoSettings,
 	IcoUsers, IcoUser,
 } from '../../ui/icons'
+
+const AIAssistant = lazy(() => import('../../components/AIAssistant'))
 
 export default function DashboardLayout() {
 	const { logout } = useAuth()
@@ -18,21 +22,22 @@ export default function DashboardLayout() {
 
 	const { caixas } = useCaixa()
 	const { hasPermission, user } = usePermissions()
-	// Status do caixa vem da API (useCaixa) para o menu lateral atualizar ao abrir/fechar
 	const algumCaixaAberto = useMemo(() => {
 		return !!caixas?.some((c) => c.status === 'aberto')
 	}, [caixas])
 
+	const [isLight, setIsLight] = useState(
+		typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light'
+	)
+
 	function toggleTheme() {
-		const isLight = document.documentElement.dataset.theme === 'light'
 		const next = isLight ? 'dark' : 'light'
 		document.documentElement.dataset.theme = next
+		setIsLight(!isLight)
 		try { localStorage.setItem('app.theme', next) } catch { /* noop */ }
 	}
 
-	const isLight = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light'
-
-	// Update page title based on current route
+	// Update page title
 	const path = location.pathname
 	let pageTitle = 'Dashboard'
 	if (path.startsWith('/acompanhamento')) pageTitle = 'Acompanhamento'
@@ -51,11 +56,8 @@ export default function DashboardLayout() {
 		document.title = `Playground - ${pageTitle}`
 	}, [pageTitle])
 
-	// Fechar sidebar ao mudar de rota no mobile
 	useEffect(() => {
-		if (window.innerWidth <= 768) {
-			setSidebarOpen(false)
-		}
+		if (window.innerWidth <= 768) setSidebarOpen(false)
 	}, [location.pathname])
 
 	function onLogout() {
@@ -69,23 +71,13 @@ export default function DashboardLayout() {
 
 	const menuItems = useMemo(() => {
 		const items = []
-		
-		if (hasPermission('acompanhamento')) {
-			items.push({
-				label: 'Acompanhamento',
-				path: '/acompanhamento',
-				icon: <IcoDashboard />,
-			})
-		}
-		
-		if (hasPermission('cortesia')) {
-			items.push({
-				label: 'Cortesia',
-				path: '/cortesia',
-				icon: <IcoTicket />,
-			})
-		}
 
+		if (hasPermission('acompanhamento')) {
+			items.push({ label: 'Acompanhamento', path: '/acompanhamento', icon: <IcoDashboard /> })
+		}
+		if (hasPermission('cortesia')) {
+			items.push({ label: 'Cortesia', path: '/cortesia', icon: <IcoTicket /> })
+		}
 		if (hasPermission('lancamento')) {
 			items.push({
 				label: 'Lançamento',
@@ -95,7 +87,6 @@ export default function DashboardLayout() {
 				status: algumCaixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'
 			})
 		}
-		
 		if (hasPermission('caixa')) {
 			const submenu = []
 			if (hasPermission('parametros')) submenu.push({ label: 'Cadastro de Caixas', path: '/caixas' })
@@ -103,7 +94,6 @@ export default function DashboardLayout() {
 			if (hasPermission('caixa', 'fechamento')) submenu.push({ label: 'Fechamento', path: '/caixa/fechamento' })
 			if (hasPermission('caixa', 'sangria')) submenu.push({ label: 'Sangria', path: '/caixa/sangria' })
 			if (hasPermission('caixa', 'suprimento')) submenu.push({ label: 'Suprimento', path: '/caixa/suprimento' })
-			
 			if (submenu.length > 0) {
 				items.push({
 					label: 'Caixa',
@@ -114,7 +104,6 @@ export default function DashboardLayout() {
 				})
 			}
 		}
-		
 		if (hasPermission('estacionamento')) {
 			const submenu = []
 			if (hasPermission('estacionamento', 'cadastro')) submenu.push({ label: 'Cadastro', path: '/estacionamentos' })
@@ -122,58 +111,29 @@ export default function DashboardLayout() {
 			if (hasPermission('estacionamento', 'caixa', 'fechamento')) submenu.push({ label: 'Fechamento Caixa', path: '/estacionamento/caixa/fechamento' })
 			if (hasPermission('estacionamento', 'lancamento')) submenu.push({ label: 'Lançamento', path: '/estacionamento/lancamento' })
 			if (hasPermission('estacionamento', 'acompanhamento')) submenu.push({ label: 'Acompanhamento', path: '/estacionamento/acompanhamento' })
-			
 			if (submenu.length > 0) {
-				items.push({
-					label: 'Estacionamento',
-					path: '/estacionamento/lancamento',
-					icon: <IcoCar />,
-					submenu
-				})
+				items.push({ label: 'Estacionamento', path: '/estacionamento/lancamento', icon: <IcoCar />, submenu })
 			}
 		}
-		
 		if (hasPermission('relatorios')) {
-			items.push({
-				label: 'Relatórios',
-				path: '/relatorios',
-				icon: <IcoBarChart />,
-			})
+			items.push({ label: 'Relatórios', path: '/relatorios', icon: <IcoBarChart /> })
 		}
-		
 		if (hasPermission('parametros')) {
 			const submenu = []
 			if (hasPermission('parametros', 'empresa')) submenu.push({ label: 'Cadastro da Empresa', path: '/parametros' })
 			if (hasPermission('parametros', 'formasPagamento')) submenu.push({ label: 'Formas de Pagamento', path: '/formas-pagamento' })
 			if (hasPermission('parametros', 'brinquedos')) submenu.push({ label: 'Brinquedos', path: '/brinquedos' })
-			
 			if (submenu.length > 0) {
-				items.push({
-					label: 'Parâmetros',
-					path: '/parametros',
-					icon: <IcoSettings />,
-					submenu
-				})
+				items.push({ label: 'Parâmetros', path: '/parametros', icon: <IcoSettings />, submenu })
 			}
 		}
-		
 		if (hasPermission('clientes')) {
-			items.push({
-				label: 'Clientes',
-				path: '/clientes',
-				icon: <IcoUsers />,
-			})
+			items.push({ label: 'Clientes', path: '/clientes', icon: <IcoUsers /> })
 		}
-		
-		// Usuários sempre visível para administradores (verificar se tem permissão de parâmetros como admin)
 		if (hasPermission('parametros')) {
-			items.push({
-				label: 'Usuários',
-				path: '/usuarios',
-				icon: <IcoUser />,
-			})
+			items.push({ label: 'Usuários', path: '/usuarios', icon: <IcoUser /> })
 		}
-		
+
 		return items
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [user, algumCaixaAberto, hasPermission])
@@ -183,19 +143,16 @@ export default function DashboardLayout() {
 			{/* Mobile Header */}
 			<header className="mobile-header">
 				<button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
-					{sidebarOpen ? '✕' : '☰'}
+					{sidebarOpen ? <X size={22} /> : <Menu size={22} />}
 				</button>
 				<Link to="/acompanhamento" className="brand">
-						<img src={`${import.meta.env.BASE_URL}playground_parking_icon.svg`} alt="" className="brand-icon" aria-hidden="true" />
-						<span className="brand-name">Playground</span>
-					</Link>
+					<img src={`${import.meta.env.BASE_URL}playground_parking_icon.svg`} alt="" className="brand-icon" aria-hidden="true" />
+					<span className="brand-name">Playground</span>
+				</Link>
 				<div className="mobile-actions">
-					<label className="switch">
-						<span className="icon sun">☀️</span>
-						<input type="checkbox" onChange={toggleTheme} defaultChecked={isLight} />
-						<span className="slider"></span>
-						<span className="icon moon">🌙</span>
-					</label>
+					<button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Alternar tema">
+						{isLight ? <Moon size={18} /> : <Sun size={18} />}
+					</button>
 				</div>
 			</header>
 
@@ -206,9 +163,11 @@ export default function DashboardLayout() {
 						<img src={`${import.meta.env.BASE_URL}playground_parking_icon.svg`} alt="" className="brand-icon" aria-hidden="true" />
 						<span className="brand-name">Playground</span>
 					</Link>
-					<button className="close-sidebar" onClick={() => setSidebarOpen(false)}>✕</button>
+					<button className="close-sidebar" onClick={() => setSidebarOpen(false)}>
+						<X size={20} />
+					</button>
 				</div>
-				
+
 				<nav className="sidebar-nav">
 					{menuItems.map((item, index) => (
 						<div key={index} className="nav-item">
@@ -224,7 +183,7 @@ export default function DashboardLayout() {
 											<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
 												<span className="nav-label">{item.label}</span>
 												{item.status && (
-													<span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontWeight: 'normal' }}>
+													<span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 'normal' }}>
 														{item.status}
 													</span>
 												)}
@@ -233,7 +192,6 @@ export default function DashboardLayout() {
 										<button
 											className="nav-toggle"
 											onClick={() => toggleSubmenu(item.label)}
-											style={{ padding: '12px 8px', minWidth: '40px' }}
 										>
 											<span className={`nav-arrow ${activeSubmenu === item.label ? 'open' : ''}`}>▼</span>
 										</button>
@@ -262,7 +220,7 @@ export default function DashboardLayout() {
 									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
 										<span className="nav-label">{item.label}</span>
 										{item.status && (
-											<span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontWeight: 'normal' }}>
+											<span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 'normal' }}>
 												{item.status}
 											</span>
 										)}
@@ -276,30 +234,33 @@ export default function DashboardLayout() {
 				<div className="sidebar-footer">
 					<div className="user-actions">
 						<div className="user-actions-row">
-							{user && (
-								<span className="user-name">{user.apelido || user.username}</span>
-							)}
-							<label className="switch switch-compact">
-								<span className="icon sun">☀️</span>
-								<input type="checkbox" onChange={toggleTheme} defaultChecked={isLight} />
-								<span className="slider"></span>
-								<span className="icon moon">🌙</span>
-							</label>
+							{user && <span className="user-name">{user.apelido || user.username}</span>}
+							<button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Alternar tema">
+								{isLight ? <Moon size={16} /> : <Sun size={16} />}
+							</button>
 						</div>
-						<button className="btn btn-logout" onClick={onLogout}>Sair</button>
+						<button className="btn btn-logout icon" onClick={onLogout}>
+							<LogOut size={15} />
+							Sair
+						</button>
 					</div>
 				</div>
 			</aside>
 
-			{/* Overlay para mobile */}
+			{/* Overlay */}
 			{sidebarOpen && (
-				<div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+				<div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
 			)}
 
 			{/* Main Content */}
 			<main className="main-content">
 				<Outlet />
 			</main>
+
+			{/* AI Assistant — lazy loaded so it doesn't delay initial render */}
+			<Suspense fallback={null}>
+				<AIAssistant />
+			</Suspense>
 		</div>
 	)
 }

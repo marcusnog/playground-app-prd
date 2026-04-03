@@ -15,6 +15,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ai-assistant': ['@21st-sdk/react', 'ai', '@ai-sdk/react'],
+          'charts': ['recharts'],
         },
       },
       onwarn(warning, warn) {
