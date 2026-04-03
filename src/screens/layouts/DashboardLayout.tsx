@@ -185,7 +185,7 @@ export default function DashboardLayout() {
 					{sidebarOpen ? '✕' : '☰'}
 				</button>
 				<Link to="/acompanhamento" className="brand">
-						<img src="/playground_parking_icon.svg" alt="" className="brand-icon" aria-hidden="true" />
+						<img src={`${import.meta.env.BASE_URL}playground_parking_icon.svg`} alt="" className="brand-icon" aria-hidden="true" />
 						<span className="brand-name">Playground</span>
 					</Link>
 				<div className="mobile-actions">
@@ -202,7 +202,7 @@ export default function DashboardLayout() {
 			<aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
 				<div className="sidebar-header">
 					<Link to="/acompanhamento" className="brand">
-						<img src="/playground_parking_icon.svg" alt="" className="brand-icon" aria-hidden="true" />
+						<img src={`${import.meta.env.BASE_URL}playground_parking_icon.svg`} alt="" className="brand-icon" aria-hidden="true" />
 						<span className="brand-name">Playground</span>
 					</Link>
 					<button className="close-sidebar" onClick={() => setSidebarOpen(false)}>✕</button>
