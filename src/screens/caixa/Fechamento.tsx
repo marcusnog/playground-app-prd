@@ -326,6 +326,11 @@ export default function Fechamento() {
 			<div>Data/Hora Abertura: ${dataAberturaStr}</div>
 			<div>Data/Hora Fechamento: -</div>
 			<div>Valor Inicial: R$ ${selectedCaixa.valorInicial.toFixed(2)}</div>
+			<div>Suprimentos: + R$ ${totalSuprimentos.toFixed(2)}</div>
+			<div>Sangrias: - R$ ${totalSangrias.toFixed(2)}</div>
+			${sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) =>
+				`<div>${new Date(m.dataHora).toLocaleString('pt-BR')} - ${m.motivo || '-'}: - R$ ${m.valor.toFixed(2)}</div>`
+			).join('')}
 			<hr />
 			<div>Total de Vendas: R$ ${totalVendas.toFixed(2)}</div>
 			<div>Total de Cancelados: ${canceladosDia.length}</div>
@@ -345,11 +350,6 @@ export default function Fechamento() {
 			${cortesiasDia.length > 0
 				? `<div>Total: ${cortesiasDia.length}</div>${cortesiasDia.map((c) => `<div>${c.brinquedoNome}: ${c.quantidade}x em ${new Date(c.dataHoraUtilizada).toLocaleString('pt-BR')}</div>`).join('')}`
 				: '<div>Nenhuma cortesia utilizada hoje</div>'}
-			<div>Sangrias: - R$ ${totalSangrias.toFixed(2)}</div>
-			${sangriasList.map((m: { id: string; dataHora: string; valor: number; motivo?: string }) =>
-				`<div>${new Date(m.dataHora).toLocaleString('pt-BR')} - ${m.motivo || '-'}: - R$ ${m.valor.toFixed(2)}</div>`
-			).join('')}
-			<div>Suprimentos: + R$ ${totalSuprimentos.toFixed(2)}</div>
 			<hr />
 			<div><strong>SALDO FINAL: R$ ${saldoFinal.toFixed(2)}</strong></div>
 			<hr />
