@@ -47,6 +47,15 @@ export default function Fechamento() {
 		() => caixasPermitidos.find((c) => c.id === selectedId),
 		[caixasPermitidos, selectedId]
 	)
+	const selectedCaixaSessionId = useMemo(() => {
+		if (!selectedCaixa) return ''
+		const caixaComSessao = selectedCaixa as typeof selectedCaixa & {
+			sessaoAtualId?: string | null
+			aberturaId?: string | null
+			ultimaAberturaId?: string | null
+		}
+		return caixaComSessao.sessaoAtualId || caixaComSessao.aberturaId || caixaComSessao.ultimaAberturaId || ''
+	}, [selectedCaixa])
 
 	useEffect(() => {
 		parametrosService.get().then(p => setParams(p))
@@ -57,7 +66,9 @@ export default function Fechamento() {
 			try {
 				setLoading(true)
 				const [lancs, formas, brinqs] = await Promise.all([
-					lancamentosService.list(),
+					selectedCaixaSessionId
+						? lancamentosService.list({ caixaAberturaId: selectedCaixaSessionId })
+						: lancamentosService.list(),
 					formasPagamentoService.list(),
 					brinquedosService.list()
 				])
@@ -71,7 +82,7 @@ export default function Fechamento() {
 			}
 		}
 		loadData()
-	}, [selectedCaixa])
+	}, [selectedCaixa, selectedCaixaSessionId])
 
 	// Retorna "YYYY-MM-DD" da data do caixa interpretada como horário local
 	function dataCaixaLocal(dataCaixa: string): string {
@@ -80,14 +91,21 @@ export default function Fechamento() {
 		return d.toLocaleDateString('sv') // 'sv' retorna YYYY-MM-DD no horário local
 	}
 
+	function pertenceASessaoAtual(lancamento: any, dataReferencia?: string | null) {
+		if (selectedCaixaSessionId) {
+			return lancamento.caixaAberturaId === selectedCaixaSessionId
+		}
+		if (!selectedCaixa || !dataReferencia) return false
+		return new Date(dataReferencia).toLocaleDateString('sv') === dataCaixaLocal(selectedCaixa.data)
+	}
+
 	// Resumo por forma de pagamento usando lancamentos pagos do dia
 	const resumo = useMemo(() => {
 		if (!selectedCaixa) return []
 
-		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
+			return pertenceASessaoAtual(l, l.dataHora)
 		})
 
 		const map = new Map<string, { nome: string, total: number }>()
@@ -112,12 +130,11 @@ export default function Fechamento() {
 			map.set(formaId, { nome: atual.nome, total: atual.total + l.valorCalculado })
 		}
 		return Array.from(map.values()).map(v => [v.nome, v.total] as [string, number])
-	}, [selectedCaixa, lancamentos, formasPagamento])
+	}, [selectedCaixa, lancamentos, formasPagamento, selectedCaixaSessionId])
 
 	// Cortesias do dia (lançamentos pagos cuja forma de pagamento contém "cortesia")
 	const cortesiasDia = useMemo(() => {
 		if (!selectedCaixa) return []
-		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const isCortesia = (lancamento: {
 			formaPagamentoId?: string
 			pagamentosJson?: string
@@ -140,7 +157,7 @@ export default function Fechamento() {
 
 		const pagosCortesia = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			if (new Date(l.dataHora).toLocaleDateString('sv') !== dataCaixa) return false
+			if (!pertenceASessaoAtual(l, l.dataHora)) return false
 			return isCortesia(l)
 		})
 
@@ -154,16 +171,15 @@ export default function Fechamento() {
 				return { id: l.id as string, brinquedoNome, quantidade, dataHoraUtilizada }
 			})
 			.sort((a, b) => new Date(a.dataHoraUtilizada).getTime() - new Date(b.dataHoraUtilizada).getTime())
-	}, [selectedCaixa, lancamentos, formasPagamento, brinquedos])
+	}, [selectedCaixa, lancamentos, formasPagamento, brinquedos, selectedCaixaSessionId])
 
 	const canceladosDia = useMemo(() => {
 		if (!selectedCaixa) return []
-		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		return lancamentos
 			.filter((l) => {
 				if (l.status !== 'cancelado') return false
 				const dataReferencia = (l.updatedAt as string | undefined) || l.dataHora
-				return new Date(dataReferencia).toLocaleDateString('sv') === dataCaixa
+				return pertenceASessaoAtual(l, dataReferencia)
 			})
 			.map((l) => {
 				const brinqId = l.brinquedoId as string | undefined
@@ -181,15 +197,14 @@ export default function Fechamento() {
 				}
 			})
 			.sort((a, b) => new Date(a.dataHoraCancelamento).getTime() - new Date(b.dataHoraCancelamento).getTime())
-	}, [selectedCaixa, lancamentos, brinquedos])
+	}, [selectedCaixa, lancamentos, brinquedos, selectedCaixaSessionId])
 
 	// Resumo por brinquedo usando lancamentos pagos do dia
 	const resumoBrinquedos = useMemo(() => {
 		if (!selectedCaixa) return []
-		const dataCaixa = dataCaixaLocal(selectedCaixa.data)
 		const pagos = lancamentos.filter((l) => {
 			if (l.status !== 'pago') return false
-			return new Date(l.dataHora).toLocaleDateString('sv') === dataCaixa
+			return pertenceASessaoAtual(l, l.dataHora)
 		})
 		const map = new Map<string, { nome: string; quantidade: number; total: number }>()
 		for (const l of pagos) {
@@ -204,7 +219,7 @@ export default function Fechamento() {
 		return Array.from(map.values())
 			.sort((a, b) => b.total - a.total)
 			.map((v) => [v.nome, v.quantidade, v.total] as [string, number, number])
-	}, [selectedCaixa, lancamentos, brinquedos])
+	}, [selectedCaixa, lancamentos, brinquedos, selectedCaixaSessionId])
 
 	// Calcular totais de sangrias e suprimentos
 	const totalSangrias = useMemo(() => {

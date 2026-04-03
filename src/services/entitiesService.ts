@@ -73,12 +73,17 @@ export const caixasService = {
 
 // Serviço de Lançamentos
 export const lancamentosService = {
-	list: async (): Promise<Lancamento[]> => {
-		return api.get<Lancamento[]>(endpoints.lancamentos.list)
+	list: async (filters?: { data?: string; caixaAberturaId?: string; status?: string }): Promise<Lancamento[]> => {
+		const params = new URLSearchParams()
+		if (filters?.data) params.set('data', filters.data)
+		if (filters?.caixaAberturaId) params.set('caixaAberturaId', filters.caixaAberturaId)
+		if (filters?.status) params.set('status', filters.status)
+		const query = params.toString()
+		return api.get<Lancamento[]>(`${endpoints.lancamentos.list}${query ? `?${query}` : ''}`)
 	},
 
 	listPorData: async (data: string): Promise<Lancamento[]> => {
-		return api.get<Lancamento[]>(`${endpoints.lancamentos.list}?data=${encodeURIComponent(data)}`)
+		return lancamentosService.list({ data })
 	},
 
 	get: async (id: string): Promise<Lancamento> => {
