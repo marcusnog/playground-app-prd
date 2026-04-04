@@ -308,7 +308,10 @@ export default function Fechamento() {
 			navigate(`/recibo/fechamento/${selectedCaixa.id}`)
 		} catch (error) {
 			console.error('Erro ao fechar caixa:', error)
-			alert('Erro ao fechar caixa. Tente novamente.')
+			const msg = error && typeof error === 'object' && 'message' in error
+				? String((error as { message: unknown }).message)
+				: 'Erro ao fechar caixa. Tente novamente.'
+			alert(msg)
 		} finally {
 			setLoading(false)
 		}
