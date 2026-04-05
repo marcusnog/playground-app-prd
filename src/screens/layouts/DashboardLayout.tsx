@@ -4,14 +4,11 @@ import { useEffect, useState, useMemo } from 'react'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useCaixa } from '../../hooks/useCaixa'
 import { Sun, Moon, Menu, X, LogOut } from 'lucide-react'
-import { lazy, Suspense } from 'react'
 import {
 	IcoDashboard, IcoTicket, IcoEdit, IcoLock,
 	IcoCashRegister, IcoCar, IcoBarChart, IcoSettings,
 	IcoUsers, IcoUser,
 } from '../../ui/icons'
-
-const AIAssistant = lazy(() => import('../../components/AIAssistant'))
 
 export default function DashboardLayout() {
 	const { logout } = useAuth()
@@ -257,10 +254,6 @@ export default function DashboardLayout() {
 				<Outlet />
 			</main>
 
-			{/* AI Assistant — lazy loaded so it doesn't delay initial render */}
-			<Suspense fallback={null}>
-				<AIAssistant />
-			</Suspense>
 		</div>
 	)
 }
