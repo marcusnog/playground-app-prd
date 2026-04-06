@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [
     react()
   ],
+  server: {
+    allowedHosts: ['api.amnctech.com'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
