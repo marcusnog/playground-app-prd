@@ -2,7 +2,7 @@
 // Permite usar variáveis de ambiente ou valores padrão
 
 // URL padrão do backend em produção
-const DEFAULT_PRODUCTION_URL = 'http://45.233.129.73:3001'
+const DEFAULT_PRODUCTION_URL = 'https://playground-backend-ijgt.onrender.com'
 // URL padrão do backend em desenvolvimento
 const DEFAULT_DEVELOPMENT_URL = 'http://localhost:3001'
 
