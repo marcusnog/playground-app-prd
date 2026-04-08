@@ -8,6 +8,24 @@ import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinqued
 
 type PagamentoLinha = { id: string; formaId: string; valor: string }
 
+function normalizarCodigoCortesia(codigo: string): string {
+	return codigo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+function obterMensagemErroPagamento(error: unknown, codigoCortesia: string, isCortesia: boolean): string {
+	const mensagem = error && typeof error === 'object' && 'message' in error
+		? String((error as { message?: unknown }).message || '')
+		: ''
+	const mensagemNormalizada = mensagem.toLowerCase()
+	const codigo = normalizarCodigoCortesia(codigoCortesia)
+
+	if (isCortesia && mensagemNormalizada.includes('já foi utilizado') && codigo) {
+		return `A cortesia ${codigo} já foi utilizada. Confira se esse código já foi usado ou gere uma nova cortesia.`
+	}
+
+	return mensagem || 'Erro ao processar pagamento. Tente novamente.'
+}
+
 export default function Pagamento() {
 	const { id } = useParams()
 	const navigate = useNavigate()
@@ -149,7 +167,7 @@ export default function Pagamento() {
 			// Cortesia segue fluxo antigo (forma única + código)
 			if (isCortesia) {
 				if (!forma) return
-				const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+				const codigo = normalizarCodigoCortesia(codigoCortesia)
 				if (codigo.length !== 8) {
 					setSaving(false)
 					return alert('Informe o código de cortesia de 8 dígitos')
@@ -199,7 +217,7 @@ export default function Pagamento() {
 			navigate(`/recibo/pagamento/${lanc.id}`)
 		} catch (error) {
 			console.error('Erro ao processar pagamento:', error)
-			alert('Erro ao processar pagamento. Tente novamente.')
+			alert(obterMensagemErroPagamento(error, codigoCortesia, isCortesia))
 		} finally {
 			setSaving(false)
 		}
@@ -240,7 +258,7 @@ export default function Pagamento() {
 		if (!lanc) return
 		if (isCortesia) {
 			if (!forma) return
-			const codigo = codigoCortesia.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+			const codigo = normalizarCodigoCortesia(codigoCortesia)
 			if (codigo.length !== 8) {
 				return alert('Informe o código de cortesia de 8 dígitos')
 			}
@@ -434,7 +452,7 @@ export default function Pagamento() {
 								style={{ ...compactControlStyle, fontFamily: 'monospace', letterSpacing: 2 }}
 								type="text"
 								value={codigoCortesia}
-								onChange={(e) => setCodigoCortesia(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+								onChange={(e) => setCodigoCortesia(normalizarCodigoCortesia(e.target.value).slice(0, 8))}
 								placeholder="8 dígitos"
 								maxLength={8}
 							/>
@@ -456,7 +474,7 @@ export default function Pagamento() {
 					<button
 						className="btn primary icon"
 						onClick={finalizar}
-						disabled={saving || (isCortesia && (!forma || codigoCortesia.trim().replace(/[^A-Z0-9]/g, '').length !== 8))}
+						disabled={saving || (isCortesia && (!forma || normalizarCodigoCortesia(codigoCortesia).length !== 8))}
 					>
 						{saving ? 'Processando...' : '✅ Finalizar'}
 					</button>
