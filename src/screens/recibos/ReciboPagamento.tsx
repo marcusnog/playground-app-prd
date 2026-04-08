@@ -46,6 +46,7 @@ export default function ReciboPagamento() {
 	if (!lanc) return <div id="recibo" className="receipt"><h3>Recibo</h3><div>Registro não encontrado</div></div>
 
 	const p = (params ?? {}) as Parametros
+	const brinquedoNome = (lanc as { brinquedo?: { nome?: string } }).brinquedo?.nome || null
 
 	// Pagamento dividido: ler do pagamentosJson; pagamento único: usar formaPagamentoId
 	type SplitItem = { formaPagamentoId: string; descricao: string; valor: number }
@@ -84,6 +85,7 @@ export default function ReciboPagamento() {
 				: new Date().toLocaleString('pt-BR')}</div>
 			<div>Criança: {lanc.nomeCrianca}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
+			{brinquedoNome && <div>Brinquedo: {brinquedoNome}</div>}
 			{(lanc as { valorDesconto?: number }).valorDesconto != null && (lanc as { valorDesconto: number }).valorDesconto > 0 && (
 				<div>Desconto: R$ {(lanc as { valorDesconto: number }).valorDesconto.toFixed(2)}</div>
 			)}
