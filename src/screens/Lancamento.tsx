@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { calcularValor } from '../services/utils'
+import { calcularValor, extrairDataSomente } from '../services/utils'
 import { brinquedosService, clientesService, parametrosService, lancamentosService } from '../services/entitiesService'
 import { useCaixa } from '../hooks/useCaixa'
 import ClienteAutocomplete from '../components/ClienteAutocomplete'
@@ -535,10 +535,9 @@ export default function Lancamento() {
 											return alert('Informe o WhatsApp para contato')
 										}
 										try {
-											const dataNascimentoISO = new Date(formCliente.dataNascimento + 'T00:00:00').toISOString()
 											const novoCliente = await clientesService.create({
 												nomeCompleto: formCliente.nomeCompleto.trim(),
-												dataNascimento: dataNascimentoISO,
+												dataNascimento: extrairDataSomente(formCliente.dataNascimento),
 												nomePai: formCliente.nomePai.trim() || '',
 												nomeMae: formCliente.nomeMae.trim() || '',
 												telefoneWhatsapp: formCliente.telefoneWhatsapp.trim(),

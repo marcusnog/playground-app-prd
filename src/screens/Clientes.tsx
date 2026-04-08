@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { clientesService, lancamentosService } from '../services/entitiesService'
 import type { Cliente } from '../services/entitiesService'
+import { extrairDataSomente, formatarDataPtBr, parseDataLocal } from '../services/utils'
 
 export default function Clientes() {
 	const [clientes, setClientes] = useState<Cliente[]>([])
@@ -27,10 +28,7 @@ export default function Clientes() {
 			const nomePai = (cliente.nomePai || '').toLowerCase()
 			const nomeMae = (cliente.nomeMae || '').toLowerCase()
 			const whatsapp = (cliente.telefoneWhatsapp || '').toLowerCase()
-			let dataStr = ''
-			try {
-				dataStr = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR')
-			} catch { /* noop */ }
+			const dataStr = formatarDataPtBr(cliente.dataNascimento)
 			return nomeCompleto.includes(termo) ||
 				nomePai.includes(termo) ||
 				nomeMae.includes(termo) ||
@@ -66,36 +64,28 @@ export default function Clientes() {
 
 	function calcularIdade(dataNascimento: string): number {
 		if (!dataNascimento) return 0
-		try {
-			const hoje = new Date()
-			const nascimento = new Date(dataNascimento)
-			if (isNaN(nascimento.getTime())) return 0
-			let idade = hoje.getFullYear() - nascimento.getFullYear()
-			const mes = hoje.getMonth() - nascimento.getMonth()
-			if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
-				idade--
-			}
-			return idade
-		} catch {
-			return 0
+		const hoje = new Date()
+		const nascimento = parseDataLocal(dataNascimento)
+		if (!nascimento) return 0
+		let idade = hoje.getFullYear() - nascimento.getFullYear()
+		const mes = hoje.getMonth() - nascimento.getMonth()
+		if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+			idade--
 		}
+		return idade
 	}
 
 	function proximoAniversario(dataNascimento: string): string {
 		if (!dataNascimento) return '-'
-		try {
-			const hoje = new Date()
-			const nascimento = new Date(dataNascimento)
-			if (isNaN(nascimento.getTime())) return '-'
-			const proximo = new Date(hoje.getFullYear(), nascimento.getMonth(), nascimento.getDate())
-			if (proximo < hoje) {
-				proximo.setFullYear(hoje.getFullYear() + 1)
-			}
-			const dias = Math.ceil((proximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
-			return `${proximo.toLocaleDateString('pt-BR')} (em ${dias} dias)`
-		} catch {
-			return '-'
+		const hoje = new Date()
+		const nascimento = parseDataLocal(dataNascimento)
+		if (!nascimento) return '-'
+		const proximo = new Date(hoje.getFullYear(), nascimento.getMonth(), nascimento.getDate())
+		if (proximo < hoje) {
+			proximo.setFullYear(hoje.getFullYear() + 1)
 		}
+		const dias = Math.ceil((proximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+		return `${proximo.toLocaleDateString('pt-BR')} (em ${dias} dias)`
 	}
 
 	async function salvar() {
@@ -103,10 +93,9 @@ export default function Clientes() {
 		if (!form.dataNascimento) return alert('Informe a data de nascimento')
 		if (!form.telefoneWhatsapp.trim()) return alert('Informe o WhatsApp para contato')
 		
-		const dataNascimentoISO = new Date(form.dataNascimento + 'T00:00:00').toISOString()
 		const payload = {
 			nomeCompleto: form.nomeCompleto.trim(),
-			dataNascimento: dataNascimentoISO,
+			dataNascimento: extrairDataSomente(form.dataNascimento),
 			nomePai: form.nomePai.trim(),
 			nomeMae: form.nomeMae.trim(),
 			telefoneWhatsapp: form.telefoneWhatsapp.trim()
@@ -141,24 +130,14 @@ export default function Clientes() {
 
 	function iniciarEdicao(cliente: Cliente) {
 		setEditId(cliente.id)
-		try {
-			const dataFormatada = new Date(cliente.dataNascimento).toISOString().split('T')[0]
-			setForm({
-				nomeCompleto: cliente.nomeCompleto,
-				dataNascimento: dataFormatada,
-				nomePai: cliente.nomePai || '',
-				nomeMae: cliente.nomeMae || '',
-				telefoneWhatsapp: cliente.telefoneWhatsapp
-			})
-		} catch {
-			setForm({
-				nomeCompleto: cliente.nomeCompleto,
-				dataNascimento: '',
-				nomePai: cliente.nomePai || '',
-				nomeMae: cliente.nomeMae || '',
-				telefoneWhatsapp: cliente.telefoneWhatsapp
-			})
-		}
+		const dataFormatada = extrairDataSomente(cliente.dataNascimento)
+		setForm({
+			nomeCompleto: cliente.nomeCompleto,
+			dataNascimento: dataFormatada,
+			nomePai: cliente.nomePai || '',
+			nomeMae: cliente.nomeMae || '',
+			telefoneWhatsapp: cliente.telefoneWhatsapp
+		})
 		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
@@ -332,21 +311,16 @@ export default function Clientes() {
 										let proximoAniversarioStr = '-'
 										let diasAniversario = 999
 										
-										try {
-											const hoje = new Date()
-											const nascimento = new Date(cliente.dataNascimento)
-											if (!isNaN(nascimento.getTime())) {
-												const proximo = new Date(hoje.getFullYear(), nascimento.getMonth(), nascimento.getDate())
-												if (proximo < hoje) proximo.setFullYear(hoje.getFullYear() + 1)
-												diasAniversario = Math.ceil((proximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
-												proximoAniversarioStr = proximo.toLocaleDateString('pt-BR')
-											}
-										} catch { /* noop */ }
+										const hoje = new Date()
+										const nascimento = parseDataLocal(cliente.dataNascimento)
+										if (nascimento) {
+											const proximo = new Date(hoje.getFullYear(), nascimento.getMonth(), nascimento.getDate())
+											if (proximo < hoje) proximo.setFullYear(hoje.getFullYear() + 1)
+											diasAniversario = Math.ceil((proximo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+											proximoAniversarioStr = proximo.toLocaleDateString('pt-BR')
+										}
 										
-										let dataFormatada = '-'
-										try {
-											dataFormatada = new Date(cliente.dataNascimento).toLocaleDateString('pt-BR')
-										} catch { /* noop */ }
+										const dataFormatada = formatarDataPtBr(cliente.dataNascimento) || '-'
 										
 										return (
 											<tr key={cliente.id}>
