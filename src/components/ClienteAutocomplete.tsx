@@ -1,12 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import type { Cliente } from '../services/entitiesService'
+import { formatarDataPtBr } from '../services/utils'
 
 function formatDataNascimento(d: string): string {
-	try {
-		return new Date(d).toLocaleDateString('pt-BR')
-	} catch {
-		return ''
-	}
+	return formatarDataPtBr(d)
 }
 
 function formatResponsavel(c: Cliente): string {
@@ -76,10 +73,7 @@ export default function ClienteAutocomplete({
 			const pai = (c.nomePai || '').toLowerCase()
 			const mae = (c.nomeMae || '').toLowerCase()
 			const telefone = (c.telefoneWhatsapp || '').replace(/\D/g, '')
-			let dataStr = ''
-			try {
-				dataStr = new Date(c.dataNascimento).toLocaleDateString('pt-BR')
-			} catch { /* noop */ }
+			const dataStr = formatarDataPtBr(c.dataNascimento)
 			const dataFormatada = dataStr.replace(/\D/g, '')
 			const campos = [nome, pai, mae, dataStr.toLowerCase(), dataFormatada, telefone]
 			const termoMatch = (t: string) => {

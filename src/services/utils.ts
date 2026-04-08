@@ -1,6 +1,34 @@
 // Shared utilities
 import type { Parametros, Brinquedo, Lancamento, MovimentoCaixa } from './mockDb'
 
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
+export function extrairDataSomente(valor: string | undefined | null): string {
+	if (!valor) return ''
+	const texto = valor.trim()
+	if (DATE_ONLY_REGEX.test(texto)) return texto
+	const match = texto.match(/^(\d{4}-\d{2}-\d{2})/)
+	return match ? match[1] : ''
+}
+
+export function parseDataLocal(valor: string | undefined | null): Date | null {
+	const dataSomente = extrairDataSomente(valor)
+	if (dataSomente) {
+		const [ano, mes, dia] = dataSomente.split('-').map(Number)
+		const data = new Date(ano, mes - 1, dia)
+		return Number.isNaN(data.getTime()) ? null : data
+	}
+
+	if (!valor) return null
+	const data = new Date(valor)
+	return Number.isNaN(data.getTime()) ? null : data
+}
+
+export function formatarDataPtBr(valor: string | undefined | null): string {
+	const data = parseDataLocal(valor)
+	return data ? data.toLocaleDateString('pt-BR') : ''
+}
+
 /** Filtra movimentos apenas da sessão atual (dataHora >= dataAbertura do caixa). */
 export function movimentosDaSessao(movimentos: MovimentoCaixa[] | undefined, dataAbertura: string): MovimentoCaixa[] {
 	if (!movimentos) return []
