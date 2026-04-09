@@ -27,7 +27,7 @@ type UsuarioAPI = {
 	parametrosFormasPagamento?: boolean
 	parametrosBrinquedos?: boolean
 	clientes?: boolean
-	descontoAutorizado?: boolean
+	autorizarCancelamentosEDescontos?: boolean
 	cortesia?: boolean
 }
 
@@ -48,7 +48,7 @@ function apiUsuarioToForm(u: UsuarioAPI): Usuario {
 			acompanhamento: u.estacionamentoAcompanhamento,
 		} : undefined,
 		relatorios: u.relatorios,
-		descontoAutorizado: u.descontoAutorizado,
+		autorizarCancelamentosEDescontos: u.autorizarCancelamentosEDescontos,
 		parametros: (u.parametrosEmpresa || u.parametrosFormasPagamento || u.parametrosBrinquedos) ? {
 			empresa: u.parametrosEmpresa,
 			formasPagamento: u.parametrosFormasPagamento,
@@ -93,7 +93,7 @@ function formToApiPayload(form: Partial<Usuario>, includeSenha: boolean) {
 		estacionamentoLancamento: !!p?.estacionamento?.lancamento,
 		estacionamentoAcompanhamento: !!p?.estacionamento?.acompanhamento,
 		relatorios: !!p?.relatorios,
-		descontoAutorizado: !!p?.descontoAutorizado,
+		autorizarCancelamentosEDescontos: !!p?.autorizarCancelamentosEDescontos,
 		parametrosEmpresa: !!p?.parametros?.empresa,
 		parametrosFormasPagamento: !!p?.parametros?.formasPagamento,
 		parametrosBrinquedos: !!p?.parametros?.brinquedos,
@@ -426,14 +426,14 @@ export default function Usuarios() {
 							<span>Relatórios</span>
 						</label>
 
-						{/* Autorizar desconto */}
+						{/* Autorizar cancelamentos e descontos */}
 						<label className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 							<input 
 								type="checkbox" 
-								checked={!!form.permissoes?.descontoAutorizado}
-								onChange={() => togglePermissao('descontoAutorizado')}
+								checked={!!form.permissoes?.autorizarCancelamentosEDescontos}
+								onChange={() => togglePermissao('autorizarCancelamentosEDescontos')}
 							/>
-							<span>Autorizar desconto</span>
+							<span>Pode autorizar cancelamentos e descontos</span>
 						</label>
 
 						{/* Cortesia */}

@@ -236,9 +236,9 @@ export default function Pagamento() {
 			setErroAdminCancelamento('Apelido e senha são obrigatórios')
 			return
 		}
-		const ok = await authService.validarAdmin(adminApelidoCancelamento.trim(), adminSenhaCancelamento)
+		const ok = await authService.validarDesconto(adminApelidoCancelamento.trim(), adminSenhaCancelamento)
 		if (!ok) {
-			setErroAdminCancelamento('Credenciais inválidas ou usuário sem permissão de administrador')
+			setErroAdminCancelamento('Credenciais inválidas ou usuário sem permissão para autorizar cancelamentos e descontos')
 			return
 		}
 		setMostrarModalCancelamento(false)
@@ -488,10 +488,10 @@ export default function Pagamento() {
 					<div className="card" style={{ maxWidth: 360, margin: 16 }} onClick={e => e.stopPropagation()}>
 						<h3>Autorização de Cancelamento</h3>
 						<p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
-							Digite o apelido e senha do administrador para cancelar "{lanc?.nomeCrianca}" sem cobrança.
+							Digite o apelido e a senha de um usuário com permissão para autorizar cancelamentos e descontos para cancelar o atendimento de {lanc?.nomeCrianca} sem cobrança.
 						</p>
 						<label className="field">
-							<span>Apelido do administrador *</span>
+							<span>Apelido *</span>
 							<input className="input" value={adminApelidoCancelamento} onChange={e => setAdminApelidoCancelamento(e.target.value)} placeholder="apelido" autoFocus />
 						</label>
 						<label className="field">
@@ -526,10 +526,10 @@ export default function Pagamento() {
 					<div className="card" style={{ maxWidth: 360, margin: 16 }} onClick={e => e.stopPropagation()}>
 						<h3>Autorização de Desconto</h3>
 						<p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
-							Digite o apelido e a senha do supervisor/coordenador para autorizar o desconto de R$ {descontoNum.toFixed(2)}.
+							Digite o apelido e a senha de um usuário com permissão para autorizar cancelamentos e descontos para autorizar o desconto de R$ {descontoNum.toFixed(2)}.
 						</p>
 						<label className="field">
-							<span>Apelido do supervisor *</span>
+							<span>Apelido *</span>
 							<input 
 								className="input" 
 								value={supervisorApelido} 
