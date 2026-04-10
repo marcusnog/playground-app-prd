@@ -206,7 +206,7 @@ export default function Lancamento() {
 			if (!form.brinquedoId) return alert('Selecione o brinquedo')
 			if (!form.quantidade || form.quantidade < 1) return alert('Informe a quantidade')
 		} else {
-			if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim() || !form.tipoParente) {
+			if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim()) {
 				return alert('Preencha os campos obrigatórios')
 			}
 		}
@@ -217,7 +217,7 @@ export default function Lancamento() {
 					nomeCrianca: 'Quantidade',
 					nomeResponsavel: '-',
 					tipoParente: undefined,
-					whatsappResponsavel: '0000000000000',
+					whatsappResponsavel: '',
 					numeroPulseira: undefined,
 					brinquedoId: form.brinquedoId,
 					clienteId: undefined,
@@ -365,7 +365,7 @@ export default function Lancamento() {
 						<input className="input" value={new Date().toLocaleString()} readOnly />
 					</label>
 					<label className="field">
-						<span>Tipo do parente *</span>
+						<span>Tipo do parente</span>
 						<select 
 							className="select" 
 							value={form.tipoParente} 
