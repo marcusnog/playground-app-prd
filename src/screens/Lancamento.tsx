@@ -206,8 +206,8 @@ export default function Lancamento() {
 			if (!form.brinquedoId) return alert('Selecione o brinquedo')
 			if (!form.quantidade || form.quantidade < 1) return alert('Informe a quantidade')
 		} else {
-			if (!form.nomeCrianca.trim() || !form.nomeResponsavel.trim()) {
-				return alert('Preencha os campos obrigatórios')
+			if (!form.nomeCrianca.trim() || !form.whatsappResponsavel.trim()) {
+				return alert('Preencha os campos obrigatórios: nome da criança e telefone')
 			}
 		}
 
@@ -382,13 +382,13 @@ export default function Lancamento() {
 						</select>
 					</label>
 					<label className="field">
-						<span>Nome do responsável *</span>
+						<span>Nome do responsável</span>
 						<input className="input" value={form.nomeResponsavel} onChange={(e) => setForm({ ...form, nomeResponsavel: e.target.value })} />
 					</label>
 				</div>
 				<div>
 					<label className="field">
-						<span>WhatsApp do responsável</span>
+						<span>WhatsApp do responsável *</span>
 						<input className="input" value={form.whatsappResponsavel} onChange={(e) => setForm({ ...form, whatsappResponsavel: e.target.value })} placeholder="5599999999999" />
 					</label>
 					<label className="field">
