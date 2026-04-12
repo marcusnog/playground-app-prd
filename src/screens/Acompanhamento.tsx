@@ -17,6 +17,7 @@ export default function Acompanhamento() {
 	const hoje = new Date().toLocaleDateString('sv')
 	const [filtroDataInicio, setFiltroDataInicio] = useState(hoje)
 	const [filtroDataFim, setFiltroDataFim] = useState(hoje)
+	const [filtroNome, setFiltroNome] = useState('')
 
 	const lancamentosFiltrados = useMemo(() => {
 		let lista: Lancamento[]
@@ -42,9 +43,17 @@ export default function Acompanhamento() {
 			}
 			lista = [...lista].sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
 		}
+		if (filtroNome.trim()) {
+			const termo = filtroNome.trim().toLowerCase()
+			lista = lista.filter(
+				(l) =>
+					l.nomeCrianca?.toLowerCase().includes(termo) ||
+					l.nomeResponsavel?.toLowerCase().includes(termo)
+			)
+		}
 		return lista
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [tick, filtroStatus, lancamentos, filtroDataInicio, filtroDataFim])
+	}, [tick, filtroStatus, lancamentos, filtroDataInicio, filtroDataFim, filtroNome])
 
 	const resumoEncerrados = useMemo(() => {
 		const pagos = lancamentosFiltrados.filter((l) => l.status === 'pago')
@@ -162,18 +171,31 @@ export default function Acompanhamento() {
 				<div className="acompanhamento-toggle">
 					<button
 						className={`btn icon ${filtroStatus === 'abertos' ? 'primary' : ''}`}
-						onClick={() => setFiltroStatus('abertos')}
+						onClick={() => { setFiltroStatus('abertos'); setFiltroNome('') }}
 					>
 						Em Andamento
 					</button>
 					<button
 						className={`btn icon ${filtroStatus === 'encerrados' ? 'primary' : ''}`}
-						onClick={() => setFiltroStatus('encerrados')}
+						onClick={() => { setFiltroStatus('encerrados'); setFiltroNome('') }}
 					>
 						Encerrados
 					</button>
 				</div>
 			</div>
+
+			{filtroStatus === 'abertos' && (
+				<div style={{ marginBottom: 12 }}>
+					<input
+						type="text"
+						className="input"
+						placeholder="Buscar por nome da crianca ou responsavel..."
+						value={filtroNome}
+						onChange={(e) => setFiltroNome(e.target.value)}
+						style={{ maxWidth: 400 }}
+					/>
+				</div>
+			)}
 
 			{filtroStatus === 'encerrados' && (
 				<>
@@ -212,6 +234,16 @@ export default function Acompanhamento() {
 									className="input"
 									value={filtroDataFim}
 									onChange={(e) => setFiltroDataFim(e.target.value)}
+								/>
+							</label>
+							<label className="field">
+								<span>Nome</span>
+								<input
+									type="text"
+									className="input"
+									placeholder="Crianca ou responsavel..."
+									value={filtroNome}
+									onChange={(e) => setFiltroNome(e.target.value)}
 								/>
 							</label>
 						</div>
