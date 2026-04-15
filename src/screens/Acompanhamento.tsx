@@ -21,10 +21,14 @@ export default function Acompanhamento() {
 	const [filtroDataFim, setFiltroDataFim] = useState(hoje)
 	const [filtroNome, setFiltroNome] = useState('')
 
+	function isPagamentoDiretoNoLancamento(lancamento: Lancamento) {
+		return lancamento.quantidade != null || lancamento.nomeCrianca === 'Quantidade'
+	}
+
 	const lancamentosFiltrados = useMemo(() => {
 		let lista: Lancamento[]
 		if (filtroStatus === 'abertos') {
-			lista = lancamentos.filter((l) => l.status === 'aberto')
+			lista = lancamentos.filter((l) => l.status === 'aberto' && !isPagamentoDiretoNoLancamento(l))
 			const now = Date.now()
 			lista = [...lista].sort((a, b) => {
 				const decA = Math.floor((now - new Date(a.dataHora).getTime()) / 60000)
@@ -36,14 +40,23 @@ export default function Acompanhamento() {
 				return restanteA - restanteB
 			})
 		} else {
-			lista = lancamentos.filter((l) => l.status === 'pago' || l.status === 'cancelado')
+			lista = lancamentos.filter(
+				(l) =>
+					l.status === 'pago' ||
+					l.status === 'cancelado' ||
+					(l.status === 'aberto' && isPagamentoDiretoNoLancamento(l))
+			)
 			if (filtroDataInicio) {
 				lista = lista.filter((l) => new Date(l.dataHora).toLocaleDateString('sv') >= filtroDataInicio)
 			}
 			if (filtroDataFim) {
 				lista = lista.filter((l) => new Date(l.dataHora).toLocaleDateString('sv') <= filtroDataFim)
 			}
-			lista = [...lista].sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+			lista = [...lista].sort((a, b) => {
+				const dataA = new Date((a as { updatedAt?: string }).updatedAt ?? a.dataHora).getTime()
+				const dataB = new Date((b as { updatedAt?: string }).updatedAt ?? b.dataHora).getTime()
+				return dataB - dataA
+			})
 		}
 		if (filtroNome.trim()) {
 			const termo = filtroNome.trim().toLowerCase()
@@ -180,7 +193,7 @@ export default function Acompanhamento() {
 					<div className="subtitle">
 						{filtroStatus === 'abertos'
 							? `${lancamentosFiltrados.length} em andamento`
-							: `${lancamentosFiltrados.length} encerrados no periodo selecionado`}
+							: `${lancamentosFiltrados.length} encerrados ou com pagamento direto no periodo selecionado`}
 					</div>
 				</div>
 
@@ -219,7 +232,7 @@ export default function Acompanhamento() {
 						<div className="acompanhamento-filtros-head">
 							<div>
 								<div className="acompanhamento-eyebrow">Consulta de encerramentos</div>
-								<div className="subtitle">Filtre pagamentos e cancelamentos por data para localizar atendimentos com mais rapidez.</div>
+								<div className="subtitle">Filtre pagamentos, cancelamentos e pendencias de pagamento direto por data para localizar atendimentos com mais rapidez.</div>
 							</div>
 							<button
 								className="btn"
@@ -267,7 +280,7 @@ export default function Acompanhamento() {
 
 					<div className="acompanhamento-metricas">
 						<div className="card acompanhamento-metrica">
-							<span className="acompanhamento-metrica-label">Encerrados</span>
+							<span className="acompanhamento-metrica-label">Registros</span>
 							<strong>{resumoEncerrados.total}</strong>
 						</div>
 						<div className="card acompanhamento-metrica">
@@ -309,9 +322,9 @@ export default function Acompanhamento() {
 			{filtroStatus === 'encerrados' && lancamentosFiltrados.length === 0 ? (
 				<div className="card acompanhamento-empty-state">
 					<div className="acompanhamento-empty-icon">[ ]</div>
-					<h3>Nenhum encerramento encontrado</h3>
+					<h3>Nenhum registro encontrado</h3>
 					<p>
-						Nao ha registros pagos ou cancelados entre {formatarData(`${filtroDataInicio}T00:00:00`)} e {formatarData(`${filtroDataFim}T00:00:00`)}.
+						Nao ha registros pagos, cancelados ou pendentes de pagamento direto entre {formatarData(`${filtroDataInicio}T00:00:00`)} e {formatarData(`${filtroDataFim}T00:00:00`)}.
 					</p>
 					<p className="subtitle">Ajuste o periodo ou use o filtro de hoje para consultar outro intervalo.</p>
 				</div>
@@ -352,6 +365,7 @@ export default function Acompanhamento() {
 								const dec = minutosDecorridos(l.dataHora)
 								const alvo = l.tempoSolicitadoMin ?? Infinity
 								const restante = isFinite(alvo) ? Math.max(0, alvo - dec) : Infinity
+								const isPagamentoDireto = isPagamentoDiretoNoLancamento(l)
 								const brinquedo = l.brinquedoId ? brinquedos.find((b) => b.id === l.brinquedoId) : undefined
 								const valor = calcularValorExibidoLancamento(
 									l,
@@ -455,7 +469,13 @@ export default function Acompanhamento() {
 										<td>R$ {valor.toFixed(2)}</td>
 										<td>
 											<span className={`badge ${l.status === 'pago' ? 'on' : l.status === 'cancelado' ? 'off' : ''}`}>
-												{l.status === 'pago' ? 'Pago' : l.status === 'cancelado' ? 'Cancelado' : 'Aberto'}
+												{l.status === 'pago'
+													? 'Pago'
+													: l.status === 'cancelado'
+														? 'Cancelado'
+														: isPagamentoDireto && filtroStatus === 'encerrados'
+															? 'A pagar'
+															: 'Aberto'}
 											</span>
 										</td>
 										<td className="row acompanhamento-acoes">
@@ -483,6 +503,11 @@ export default function Acompanhamento() {
 													{l.status === 'pago' && (
 														<Link to={`/recibo/pagamento/${l.id}`}>
 															<button className="btn icon">Reimprimir Recibo</button>
+														</Link>
+													)}
+													{l.status === 'aberto' && isPagamentoDireto && (
+														<Link to={`/pagamento/${l.id}`}>
+															<button className="btn primary icon">Pagamento</button>
 														</Link>
 													)}
 												</>
