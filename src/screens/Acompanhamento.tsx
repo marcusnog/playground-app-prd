@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { calcularValorExibidoLancamento } from '../services/utils'
 import { brinquedosService, lancamentosService, parametrosService } from '../services/entitiesService'
 import type { Brinquedo as BrinquedoType, Lancamento, Parametros as ParametrosType } from '../services/entitiesService'
 
 export default function Acompanhamento() {
+	const navigate = useNavigate()
 	const [tick, setTick] = useState(0)
 	const [filtroStatus, setFiltroStatus] = useState<'abertos' | 'encerrados'>('abertos')
+	const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
 	const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
 	const [parametros, setParametros] = useState<ParametrosType | null>(null)
 	const [brinquedos, setBrinquedos] = useState<BrinquedoType[]>([])
@@ -94,6 +96,20 @@ export default function Acompanhamento() {
 			clearInterval(tTick)
 		}
 	}, [])
+
+	useEffect(() => { setSelecionados(new Set()) }, [filtroStatus])
+
+	function resolverNomesCriancas(l: Lancamento): string {
+		const adicionais = (() => {
+			try {
+				if (!l.criancasAdicionaisJson) return []
+				return JSON.parse(l.criancasAdicionaisJson) as Array<{ nomeCrianca: string }>
+			} catch {
+				return []
+			}
+		})()
+		return [l.nomeCrianca, ...adicionais.map(c => c.nomeCrianca)].filter(Boolean).join(' / ')
+	}
 
 	function minutosDecorridos(iso: string) {
 		const ms = Date.now() - new Date(iso).getTime()
@@ -270,6 +286,26 @@ export default function Acompanhamento() {
 				</>
 			)}
 
+			{filtroStatus === 'abertos' && selecionados.size >= 2 && (
+				<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+					<button
+						className="btn primary icon"
+						onClick={() => {
+							const ids = [...selecionados].join(',')
+							navigate(`/pagamento-multiplo?ids=${ids}`)
+						}}
+					>
+						Pagar {selecionados.size} tickets selecionados
+					</button>
+					<span className="help">
+						Total estimado: R$ {lancamentosFiltrados
+							.filter(l => selecionados.has(l.id))
+							.reduce((s, l) => s + (l.valorCalculado ?? 0), 0)
+							.toFixed(2)}
+					</span>
+				</div>
+			)}
+
 			{filtroStatus === 'encerrados' && lancamentosFiltrados.length === 0 ? (
 				<div className="card acompanhamento-empty-state">
 					<div className="acompanhamento-empty-icon">[ ]</div>
@@ -280,10 +316,26 @@ export default function Acompanhamento() {
 					<p className="subtitle">Ajuste o periodo ou use o filtro de hoje para consultar outro intervalo.</p>
 				</div>
 			) : (
-				<div className={`card table-wrap ${filtroStatus === 'encerrados' ? 'acompanhamento-table-card' : ''}`}>
+			<div className={`card table-wrap ${filtroStatus === 'encerrados' ? 'acompanhamento-table-card' : ''}`}>
 					<table className="table">
 						<thead>
 							<tr>
+								{filtroStatus === 'abertos' && (
+									<th style={{ width: 40 }}>
+										<input
+											type="checkbox"
+											checked={lancamentosFiltrados.length > 0 && lancamentosFiltrados.every(l => selecionados.has(l.id))}
+											ref={(el) => { if (el) el.indeterminate = lancamentosFiltrados.some(l => selecionados.has(l.id)) && !lancamentosFiltrados.every(l => selecionados.has(l.id)) }}
+											onChange={(e) => {
+												if (e.target.checked) {
+													setSelecionados(new Set(lancamentosFiltrados.map(l => l.id)))
+												} else {
+													setSelecionados(new Set())
+												}
+											}}
+										/>
+									</th>
+								)}
 								<th>Crianca</th>
 								<th>Responsavel</th>
 								<th>Brinquedo</th>
@@ -315,12 +367,28 @@ export default function Acompanhamento() {
 
 								return (
 									<tr key={l.id} className={alerta ? 'highlight' : undefined}>
+										{filtroStatus === 'abertos' && (
+											<td>
+												<input
+													type="checkbox"
+													checked={selecionados.has(l.id)}
+													onChange={(e) => {
+														setSelecionados(prev => {
+															const next = new Set(prev)
+															if (e.target.checked) next.add(l.id)
+															else next.delete(l.id)
+															return next
+														})
+													}}
+												/>
+											</td>
+										)}
 										<td>
 											<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 												{alerta && (
 													<span title="Tempo acabando - requer atencao" style={{ color: '#e74c3c', fontSize: '1.2em' }}>!</span>
 												)}
-												{l.nomeCrianca}
+												{resolverNomesCriancas(l)}
 											</div>
 										</td>
 										<td>{l.nomeResponsavel}</td>

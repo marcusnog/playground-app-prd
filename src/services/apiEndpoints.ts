@@ -44,6 +44,7 @@ const endpoints = {
 		update: (id: string) => `/api/lancamentos/${id}`,
 		pagar: (id: string) => `/api/lancamentos/${id}/pagar`,
 		cancelar: (id: string) => `/api/lancamentos/${id}/cancelar`,
+		pagarMultiplos: '/api/lancamentos/pagar-multiplos',
 	},
 
 	// Clientes

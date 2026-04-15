@@ -68,6 +68,8 @@ export default function Lancamento() {
 		tempoLivre: false,
 		quantidade: 1,
 	})
+	type CriancaAdicional = { id: string; nomeCrianca: string; numeroPulseira: string }
+	const [criancasAdicionais, setCriancasAdicionais] = useState<CriancaAdicional[]>([])
 	const [mostrarFormCliente, setMostrarFormCliente] = useState(false)
 	const [formCliente, setFormCliente] = useState({
 		nomeCompleto: '',
@@ -139,29 +141,30 @@ export default function Lancamento() {
 		// Sem brinquedo selecionado: valor zerado por padrão
 		if (!brinquedoSelecionado) return 0
 		if (!parametros) return 0
-		
+
 		// Modo quantidade (TRENZINHO/INFLÁVEL): valor = quantidade * valor unitário
 		if (isModoQuantidade && brinquedoSelecionado) {
 			const valorUnitario = Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
 			return Math.max(0, (form.quantidade || 1)) * valorUnitario
 		}
-		
+
 		// Calcular valor baseado no tempo total
 		// Múltiplo exato do período inicial: preço proporcional por bloco (ex: 60 min = 2×R$25 = R$50)
 		// Tempo parcial além de um bloco: usa cálculo de ciclos normal (ex: 40 min = R$25 + ciclos)
 		const iniMin = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
 		const iniReais = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
 		const isMultiploBlocos = iniMin > 0 && tempoTotal > 0 && tempoTotal % iniMin === 0
-		const valorCalculado = isMultiploBlocos
+		const valorBase = isMultiploBlocos
 			? (tempoTotal / iniMin) * iniReais
 			: calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
 
+		const numCriancas = 1 + criancasAdicionais.length
 		if (form.tempoLivre) {
-			return valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorCalculado
+			return (valorAntesTempoLivre > 0 ? valorAntesTempoLivre : valorBase) * numCriancas
 		}
-		return valorCalculado
+		return valorBase * numCriancas
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo, valorAntesTempoLivre])
+	}, [tempoTotal, form.tempoLivre, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo, valorAntesTempoLivre, criancasAdicionais.length])
 
 	// Atualizar valorAntesTempoLivre quando o valor calculado muda (fora do tempo livre)
 	useEffect(() => {
@@ -169,12 +172,14 @@ export default function Lancamento() {
 		const iniMin2 = Number(brinquedoParaCalculo?.inicialMinutos ?? parametros.valorInicialMinutos ?? 30)
 		const iniReais2 = Number(brinquedoParaCalculo?.valorInicial ?? parametros.valorInicialReais ?? 0)
 		const isMultiploBlocos2 = iniMin2 > 0 && tempoTotal > 0 && tempoTotal % iniMin2 === 0
-		const v = isModoQuantidade && brinquedoSelecionado
+		const numCriancas2 = 1 + criancasAdicionais.length
+		const vBase = isModoQuantidade && brinquedoSelecionado
 			? Math.max(0, (form.quantidade || 1)) * Number(brinquedoSelecionado.valorInicial ?? brinquedoSelecionado.regrasCobranca?.valorInicial ?? parametros.valorInicialReais ?? 20)
 			: isMultiploBlocos2 ? (tempoTotal / iniMin2) * iniReais2 : calcularValor(parametros as ParametrosType, tempoTotal, brinquedoParaCalculo as BrinquedoType | undefined)
+		const v = isModoQuantidade ? vBase : vBase * numCriancas2
 		if (v > 0) setValorAntesTempoLivre(v)
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo])
+	}, [form.tempoLivre, tempoTotal, form.quantidade, form.brinquedoId, isModoQuantidade, parametros, brinquedoParaCalculo, criancasAdicionais.length])
 
 	function selecionarCliente(clienteId: string) {
 		if (!clienteId) {
@@ -209,6 +214,11 @@ export default function Lancamento() {
 			if (!form.nomeCrianca.trim() || !form.whatsappResponsavel.trim()) {
 				return alert('Preencha os campos obrigatórios: nome da criança e telefone')
 			}
+			for (const c of criancasAdicionais) {
+				if (!c.nomeCrianca.trim()) {
+					return alert('Preencha o nome de todas as crianças adicionadas')
+				}
+			}
 		}
 
 		try {
@@ -231,6 +241,12 @@ export default function Lancamento() {
 					tipoParente: form.tipoParente || undefined,
 					whatsappResponsavel: form.whatsappResponsavel.trim(),
 					numeroPulseira: form.numeroPulseira.trim() || undefined,
+					criancasAdicionaisJson: criancasAdicionais.length > 0
+						? JSON.stringify(criancasAdicionais.map(c => ({
+							nomeCrianca: c.nomeCrianca.trim(),
+							...(c.numeroPulseira.trim() ? { numeroPulseira: c.numeroPulseira.trim() } : {}),
+						})))
+						: null,
 					brinquedoId: form.brinquedoId || undefined,
 					clienteId: form.clienteId || undefined,
 					tempoSolicitadoMin: form.tempoLivre ? null : tempoTotal,
@@ -395,6 +411,57 @@ export default function Lancamento() {
 						<span>Número da pulseira</span>
 						<input className="input" value={form.numeroPulseira} onChange={(e) => setForm({ ...form, numeroPulseira: e.target.value })} />
 					</label>
+				</div>
+				{/* Crianças adicionais */}
+				{criancasAdicionais.map((c, idx) => (
+					<div key={c.id} style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+						<label className="field">
+							<span>Nome da criança {idx + 2}</span>
+							<input
+								className="input"
+								value={c.nomeCrianca}
+								onChange={(e) => setCriancasAdicionais(prev =>
+									prev.map(x => x.id === c.id ? { ...x, nomeCrianca: e.target.value } : x)
+								)}
+							/>
+						</label>
+						<label className="field">
+							<span>Número da pulseira</span>
+							<input
+								className="input"
+								value={c.numeroPulseira}
+								onChange={(e) => setCriancasAdicionais(prev =>
+									prev.map(x => x.id === c.id ? { ...x, numeroPulseira: e.target.value } : x)
+								)}
+							/>
+						</label>
+						<button
+							className="btn"
+							type="button"
+							style={{ marginBottom: 4 }}
+							onClick={() => setCriancasAdicionais(prev => prev.filter(x => x.id !== c.id))}
+							title="Remover criança"
+						>
+							×
+						</button>
+					</div>
+				))}
+				<div style={{ gridColumn: '1 / -1' }}>
+					<button
+						className="btn"
+						type="button"
+						onClick={() => setCriancasAdicionais(prev => [
+							...prev,
+							{ id: crypto.randomUUID(), nomeCrianca: '', numeroPulseira: '' }
+						])}
+					>
+						+ Adicionar criança
+					</button>
+					{criancasAdicionais.length > 0 && (
+						<span className="help" style={{ marginLeft: 8 }}>
+							{1 + criancasAdicionais.length} crianças • valor multiplicado automaticamente
+						</span>
+					)}
 				</div>
 				{/* Tempo Inicial + Tempo Adicional + Tempo Livre (apenas fora do modo quantidade) */}
 				<div>
