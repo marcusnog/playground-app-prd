@@ -114,6 +114,17 @@ export const lancamentosService = {
 	cancelar: async (id: string): Promise<Lancamento> => {
 		return api.post<Lancamento>(endpoints.lancamentos.cancelar(id))
 	},
+
+	pagarMultiplos: async (
+		ids: string[],
+		pagamentos: Array<{ formaPagamentoId: string; valor: number }>,
+		valorTotal: number
+	): Promise<{ lancamentos: Lancamento[]; total: number }> => {
+		return api.post<{ lancamentos: Lancamento[]; total: number }>(
+			endpoints.lancamentos.pagarMultiplos,
+			{ ids, pagamentos, valorTotal }
+		)
+	},
 }
 
 // Serviço de Clientes

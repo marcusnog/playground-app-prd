@@ -17,6 +17,7 @@ import Lancamento from './screens/Lancamento'
 import Acompanhamento from './screens/Acompanhamento'
 import Relatorios from './screens/Relatorios'
 import Pagamento from './screens/Pagamento'
+import PagamentoMultiplo from './screens/PagamentoMultiplo'
 import ReciboLancamento from './screens/recibos/ReciboLancamento'
 import ReciboPagamento from './screens/recibos/ReciboPagamento'
 import ReciboAbertura from './screens/recibos/ReciboAbertura'
@@ -113,6 +114,7 @@ export const router = createBrowserRouter([
 			{ path: 'acompanhamento', element: <Acompanhamento /> },
 			{ path: 'relatorios', element: <Relatorios /> },
 			{ path: 'pagamento/:id', element: <Pagamento /> },
+			{ path: 'pagamento-multiplo', element: <PagamentoMultiplo /> },
 			{ path: 'recibo/lancamento/:id', element: <ReciboLancamento /> },
 			{ path: 'recibo/pagamento/:id', element: <ReciboPagamento /> },
 			{ path: 'recibo/abertura/:id', element: <ReciboAbertura /> },

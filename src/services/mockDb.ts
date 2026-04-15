@@ -75,6 +75,7 @@ export type Lancamento = {
 	tipoParente?: string // pai, mae, avo, ava, tio, tia, outro
 	whatsappResponsavel: string
 	numeroPulseira?: string
+	criancasAdicionaisJson?: string | null
 	tempoSolicitadoMin: number | null // null -> Tempo Livre ou modo quantidade
 	tempoInicialMin?: number | null
 	tempoAdicionalMin?: number | null
