@@ -286,17 +286,7 @@ export default function Acompanhamento() {
 				</>
 			)}
 
-			{filtroStatus === 'encerrados' && lancamentosFiltrados.length === 0 ? (
-				<div className="card acompanhamento-empty-state">
-					<div className="acompanhamento-empty-icon">[ ]</div>
-					<h3>Nenhum encerramento encontrado</h3>
-					<p>
-						Nao ha registros pagos ou cancelados entre {formatarData(`${filtroDataInicio}T00:00:00`)} e {formatarData(`${filtroDataFim}T00:00:00`)}.
-					</p>
-					<p className="subtitle">Ajuste o periodo ou use o filtro de hoje para consultar outro intervalo.</p>
-				</div>
-			) : (
-				{filtroStatus === 'abertos' && selecionados.size >= 2 && (
+			{filtroStatus === 'abertos' && selecionados.size >= 2 && (
 				<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
 					<button
 						className="btn primary icon"
@@ -315,6 +305,17 @@ export default function Acompanhamento() {
 					</span>
 				</div>
 			)}
+
+			{filtroStatus === 'encerrados' && lancamentosFiltrados.length === 0 ? (
+				<div className="card acompanhamento-empty-state">
+					<div className="acompanhamento-empty-icon">[ ]</div>
+					<h3>Nenhum encerramento encontrado</h3>
+					<p>
+						Nao ha registros pagos ou cancelados entre {formatarData(`${filtroDataInicio}T00:00:00`)} e {formatarData(`${filtroDataFim}T00:00:00`)}.
+					</p>
+					<p className="subtitle">Ajuste o periodo ou use o filtro de hoje para consultar outro intervalo.</p>
+				</div>
+			) : (
 			<div className={`card table-wrap ${filtroStatus === 'encerrados' ? 'acompanhamento-table-card' : ''}`}>
 					<table className="table">
 						<thead>
