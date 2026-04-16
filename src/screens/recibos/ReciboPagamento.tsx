@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosService, parametrosService, formasPagamentoService, type Parametros } from '../../services/entitiesService'
 import { PaymentIcon, resolvePaymentKind } from '../../ui/icons'
+import { resolverNomesCriancas } from '../../services/utils'
 import { imprimirRecibo } from '../../utils/printUtils'
 
 export default function ReciboPagamento() {
@@ -83,7 +84,7 @@ export default function ReciboPagamento() {
 			<div>Hora final: {(lanc as { updatedAt?: string }).updatedAt
 				? new Date((lanc as { updatedAt: string }).updatedAt).toLocaleString('pt-BR')
 				: new Date().toLocaleString('pt-BR')}</div>
-			<div>Criança: {lanc.nomeCrianca}</div>
+			<div>Criança: {resolverNomesCriancas(lanc)}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
 			{brinquedoNome && <div>Brinquedo: {brinquedoNome}</div>}
 			{(lanc as { valorDesconto?: number }).valorDesconto != null && (lanc as { valorDesconto: number }).valorDesconto > 0 && (

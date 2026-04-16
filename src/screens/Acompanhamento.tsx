@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { calcularValorExibidoLancamento } from '../services/utils'
+import { calcularValorExibidoLancamento, resolverNomesCriancas } from '../services/utils'
 import { brinquedosService, lancamentosService, parametrosService } from '../services/entitiesService'
 import type { Brinquedo as BrinquedoType, Lancamento, Parametros as ParametrosType } from '../services/entitiesService'
 
@@ -111,18 +111,6 @@ export default function Acompanhamento() {
 	}, [])
 
 	useEffect(() => { setSelecionados(new Set()) }, [filtroStatus])
-
-	function resolverNomesCriancas(l: Lancamento): string {
-		const adicionais = (() => {
-			try {
-				if (!l.criancasAdicionaisJson) return []
-				return JSON.parse(l.criancasAdicionaisJson) as Array<{ nomeCrianca: string }>
-			} catch {
-				return []
-			}
-		})()
-		return [l.nomeCrianca, ...adicionais.map(c => c.nomeCrianca)].filter(Boolean).join(' / ')
-	}
 
 	function minutosDecorridos(iso: string) {
 		const ms = Date.now() - new Date(iso).getTime()

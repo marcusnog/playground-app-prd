@@ -225,5 +225,23 @@ export function calcularValorExibidoLancamento(
 		? decorridoMin
 		: temCiclos ? decorridoMin : Math.min(decorridoMin, lancamento.tempoSolicitadoMin)
 
-	return calcularValor(parametros, minutosParaValor, brinquedo ?? undefined)
+	const numCriancas = (() => {
+		if (!lancamento.criancasAdicionaisJson) return 1
+		try {
+			const adicionais = JSON.parse(lancamento.criancasAdicionaisJson) as unknown[]
+			return 1 + (Array.isArray(adicionais) ? adicionais.length : 0)
+		} catch { return 1 }
+	})()
+
+	return calcularValor(parametros, minutosParaValor, brinquedo ?? undefined) * numCriancas
+}
+
+export function resolverNomesCriancas(lancamento: { nomeCrianca: string; criancasAdicionaisJson?: string | null }): string {
+	const adicionais = (() => {
+		try {
+			if (!lancamento.criancasAdicionaisJson) return []
+			return JSON.parse(lancamento.criancasAdicionaisJson) as Array<{ nomeCrianca: string }>
+		} catch { return [] }
+	})()
+	return [lancamento.nomeCrianca, ...adicionais.map(c => c.nomeCrianca)].filter(Boolean).join(' / ')
 }
