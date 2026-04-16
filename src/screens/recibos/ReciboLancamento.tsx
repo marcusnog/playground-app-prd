@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { lancamentosService, parametrosService } from '../../services/entitiesService'
-import { calcularValorExibidoLancamento, detalharValorCiclos } from '../../services/utils'
+import { calcularValorExibidoLancamento, detalharValorCiclos, resolverNomesCriancas } from '../../services/utils'
 import { imprimirRecibo } from '../../utils/printUtils'
 import type { Brinquedo } from '../../services/mockDb'
 
@@ -64,7 +64,7 @@ export default function ReciboLancamento() {
 			{p.empresaCnpj && <div style={{ textAlign: 'center', marginBottom: 8 }}>CNPJ: {p.empresaCnpj}</div>}
 			<div>Recibo de Lançamento</div>
 			<div>Hora inicial: {new Date(lanc.dataHora).toLocaleString('pt-BR')}</div>
-			<div>Criança: {lanc.nomeCrianca}</div>
+			<div>Criança: {resolverNomesCriancas(lanc)}</div>
 			<div>Responsável: {lanc.nomeResponsavel}</div>
 			{contato && <div>Contato: {contato}</div>}
 			{brinquedoNome && <div>Brinquedo: {brinquedoNome}</div>}

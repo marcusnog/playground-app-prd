@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { lancamentosService, formasPagamentoService, parametrosService, brinquedosService } from '../services/entitiesService'
-import { calcularValorExibidoLancamento } from '../services/utils'
+import { calcularValorExibidoLancamento, resolverNomesCriancas } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
 import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
 
@@ -154,7 +154,7 @@ export default function PagamentoMultiplo() {
 							const valor = calcularValorExibidoLancamento(l, parametros as ParametrosType | null, brinquedo as BrinquedoType | undefined)
 							return (
 								<tr key={l.id}>
-									<td>{l.nomeCrianca}</td>
+									<td>{resolverNomesCriancas(l)}</td>
 									<td>{brinquedo?.nome ?? '-'}</td>
 									<td>R$ {valor.toFixed(2)}</td>
 								</tr>

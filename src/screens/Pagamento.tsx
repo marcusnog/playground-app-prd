@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { lancamentosService, formasPagamentoService, parametrosService, brinquedosService } from '../services/entitiesService'
 import { authService } from '../services/authService'
-import { calcularValorExibidoLancamento, calcularValor, temCiclosCobranca } from '../services/utils'
+import { calcularValorExibidoLancamento, resolverNomesCriancas } from '../services/utils'
 import { PaymentIcon, resolvePaymentKind } from '../ui/icons'
 import type { Lancamento, FormaPagamento, Parametros as ParametrosType, Brinquedo as BrinquedoType } from '../services/entitiesService'
 
@@ -109,32 +109,10 @@ export default function Pagamento() {
 		return formaSelecionada.descricao.toLowerCase().includes('cortesia')
 	}, [formaSelecionada])
 
-	function minutosDecorridos(iso: string) {
-		const ms = Date.now() - new Date(iso).getTime()
-		return Math.max(0, Math.floor(ms / 60000))
-	}
-
 	const valorAtual = useMemo(() => {
-		const lancAtual = lanc
-		if (lancAtual && parametros) {
-			const brinquedoAtual = lancAtual.brinquedoId ? brinquedos.find(b => b.id === lancAtual.brinquedoId) : undefined
-			return calcularValorExibidoLancamento(
-				lancAtual,
-				parametros,
-				brinquedoAtual as BrinquedoType | undefined
-			)
-		}
 		if (!lanc || !parametros) return lanc?.valorCalculado ?? 0
-		if (lanc.status !== 'aberto') return lanc.valorCalculado
-		// Modo quantidade (trenzinho/inflável): valor fixo, não recalcula por tempo
-		if (lanc.quantidade != null) return lanc.valorCalculado
-		const dec = minutosDecorridos(lanc.dataHora)
 		const brinquedo = lanc.brinquedoId ? brinquedos.find(b => b.id === lanc.brinquedoId) : undefined
-		const temCiclos = temCiclosCobranca(brinquedo, parametros)
-		const minutosParaValor = lanc.tempoSolicitadoMin == null
-			? dec
-			: temCiclos ? dec : Math.min(dec, lanc.tempoSolicitadoMin)
-		return calcularValor(parametros as ParametrosType, minutosParaValor, brinquedo as BrinquedoType | undefined)
+		return calcularValorExibidoLancamento(lanc, parametros, brinquedo as BrinquedoType | undefined)
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [lanc, parametros, brinquedos, tick])
 
@@ -319,7 +297,7 @@ export default function Pagamento() {
 			<h2>Pagamento</h2>
 			<div className="card stack">
 				<div className="stack">
-					<div><strong>Criança:</strong> {lanc.nomeCrianca}</div>
+					<div><strong>Criança:</strong> {resolverNomesCriancas(lanc)}</div>
 					<div><strong>Responsável:</strong> {lanc.nomeResponsavel}</div>
 					<div><strong>Status:</strong> {lanc.status.toUpperCase()}</div>
 					<label className="field">
