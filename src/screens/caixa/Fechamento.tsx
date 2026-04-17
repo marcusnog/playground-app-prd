@@ -253,8 +253,12 @@ export default function Fechamento() {
 
 	// Calcular totais
 	const totalVendas = useMemo(() => {
-		return resumo.reduce((sum, [, total]) => sum + total, 0)
-	}, [resumo])
+		if (!selectedCaixa) return 0
+		return lancamentos
+			.filter((l) => l.status === 'pago' && pertenceASessaoAtual(l, l.dataHora))
+			.reduce((sum, l) => sum + (l.valorCalculado || 0), 0)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedCaixa, lancamentos, selectedCaixaSessionId])
 
 	const saldoFinal = (selectedCaixa?.valorInicial || 0) + totalVendas + totalSuprimentos - totalSangrias
 
