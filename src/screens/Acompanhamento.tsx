@@ -4,6 +4,14 @@ import { calcularValorExibidoLancamento, resolverNomesCriancas } from '../servic
 import { brinquedosService, lancamentosService, parametrosService } from '../services/entitiesService'
 import type { Brinquedo as BrinquedoType, Lancamento, Parametros as ParametrosType } from '../services/entitiesService'
 
+function formatarTempo(minutos: number): string {
+	const h = Math.floor(minutos / 60)
+	const m = minutos % 60
+	if (h === 0) return `${m}min`
+	if (m === 0) return `${h}h`
+	return `${h}h ${m}min`
+}
+
 export default function Acompanhamento() {
 	const navigate = useNavigate()
 	const [tick, setTick] = useState(0)
@@ -148,19 +156,6 @@ export default function Acompanhamento() {
 		setNumeroWhatsapp('')
 	}
 
-	async function atualizarHoraMinuto(lancamentoId: string, novaDataHora: Date) {
-		try {
-			await lancamentosService.update(lancamentoId, {
-				dataHora: novaDataHora.toISOString(),
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			} as any)
-			const lancamentosData = await lancamentosService.list()
-			setLancamentos(lancamentosData)
-		} catch (error) {
-			console.error('Erro ao atualizar hora/minuto:', error)
-			alert('Erro ao atualizar hora/minuto. Tente novamente.')
-		}
-	}
 
 	if (loading) {
 		return (
@@ -361,9 +356,6 @@ export default function Acompanhamento() {
 									brinquedo as BrinquedoType | undefined
 								)
 								const alerta = isFinite(restante) && restante <= 5
-								const dataHora = new Date(l.dataHora)
-								const hora = dataHora.getHours().toString().padStart(2, '0')
-								const minuto = dataHora.getMinutes().toString().padStart(2, '0')
 								const updatedAt = (l as { updatedAt?: string }).updatedAt
 								const dataHoraFinal = l.status === 'aberto' ? undefined : updatedAt
 
@@ -396,42 +388,10 @@ export default function Acompanhamento() {
 										<td>{l.nomeResponsavel}</td>
 										<td>{brinquedo?.nome ?? '-'}</td>
 										<td>
-											{filtroStatus === 'abertos' ? (
-												<div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-													<input
-														type="number"
-														min="0"
-														max="23"
-														value={hora}
-														onChange={(e) => {
-															const novaHora = parseInt(e.target.value) || 0
-															const novaDataHora = new Date(l.dataHora)
-															novaDataHora.setHours(Math.max(0, Math.min(23, novaHora)))
-															atualizarHoraMinuto(l.id, novaDataHora)
-														}}
-														style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
-													/>
-													<span>:</span>
-													<input
-														type="number"
-														min="0"
-														max="59"
-														value={minuto}
-														onChange={(e) => {
-															const novoMinuto = parseInt(e.target.value) || 0
-															const novaDataHora = new Date(l.dataHora)
-															novaDataHora.setMinutes(Math.max(0, Math.min(59, novoMinuto)))
-															atualizarHoraMinuto(l.id, novaDataHora)
-														}}
-														style={{ width: 50, padding: '4px 8px', textAlign: 'center' }}
-													/>
-												</div>
-											) : (
-												<div className="acompanhamento-hora">
-													<strong>{formatarHora(l.dataHora)}</strong>
-													<span>{formatarData(l.dataHora)}</span>
-												</div>
-											)}
+											<div className="acompanhamento-hora">
+											<strong>{formatarHora(l.dataHora)}</strong>
+											<span>{formatarData(l.dataHora)}</span>
+										</div>
 										</td>
 										<td>
 											{dataHoraFinal ? (
@@ -446,13 +406,13 @@ export default function Acompanhamento() {
 												(l as { tempoInicialMin?: number | null; tempoAdicionalMin?: number | null }).tempoInicialMin != null &&
 												(l as { tempoAdicionalMin?: number | null }).tempoAdicionalMin != null &&
 												(l as { tempoAdicionalMin: number }).tempoAdicionalMin > 0
-													? `${(l as { tempoInicialMin: number }).tempoInicialMin} min + ${(l as { tempoAdicionalMin: number }).tempoAdicionalMin} min adicional`
+													? `${formatarTempo((l as { tempoInicialMin: number }).tempoInicialMin)} + ${formatarTempo((l as { tempoAdicionalMin: number }).tempoAdicionalMin)} adicional`
 													: undefined
 											}
 										>
 											{filtroStatus === 'abertos'
-												? (isFinite(restante) ? `${dec} min / falta ${restante} min` : `${dec} min (livre)`)
-												: `${dec} min`}
+												? (isFinite(restante) ? `${formatarTempo(dec)} / falta ${formatarTempo(restante)}` : `${formatarTempo(dec)} (livre)`)
+												: formatarTempo(dec)}
 										</td>
 										<td>R$ {valor.toFixed(2)}</td>
 										<td>
