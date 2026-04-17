@@ -101,9 +101,12 @@ export default function ReciboFechamento() {
 			if (l.pagamentosJson) {
 				try {
 					const splits = JSON.parse(l.pagamentosJson) as Array<{ formaPagamentoId: string; descricao: string; valor: number }>
+					const somaSplits = splits.reduce((acc, s) => acc + s.valor, 0)
+					// Escala proporcional: corrige pagamentos em lote onde o pagamentosJson armazena o total do lote em cada lancamento
+					const fator = somaSplits > 0.01 ? l.valorCalculado / somaSplits : 1
 					for (const s of splits) {
 						const desc = s.descricao || formas.find(f => f.id === s.formaPagamentoId)?.descricao || 'Desconhecido'
-						map.set(desc, (map.get(desc) || 0) + s.valor)
+						map.set(desc, (map.get(desc) || 0) + s.valor * fator)
 					}
 					continue
 				} catch { /* fallback abaixo */ }

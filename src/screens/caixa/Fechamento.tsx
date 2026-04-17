@@ -118,10 +118,13 @@ export default function Fechamento() {
 			if (l.pagamentosJson) {
 				try {
 					const splits = JSON.parse(l.pagamentosJson) as Array<{ formaPagamentoId: string; descricao: string; valor: number }>
+					const somaSplits = splits.reduce((acc, s) => acc + s.valor, 0)
+					// Escala proporcional: corrige pagamentos em lote onde o pagamentosJson armazena o total do lote em cada lancamento
+					const fator = somaSplits > 0.01 ? l.valorCalculado / somaSplits : 1
 					for (const s of splits) {
 						const nome = s.descricao || formasPagamento.find(f => f.id === s.formaPagamentoId)?.descricao || 'Desconhecido'
 						const atual = map.get(s.formaPagamentoId) || { nome, total: 0 }
-						map.set(s.formaPagamentoId, { nome: atual.nome, total: atual.total + s.valor })
+						map.set(s.formaPagamentoId, { nome: atual.nome, total: atual.total + s.valor * fator })
 					}
 					continue
 				} catch { /* fallback abaixo */ }
