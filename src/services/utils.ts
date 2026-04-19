@@ -185,23 +185,27 @@ export function calcularValor(param: Parametros, tempoMin: number | null, brinqu
 			return valorInicial
 		}
 
-		const excedente = Math.max(0, tempoMin - Number(inicialMinutos))
+		// Charge N × valorInicial for each complete initial period; cycles only for the partial remainder
+		const inicialMin = Number(inicialMinutos)
+		const fullPeriods = Math.floor(tempoMin / inicialMin)
+		const remainder = tempoMin - fullPeriods * inicialMin
 		const valorCiclo2: number | undefined = typeof brinquedo?.valorCiclo2 === 'number' ? brinquedo.valorCiclo2 : undefined
 		const cicloTier2Minutos: number | undefined = typeof brinquedo?.cicloTier2Minutos === 'number' ? brinquedo.cicloTier2Minutos : undefined
-		const valorExcedente = calcularValorExcedentePorCiclos(excedente, Number(cicloMinutos), cicloToleranciaMinutos, valorCiclo, {
-			inicialMinutos: Number(inicialMinutos),
+		const valorExcedente = calcularValorExcedentePorCiclos(remainder, Number(cicloMinutos), cicloToleranciaMinutos, valorCiclo, {
+			inicialMinutos: inicialMin,
 			cicloTier2Minutos,
 			valorCiclo2,
 		})
-		return Math.round((valorInicial + valorExcedente) * 100) / 100
+		return Math.round((fullPeriods * valorInicial + valorExcedente) * 100) / 100
 	}
 
 	const { valorInicialMinutos, valorInicialReais, valorCicloMinutos, valorCicloReais, cicloToleranciaMinutos: tolParam } = param
 	if (tempoMin <= valorInicialMinutos) return valorInicialReais
-	const excedente = Math.max(0, tempoMin - valorInicialMinutos)
+	const fullPeriods = Math.floor(tempoMin / valorInicialMinutos)
+	const remainder = tempoMin - fullPeriods * valorInicialMinutos
 	const tolerancia = tolParam ?? 0
-	const valorExcedente = calcularValorExcedentePorCiclos(excedente, valorCicloMinutos, tolerancia, valorCicloReais)
-	return Math.round((valorInicialReais + valorExcedente) * 100) / 100
+	const valorExcedente = calcularValorExcedentePorCiclos(remainder, valorCicloMinutos, tolerancia, valorCicloReais)
+	return Math.round((fullPeriods * valorInicialReais + valorExcedente) * 100) / 100
 }
 
 export function calcularValorExibidoLancamento(
