@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { calcularValorExibidoLancamento, resolverNomesCriancas } from '../services/utils'
 import { brinquedosService, lancamentosService, parametrosService } from '../services/entitiesService'
 import type { Brinquedo as BrinquedoType, Lancamento, Parametros as ParametrosType } from '../services/entitiesService'
+import { authService } from '../services/authService'
 
 function formatarTempo(minutos: number): string {
 	const h = Math.floor(minutos / 60)
@@ -24,6 +25,11 @@ export default function Acompanhamento() {
 	const [mostrarMensagemPersonalizada, setMostrarMensagemPersonalizada] = useState(false)
 	const [mensagemPersonalizada, setMensagemPersonalizada] = useState('')
 	const [numeroWhatsapp, setNumeroWhatsapp] = useState<string>('')
+	const [mostrarModalCancelamentoMultiplo, setMostrarModalCancelamentoMultiplo] = useState(false)
+	const [adminApelidoCancelamento, setAdminApelidoCancelamento] = useState('')
+	const [adminSenhaCancelamento, setAdminSenhaCancelamento] = useState('')
+	const [erroCancelamentoMultiplo, setErroCancelamentoMultiplo] = useState('')
+	const [cancelando, setCancelando] = useState(false)
 	const hoje = new Date().toLocaleDateString('sv')
 	const [filtroDataInicio, setFiltroDataInicio] = useState(hoje)
 	const [filtroDataFim, setFiltroDataFim] = useState(hoje)
@@ -157,6 +163,32 @@ export default function Acompanhamento() {
 	}
 
 
+	async function confirmarCancelamentoMultiplo() {
+		if (!adminApelidoCancelamento.trim() || !adminSenhaCancelamento) {
+			setErroCancelamentoMultiplo('Apelido e senha são obrigatórios')
+			return
+		}
+		const ok = await authService.validarDesconto(adminApelidoCancelamento.trim(), adminSenhaCancelamento)
+		if (!ok) {
+			setErroCancelamentoMultiplo('Credenciais inválidas ou usuário sem permissão para autorizar cancelamentos')
+			return
+		}
+		setMostrarModalCancelamentoMultiplo(false)
+		try {
+			setCancelando(true)
+			const ids = [...selecionados]
+			await Promise.all(ids.map(id => lancamentosService.cancelar(id)))
+			setSelecionados(new Set())
+			const lancamentosData = await lancamentosService.list()
+			setLancamentos(lancamentosData)
+		} catch (error) {
+			console.error('Erro ao cancelar lançamentos:', error)
+			alert('Erro ao cancelar. Tente novamente.')
+		} finally {
+			setCancelando(false)
+		}
+	}
+
 	if (loading) {
 		return (
 			<div className="container wide">
@@ -283,7 +315,7 @@ export default function Acompanhamento() {
 			)}
 
 			{filtroStatus === 'abertos' && selecionados.size >= 2 && (
-				<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+				<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
 					<button
 						className="btn primary icon"
 						onClick={() => {
@@ -292,6 +324,18 @@ export default function Acompanhamento() {
 						}}
 					>
 						Pagar {selecionados.size} tickets selecionados
+					</button>
+					<button
+						className="btn danger icon"
+						disabled={cancelando}
+						onClick={() => {
+							setAdminApelidoCancelamento('')
+							setAdminSenhaCancelamento('')
+							setErroCancelamentoMultiplo('')
+							setMostrarModalCancelamentoMultiplo(true)
+						}}
+					>
+						Cancelar {selecionados.size} selecionados
 					</button>
 					<span className="help">
 						Total estimado: R$ {lancamentosFiltrados
@@ -466,6 +510,64 @@ export default function Acompanhamento() {
 							})}
 						</tbody>
 					</table>
+				</div>
+			)}
+
+			{mostrarModalCancelamentoMultiplo && (
+				<div
+					style={{
+						position: 'fixed',
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						background: 'rgba(0, 0, 0, 0.5)',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						zIndex: 1000,
+					}}
+					onClick={() => setMostrarModalCancelamentoMultiplo(false)}
+				>
+					<div className="card" style={{ maxWidth: 420, width: '90%', margin: 20 }} onClick={(e) => e.stopPropagation()}>
+						<h3>Cancelar {selecionados.size} lançamentos</h3>
+						<p className="subtitle" style={{ marginBottom: 16 }}>
+							Esta ação cancelará todos os {selecionados.size} lançamentos selecionados. É necessária autorização de supervisor.
+						</p>
+						<div className="form">
+							<label className="field">
+								<span>Apelido do supervisor</span>
+								<input
+									type="text"
+									className="input"
+									value={adminApelidoCancelamento}
+									onChange={(e) => setAdminApelidoCancelamento(e.target.value)}
+									autoFocus
+								/>
+							</label>
+							<label className="field">
+								<span>Senha</span>
+								<input
+									type="password"
+									className="input"
+									value={adminSenhaCancelamento}
+									onChange={(e) => setAdminSenhaCancelamento(e.target.value)}
+									onKeyDown={(e) => { if (e.key === 'Enter') confirmarCancelamentoMultiplo() }}
+								/>
+							</label>
+							{erroCancelamentoMultiplo && (
+								<div className="help" style={{ color: 'var(--color-danger, #e74c3c)' }}>{erroCancelamentoMultiplo}</div>
+							)}
+							<div className="actions">
+								<button className="btn" onClick={() => setMostrarModalCancelamentoMultiplo(false)}>
+									Voltar
+								</button>
+								<button className="btn danger" onClick={confirmarCancelamentoMultiplo}>
+									Confirmar cancelamento
+								</button>
+							</div>
+						</div>
+					</div>
 				</div>
 			)}
 
