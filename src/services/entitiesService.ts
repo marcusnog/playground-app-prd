@@ -69,6 +69,17 @@ export const caixasService = {
 	getMovimentos: async (id: string): Promise<MovimentoCaixa[]> => {
 		return api.get<MovimentoCaixa[]>(endpoints.caixas.movimentos(id))
 	},
+
+	split: async (id: string, splitDataHora: string): Promise<{
+		aberturaAntigaId: string
+		novaAberturaId: string
+		splitDataHora: string
+		lancamentosMovidos: number
+		estacionamentosMovidos: number
+		movimentosMovidos: number
+	}> => {
+		return api.post(endpoints.caixas.split(id), { splitDataHora })
+	},
 }
 
 // Serviço de Lançamentos

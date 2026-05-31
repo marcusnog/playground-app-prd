@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useCaixa } from '../hooks/useCaixa'
+import { usePermissions } from '../hooks/usePermissions'
 import { caixasService, brinquedosService, type Caixa, type Brinquedo } from '../services/entitiesService'
+
+function getDefaultSplitDataHora(): string {
+	const d = new Date()
+	d.setDate(d.getDate() - 1)
+	d.setHours(23, 59, 0, 0)
+	const pad = (n: number) => String(n).padStart(2, '0')
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export default function Caixas() {
 	const { caixas, loading, refresh } = useCaixa()
+	const { hasPermission } = usePermissions()
 	const [brinquedos, setBrinquedos] = useState<Brinquedo[]>([])
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [saving, setSaving] = useState(false)
@@ -12,6 +22,8 @@ export default function Caixas() {
 		bloqueado: false,
 		brinquedoIds: [] as string[],
 	})
+	const [splitModal, setSplitModal] = useState<{ caixa: Caixa; splitDataHora: string } | null>(null)
+	const [splitting, setSplitting] = useState(false)
 
 	useEffect(() => {
 		brinquedosService.list().then((data) => setBrinquedos(Array.isArray(data) ? data : [])).catch(() => {})
@@ -98,8 +110,31 @@ export default function Caixas() {
 		}
 	}
 
+	async function executarSplit() {
+		if (!splitModal) return
+		const splitIso = new Date(splitModal.splitDataHora).toISOString()
+		try {
+			setSplitting(true)
+			const resultado = await caixasService.split(splitModal.caixa.id, splitIso)
+			await refresh()
+			setSplitModal(null)
+			const partes: string[] = []
+			if (resultado.lancamentosMovidos > 0) partes.push(`${resultado.lancamentosMovidos} lançamento(s)`)
+			if (resultado.estacionamentosMovidos > 0) partes.push(`${resultado.estacionamentosMovidos} estacionamento(s)`)
+			if (resultado.movimentosMovidos > 0) partes.push(`${resultado.movimentosMovidos} movimento(s)`)
+			const movidos = partes.length > 0 ? `\nRegistros movidos para nova sessão: ${partes.join(', ')}.` : '\nNenhum registro movido (todos anteriores ao corte).'
+			alert(`Sessão separada com sucesso!${movidos}`)
+		} catch (error: unknown) {
+			const msg = (error as { message?: string })?.message ?? ''
+			alert(msg || 'Erro ao separar sessão. Tente novamente.')
+		} finally {
+			setSplitting(false)
+		}
+	}
+
 	// Separar caixas abertos e fechados
 	const caixasAbertos = caixas.filter(c => c.status === 'aberto')
+	const podeFechar = hasPermission('caixa', 'fechamento')
 
 	if (loading && caixas.length === 0) {
 		return (
@@ -196,12 +231,59 @@ export default function Caixas() {
 											<div className="row" style={{ gap: 8 }}>
 												<button className="btn" onClick={() => edit(c)} disabled>✏️ Editar</button>
 												<button className="btn" onClick={() => remove(c.id)} disabled>🗑️ Excluir</button>
+												{podeFechar && (
+													<button
+														className="btn"
+														style={{ background: 'rgba(245, 158, 11, 0.15)', borderColor: 'var(--warning, #f59e0b)', color: 'var(--warning, #f59e0b)' }}
+														onClick={() => setSplitModal({ caixa: c, splitDataHora: getDefaultSplitDataHora() })}
+													>
+														✂️ Separar Sessão
+													</button>
+												)}
 											</div>
 										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
+					</div>
+				</div>
+			)}
+
+			{/* Modal Separar Sessão */}
+			{splitModal && (
+				<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+					<div className="card" style={{ width: '100%', maxWidth: 480, margin: 16 }}>
+						<h3>✂️ Separar Sessão do Caixa</h3>
+						<p style={{ color: 'var(--muted)', marginBottom: 16 }}>
+							Caixa: <strong>{splitModal.caixa.nome}</strong>
+						</p>
+						<p style={{ marginBottom: 16, fontSize: '0.9rem' }}>
+							Define o momento de corte. A sessão atual será fechada nesse horário e uma nova sessão será aberta logo em seguida. Lançamentos, estacionamentos e movimentos após o corte serão movidos para a nova sessão.
+						</p>
+						<div className="form">
+							<label className="field">
+								<span>Data e hora do corte *</span>
+								<input
+									className="input"
+									type="datetime-local"
+									value={splitModal.splitDataHora}
+									onChange={(e) => setSplitModal({ ...splitModal, splitDataHora: e.target.value })}
+								/>
+								<span className="help">Padrão: ontem às 23:59. Ajuste conforme necessário.</span>
+							</label>
+							<div className="actions" style={{ marginTop: 16, gap: 8 }}>
+								<button className="btn" onClick={() => setSplitModal(null)} disabled={splitting}>Cancelar</button>
+								<button
+									className="btn primary"
+									onClick={executarSplit}
+									disabled={splitting || !splitModal.splitDataHora}
+									style={{ background: 'var(--warning, #f59e0b)', borderColor: 'var(--warning, #f59e0b)' }}
+								>
+									{splitting ? 'Separando...' : '✂️ Confirmar Separação'}
+								</button>
+							</div>
+						</div>
 					</div>
 				</div>
 			)}
