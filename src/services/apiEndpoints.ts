@@ -33,6 +33,7 @@ const endpoints = {
 		movimentos: (id: string) => `/api/caixas/${id}/movimentos`,
 		sangria: (id: string) => `/api/caixas/${id}/sangria`,
 		suprimento: (id: string) => `/api/caixas/${id}/suprimento`,
+		split: (id: string) => `/api/caixas/${id}/abertura/split`,
 	},
 
 	// Lançamentos
