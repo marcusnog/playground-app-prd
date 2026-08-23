@@ -12,6 +12,7 @@ export default function Lancamento() {
 	const [parametros, setParametros] = useState<ParametrosType | null>(null)
 	const [clientes, setClientes] = useState<Cliente[]>([])
 	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
 
 	useEffect(() => {
 		async function loadData() {
@@ -200,6 +201,7 @@ export default function Lancamento() {
 	}
 
 	async function onSave() {
+		if (saving) return
 		if (!caixaAberto || !caixa) {
 			alert('Não é possível fazer lançamentos com o caixa fechado. Abra o caixa primeiro.')
 			return
@@ -222,6 +224,7 @@ export default function Lancamento() {
 		}
 
 		try {
+			setSaving(true)
 			const payload = isModoQuantidade
 				? {
 					nomeCrianca: 'Quantidade',
@@ -266,6 +269,8 @@ export default function Lancamento() {
 		} catch (error) {
 			console.error('Erro ao salvar lançamento:', error)
 			alert('Erro ao salvar lançamento. Tente novamente.')
+		} finally {
+			setSaving(false)
 		}
 	}
 
@@ -509,9 +514,9 @@ export default function Lancamento() {
 					<button 
 						className="btn primary icon" 
 						onClick={onSave}
-						disabled={!caixaAberto}
+						disabled={!caixaAberto || saving}
 					>
-						{caixaAberto ? '🧾 Salvar e Gerar Cupom' : '❌ Caixa Fechado'}
+						{saving ? 'Salvando...' : caixaAberto ? '🧾 Salvar e Gerar Cupom' : '❌ Caixa Fechado'}
 					</button>
 				</div>
 			</div>
